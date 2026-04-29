@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pete's Quest</title>
+<link rel="apple-touch-icon" sizes="180x180" href="icon-mushroom.png">
+<link rel="icon" href="icon-mushroom.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pete's Quest">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0a1f">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #e8293a;
+    --blue: #1a6fcf;
+    --yellow: #f5c400;
+    --green: #2cb84e;
+    --orange: #f57c20;
+    --purple: #8b34c4;
+    --pink: #e9529e;
+    --sky: #5bd3f5;
+    --dark: #1a1033;
+    --coin: #f5c400;
+    --bg: #0d0a1f;
+    --card: #1e1640;
+    --card2: #261d52;
+    --text: #f0eaff;
+    --muted: #9b90c2;
+    --border: #3a2f6b;
+    --goal: 80;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Nunito', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(139,52,196,0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 30% at 80% 80%, rgba(26,111,207,0.18) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .stars {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .star {
+    position: absolute;
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: white;
+    opacity: 0;
+    animation: twinkle var(--d) var(--delay) infinite;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0; }
+    50% { opacity: var(--op); }
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 16px; }
+
+  /* HEADER */
+  header {
+    text-align: center;
+    padding: 28px 16px 20px;
+  }
+  .game-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(28px, 7vw, 48px);
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--orange) 40%, var(--pink) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    line-height: 1.1;
+    letter-spacing: 1px;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* GOAL BANNER */
+  .goal-banner {
+    background: linear-gradient(135deg, #2a1d50, #1a2f5e);
+    border: 2px solid var(--border);
+    border-radius: 18px;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .goal-banner::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -20px;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, rgba(245,196,0,0.12) 0%, transparent 70%);
+  }
+  .coin-icon { font-size: 40px; flex-shrink: 0; }
+  .goal-info { flex: 1; }
+  .goal-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; }
+  .goal-name { font-family: 'Fredoka One', cursive; font-size: 20px; color: var(--yellow); margin: 2px 0; }
+  .goal-price { font-size: 13px; color: var(--muted); }
+  .progress-area { flex: 1; min-width: 0; }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .progress-label span:first-child { color: var(--sky); }
+  .progress-label span:last-child { color: var(--yellow); }
+  .progress-bar {
+    height: 16px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green), var(--yellow));
+    border-radius: 8px;
+    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+    min-width: 4px;
+  }
+  .weeks-left {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-align: right;
+    font-weight: 600;
+  }
+
+  /* WEEK NAV */
+  .week-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+  }
+  .week-nav button {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .week-nav button:hover { background: #3a2f6b; }
+  .week-title {
+    flex: 1;
+    text-align: center;
+    font-family: 'Fredoka One', cursive;
+    font-size: 18px;
+    color: var(--sky);
+  }
+  .week-earned {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--yellow);
+    white-space: nowrap;
+  }
+
+  /* DAY GRID */
+  .days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .day-pill {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .day-pill:hover { border-color: var(--sky); transform: translateY(-2px); }
+  .day-pill.active { border-color: var(--yellow); background: #261d40; box-shadow: 0 0 0 1px var(--yellow); }
+  .day-pill.today { border-color: var(--sky); }
+  .day-name { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 4px; }
+  .day-coins { font-family: 'Fredoka One', cursive; font-size: 14px; color: var(--yellow); }
+  .day-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin: 4px auto 0;
+  }
+  .day-dot.full { background: var(--green); }
+  .day-dot.partial { background: var(--yellow); }
+  .day-dot.empty { background: rgba(255,255,255,0.12); }
+  .day-dot.future { background: rgba(255,255,255,0.04); }
+
+  /* CHECKLIST */
+  .checklist-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .checklist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: var(--card2);
+    border-bottom: 1px solid var(--border);
+  }
+  .checklist-title { font-family: 'Fredoka One', cursive; font-size: 16px; color: var(--sky); }
+  .checklist-day-label { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .checklist-day-coins { font-family: 'Fredoka One', cursive; font-size: 18px; color: var(--yellow); }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid rgba(58,47,107,0.5);
+    cursor: pointer;
+    transition: background 0.12s;
+    user-select: none;
+  }
+  .task-item:last-child { border-bottom: none; }
+  .task-item:hover { background: rgba(255,255,255,0.04); }
+  .task-item.penalty-mode { cursor: default; }
+
+  .task-check {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    transition: all 0.15s;
+    background: rgba(255,255,255,0.04);
+  }
+  .task-item.done .task-check { background: var(--green); border-color: var(--green); }
+  .task-item.penalized .task-check { background: var(--red); border-color: var(--red); }
+  .task-item.partial .task-check { background: var(--orange); border-color: var(--orange); }
+
+  .task-info { flex: 1; min-width: 0; }
+  .task-name { font-weight: 700; font-size: 14px; line-height: 1.3; }
+  .task-note { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .task-item.done .task-name { text-decoration: line-through; color: var(--muted); }
+
+  .task-coin {
+    font-family: 'Fredoka One', cursive;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .task-coin.earn { color: var(--yellow); }
+  .task-coin.penalty { color: var(--red); }
+  .task-coin.zero { color: var(--muted); }
+
+  /* SCHOOL BEHAVIOR SECTION */
+  .behavior-section {
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(58,47,107,0.5);
+  }
+  .behavior-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+  .behavior-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .beh-btn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    opacity: 0.55;
+  }
+  .beh-btn:hover { opacity: 0.85; transform: scale(1.05); }
+  .beh-btn.selected { opacity: 1; transform: scale(1.07); box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
+  .beh-red { background: rgba(232,41,58,0.2); color: #f77; border-color: rgba(232,41,58,0.4); }
+  .beh-red.selected { background: var(--red); color: white; border-color: var(--red); }
+  .beh-orange { background: rgba(245,124,32,0.2); color: #faa; border-color: rgba(245,124,32,0.4); }
+  .beh-orange.selected { background: var(--orange); color: white; border-color: var(--orange); }
+  .beh-yellow { background: rgba(245,196,0,0.2); color: var(--yellow); border-color: rgba(245,196,0,0.4); }
+  .beh-yellow.selected { background: var(--yellow); color: #1a1033; border-color: var(--yellow); }
+  .beh-green { background: rgba(44,184,78,0.2); color: #6f8; border-color: rgba(44,184,78,0.4); }
+  .beh-green.selected { background: var(--green); color: white; border-color: var(--green); }
+  .beh-blue { background: rgba(26,111,207,0.2); color: #8cf; border-color: rgba(26,111,207,0.4); }
+  .beh-blue.selected { background: var(--blue); color: white; border-color: var(--blue); }
+  .beh-purple { background: rgba(139,52,196,0.2); color: #d9a; border-color: rgba(139,52,196,0.4); }
+  .beh-purple.selected { background: var(--purple); color: white; border-color: var(--purple); }
+  .beh-pink { background: rgba(233,82,158,0.2); color: #f9c; border-color: rgba(233,82,158,0.4); }
+  .beh-pink.selected { background: var(--pink); color: white; border-color: var(--pink); }
+  .beh-otc { background: rgba(91,211,245,0.2); color: var(--sky); border-color: rgba(91,211,245,0.4); }
+  .beh-otc.selected { background: var(--sky); color: #0d0a1f; border-color: var(--sky); }
+  .behavior-result { font-size: 12px; font-weight: 700; margin-top: 8px; min-height: 18px; }
+
+  /* PAYOUT CARD */
+  .payout-card {
+    background: linear-gradient(135deg, #1d2a1a, #1a2630);
+    border: 2px solid rgba(44,184,78,0.4);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .payout-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 16px;
+    color: var(--green);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .payout-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(44,184,78,0.12);
+    font-size: 13px;
+  }
+  .payout-row:last-child { border-bottom: none; }
+  .payout-row span:first-child { color: var(--muted); font-weight: 600; }
+  .payout-row span:last-child { font-weight: 800; }
+  .payout-total { color: var(--green) !important; font-family: 'Fredoka One', cursive; font-size: 20px !important; }
+  .payout-total-label { color: var(--text) !important; font-size: 14px !important; font-weight: 800 !important; }
+
+  /* RULES */
+  .rules-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .rules-title { font-family: 'Fredoka One', cursive; font-size: 16px; color: var(--pink); margin-bottom: 12px; }
+  .rule { display: flex; gap: 10px; margin-bottom: 8px; font-size: 13px; line-height: 1.4; }
+  .rule-icon { flex-shrink: 0; font-size: 16px; }
+  .rule-text { color: var(--muted); }
+  .rule strong { color: var(--text); }
+
+  /* CONFETTI BURST */
+  .confetti-overlay {
+    position: fixed; inset: 0; pointer-events: none; z-index: 100;
+    overflow: hidden;
+    display: none;
+  }
+  .confetti-overlay.show { display: block; }
+  .conf-piece {
+    position: absolute;
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    animation: confetti-fall 1.6s ease-in forwards;
+  }
+  @keyframes confetti-fall {
+    0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--card2);
+    border: 2px solid var(--green);
+    color: var(--text);
+    padding: 12px 24px;
+    border-radius: 14px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 16px;
+    z-index: 200;
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .coins-display {
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+
+  @media (max-width: 480px) {
+    .goal-banner { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .days-grid { grid-template-columns: repeat(7,1fr); gap: 4px; }
+    .day-name { font-size: 8px; }
+    .day-coins { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<div class="confetti-overlay" id="confetti"></div>
+<div class="toast" id="toast"></div>
+
+<div class="wrap">
+
+  <header>
+    <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--muted);font-size:13px;font-weight:700;margin-bottom:12px;opacity:0.7;transition:opacity 0.15s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">← Back</a>
+    <div class="game-title">⭐ Quest for Wonder ⭐</div>
+    <div class="subtitle">Earn your way to Super Mario Wonder</div>
+  </header>
+
+  <!-- GOAL BANNER -->
+  <div class="goal-banner">
+    <div class="coin-icon">🍄</div>
+    <div class="goal-info">
+      <div class="goal-label">The Goal</div>
+      <div class="goal-name">Super Mario Wonder</div>
+      <div class="goal-price">Switch 2 Edition · $80.00</div>
+    </div>
+    <div class="progress-area">
+      <div class="progress-label">
+        <span>💰 <span id="totalEarned">$0.00</span></span>
+        <span>$80.00</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <div class="weeks-left" id="weeksLeft"></div>
+    </div>
+  </div>
+
+  <!-- WEEK NAV -->
+  <div class="week-nav">
+    <button onclick="changeWeek(-1)">◀</button>
+    <div class="week-title" id="weekTitle">Week 1</div>
+    <div class="week-earned">💰 <span id="weekEarned">$0.00</span></div>
+    <button onclick="changeWeek(1)">▶</button>
+  </div>
+
+  <!-- DAY PILLS -->
+  <div class="days-grid" id="daysGrid"></div>
+
+  <!-- DAILY CHECKLIST -->
+  <div class="checklist-card">
+    <div class="checklist-header">
+      <div>
+        <div class="checklist-title">📋 Today's Missions</div>
+        <div class="checklist-day-label" id="checklistDayLabel">Monday</div>
+      </div>
+      <div class="checklist-day-coins">💰 <span id="dayTotal">$0.00</span></div>
+    </div>
+
+    <!-- BEHAVIOR -->
+    <div class="behavior-section">
+      <div class="behavior-label">🏫 School Behavior Color</div>
+      <div class="behavior-row" id="behaviorRow"></div>
+      <div class="behavior-result" id="behaviorResult"></div>
+    </div>
+
+    <!-- TASKS -->
+    <div id="taskList"></div>
+  </div>
+
+  <!-- WEEKLY PAYOUT -->
+  <div class="payout-card">
+    <div class="payout-title">💵 Weekly Payout Summary</div>
+    <div id="payoutRows"></div>
+  </div>
+
+  <!-- RULES -->
+  <div class="rules-card">
+    <div class="rules-title">📜 The Rules</div>
+    <div class="rule"><span class="rule-icon">🟢</span><div class="rule-text"><strong>Green = $0.25</strong> · Yellow = $0.10 · Red/Orange = <span style="color:var(--red)">−$0.25</span></div></div>
+    <div class="rule"><span class="rule-icon">⭐</span><div class="rule-text"><strong>Blue/Purple/Pink/OTC bonuses</strong> add extra coins on top of your Green reward!</div></div>
+    <div class="rule"><span class="rule-icon">🦷</span><div class="rule-text"><strong>Teeth brushing</strong> must be thorough &amp; timed both times — just checking the box doesn't count</div></div>
+    <div class="rule"><span class="rule-icon">🚪</span><div class="rule-text">Room not clean = <strong>no room coin that day</strong> (no penalty — just no earn)</div></div>
+    <div class="rule"><span class="rule-icon">❤️</span><div class="rule-text">Kind words to sister + bedtime hug both needed for that coin</div></div>
+    <div class="rule"><span class="rule-icon">🎒</span><div class="rule-text">School ready means: breakfast eaten, backpack packed, snack &amp; water packed, dressed for weather</div></div>
+    <div class="rule"><span class="rule-icon">🧹</span><div class="rule-text">Put-away means: shoes, coat, backpack, toys, books, papers — <em>all of it</em>, neatly where they belong</div></div>
+    <div class="rule"><span class="rule-icon">💸</span><div class="rule-text"><strong>Perfect day = $1.35.</strong> Payout happens every Saturday. Max $9.45/week if perfect all 7 days.</div></div>
+    <div class="rule"><span class="rule-icon">🍄</span><div class="rule-text">At <strong>$80 saved</strong>, the game is yours. Average: about 8–9 weeks with good behavior!</div></div>
+  </div>
+
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────
+const GOAL = 80;
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAY_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+const BEHAVIOR_COLORS = [
+  { id:'red',    label:'🔴 Red',    cls:'beh-red',    earn: -0.25, penalty: true,  note: '−$0.25 today' },
+  { id:'orange', label:'🟠 Orange', cls:'beh-orange', earn: -0.25, penalty: true,  note: '−$0.25 today' },
+  { id:'yellow', label:'🟡 Yellow', cls:'beh-yellow', earn:  0.10, penalty: false, note: '+$0.10' },
+  { id:'green',  label:'🟢 Green',  cls:'beh-green',  earn:  0.25, penalty: false, note: '+$0.25 ✨' },
+  { id:'blue',   label:'🔵 Blue',   cls:'beh-blue',   earn:  0.40, penalty: false, note: '+$0.40 🌟' },
+  { id:'purple', label:'🟣 Purple', cls:'beh-purple', earn:  0.55, penalty: false, note: '+$0.55 💜' },
+  { id:'pink',   label:'🩷 Pink',   cls:'beh-pink',   earn:  0.65, penalty: false, note: '+$0.65 🩷' },
+  { id:'otc',    label:'⭐ OTC',    cls:'beh-otc',    earn:  0.80, penalty: false, note: '+$0.80 🏆 WOW!' },
+];
+
+// Tasks: type "check" = earn if done / "penalty" = penalize if missed (after first warning)
+const TASKS = [
+  { id:'teeth',   name:'Brush Teeth (Morning)',     note:'Thorough & timed — 2 min minimum', earn: 0.15, type:'check' },
+  { id:'teeth2',  name:'Brush Teeth (Night)',        note:'Thorough & timed — 2 min minimum', earn: 0.15, type:'check' },
+  { id:'ready',   name:'Ready for School',           note:'Breakfast, backpack, snack, water, dressed for weather', earn: 0.20, type:'check' },
+  { id:'room',    name:'Room Clean',                 note:'Floor clear, bed made, things put away', earn: 0.20, type:'check' },
+  { id:'sister',  name:'Kind to Sister + Bedtime Hug', note:'Kind words during the day AND a hug at bedtime', earn: 0.20, type:'check' },
+  { id:'putaway', name:'Put Things Away Neatly',    note:'Shoes, coat, backpack, toys, books, papers — all of it', earn: 0.20, type:'check' },
+];
+// Max per day: behavior (up to 0.80) + tasks (1.10) = up to $1.90
+// Base "good day" (Green + all tasks) = 0.25 + 1.10 = $1.35
+
+// ─── STATE ──────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'mario_allowance_v3';
+let state = load();
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (s && s.weeks) return s;
+  } catch(e) {}
+  return { weeks: {}, currentWeek: 1, startDate: new Date().toISOString().split('T')[0] };
+}
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function getWeekData(w) {
+  if (!state.weeks[w]) state.weeks[w] = {};
+  return state.weeks[w];
+}
+function getDayData(w, d) {
+  const wd = getWeekData(w);
+  if (!wd[d]) wd[d] = { tasks: {}, behavior: null };
+  return wd[d];
+}
+
+// ─── CALCULATIONS ────────────────────────────────────────────────────────
+function calcDay(w, d) {
+  const dd = getDayData(w, d);
+  let total = 0;
+  // Behavior
+  if (dd.behavior) {
+    const b = BEHAVIOR_COLORS.find(x => x.id === dd.behavior);
+    if (b) total += b.earn;
+  }
+  // Tasks
+  TASKS.forEach(t => {
+    if (dd.tasks[t.id] === true) total += t.earn;
+  });
+  return Math.max(0, total);
+}
+function calcWeek(w) {
+  let t = 0;
+  for (let d = 0; d < 7; d++) t += calcDay(w, d);
+  return t;
+}
+function calcAllTime() {
+  let t = 0;
+  Object.keys(state.weeks).forEach(w => t += calcWeek(parseInt(w)));
+  return t;
+}
+
+// ─── CURRENT DAY ─────────────────────────────────────────────────────────
+let selectedDay = new Date().getDay(); // 0=Sun
+
+function todayInWeek() {
+  // Try to figure out which week "today" is
+  return state.currentWeek;
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────
+function fmt(n) {
+  const v = Math.max(0, n);
+  return '$' + v.toFixed(2);
+}
+
+function renderAll() {
+  renderGoal();
+  renderWeekNav();
+  renderDayGrid();
+  renderChecklist();
+  renderPayout();
+}
+
+function renderGoal() {
+  const earned = calcAllTime();
+  document.getElementById('totalEarned').textContent = fmt(earned);
+  const pct = Math.min(100, (earned / GOAL) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  const remaining = Math.max(0, GOAL - earned);
+  if (remaining <= 0) {
+    document.getElementById('weeksLeft').textContent = '🏆 YOU DID IT!';
+  } else {
+    const weeksNeeded = Math.ceil(remaining / 9.45);
+    document.getElementById('weeksLeft').textContent = `~${weeksNeeded} week${weeksNeeded===1?'':'s'} at perfect pace`;
+  }
+}
+
+function renderWeekNav() {
+  document.getElementById('weekTitle').textContent = `Week ${state.currentWeek}`;
+  document.getElementById('weekEarned').textContent = fmt(calcWeek(state.currentWeek));
+}
+
+function renderDayGrid() {
+  const grid = document.getElementById('daysGrid');
+  grid.innerHTML = '';
+  for (let d = 0; d < 7; d++) {
+    const earned = calcDay(state.currentWeek, d);
+    const dd = getDayData(state.currentWeek, d);
+    const hasData = dd.behavior || Object.values(dd.tasks).some(v => v);
+    const pill = document.createElement('div');
+    pill.className = 'day-pill' + (d === selectedDay ? ' active' : '');
+    const dotCls = !hasData ? 'future' : earned >= 1.0 ? 'full' : earned > 0 ? 'partial' : 'empty';
+    pill.innerHTML = `
+      <div class="day-name">${DAYS[d]}</div>
+      <div class="day-coins">${earned > 0 ? fmt(earned) : '—'}</div>
+      <div class="day-dot ${dotCls}"></div>`;
+    pill.onclick = () => { selectedDay = d; renderDayGrid(); renderChecklist(); };
+    grid.appendChild(pill);
+  }
+}
+
+function renderChecklist() {
+  const w = state.currentWeek, d = selectedDay;
+  const dd = getDayData(w, d);
+  document.getElementById('checklistDayLabel').textContent = DAY_FULL[d] + ` — Week ${w}`;
+  document.getElementById('dayTotal').textContent = fmt(calcDay(w, d));
+
+  // Behavior buttons
+  const brow = document.getElementById('behaviorRow');
+  brow.innerHTML = '';
+  BEHAVIOR_COLORS.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = `beh-btn ${b.cls}${dd.behavior === b.id ? ' selected' : ''}`;
+    btn.textContent = b.label;
+    btn.onclick = () => {
+      if (dd.behavior === b.id) { dd.behavior = null; }
+      else { dd.behavior = b.id; }
+      save(); renderAll();
+    };
+    brow.appendChild(btn);
+  });
+  const br = document.getElementById('behaviorResult');
+  if (dd.behavior) {
+    const b = BEHAVIOR_COLORS.find(x => x.id === dd.behavior);
+    br.textContent = b ? `${b.label}: ${b.note}` : '';
+    br.style.color = b?.penalty ? 'var(--red)' : 'var(--green)';
+  } else {
+    br.textContent = 'Tap a color to log today\'s school behavior';
+    br.style.color = 'var(--muted)';
+  }
+
+  // Tasks
+  const list = document.getElementById('taskList');
+  list.innerHTML = '';
+  TASKS.forEach(t => {
+    const done = dd.tasks[t.id] === true;
+    const item = document.createElement('div');
+    item.className = `task-item${done ? ' done' : ''}`;
+    item.innerHTML = `
+      <div class="task-check">${done ? '✓' : ''}</div>
+      <div class="task-info">
+        <div class="task-name">${t.name}</div>
+        <div class="task-note">${t.note}</div>
+      </div>
+      <div class="task-coin earn">🪙 ${fmt(t.earn)}</div>`;
+    item.onclick = () => {
+      dd.tasks[t.id] = !done;
+      if (!done) spawnCoin(item);
+      save(); renderAll();
+    };
+    list.appendChild(item);
+  });
+}
+
+function renderPayout() {
+  const rows = document.getElementById('payoutRows');
+  rows.innerHTML = '';
+  let weekTotal = 0;
+  for (let d = 0; d < 7; d++) {
+    const earned = calcDay(state.currentWeek, d);
+    weekTotal += earned;
+    const row = document.createElement('div');
+    row.className = 'payout-row';
+    const dd = getDayData(state.currentWeek, d);
+    const hasData = dd.behavior || Object.values(dd.tasks).some(v => v);
+    row.innerHTML = `<span>${DAY_FULL[d]}</span><span style="color:${earned>0?'var(--yellow)':'var(--muted)'}">${hasData ? fmt(earned) : '—'}</span>`;
+    rows.appendChild(row);
+  }
+  const totRow = document.createElement('div');
+  totRow.className = 'payout-row';
+  totRow.innerHTML = `<span class="payout-total-label">📦 Week ${state.currentWeek} Total</span><span class="payout-total">${fmt(weekTotal)}</span>`;
+  rows.appendChild(totRow);
+
+  const allTime = calcAllTime();
+  const grandRow = document.createElement('div');
+  grandRow.className = 'payout-row';
+  grandRow.innerHTML = `<span class="payout-total-label">🏦 Total Saved</span><span class="payout-total">${fmt(allTime)} / $80.00</span>`;
+  rows.appendChild(grandRow);
+}
+
+// ─── WEEK NAV ─────────────────────────────────────────────────────────────
+function changeWeek(dir) {
+  state.currentWeek = Math.max(1, state.currentWeek + dir);
+  save(); renderAll();
+}
+
+// ─── COIN BURST ───────────────────────────────────────────────────────────
+function spawnCoin(el) {
+  const rect = el.getBoundingClientRect();
+  for (let i = 0; i < 6; i++) {
+    const c = document.createElement('div');
+    c.textContent = '🪙';
+    c.style.cssText = `position:fixed;font-size:18px;left:${rect.left+rect.width/2}px;top:${rect.top}px;animation:confetti-fall 0.9s ${i*0.08}s ease-in forwards;transform-origin:center;z-index:99;pointer-events:none;`;
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 1200);
+  }
+}
+
+// ─── STARS ────────────────────────────────────────────────────────────────
+function buildStars() {
+  const s = document.getElementById('stars');
+  for (let i = 0; i < 70; i++) {
+    const d = document.createElement('div');
+    d.className = 'star';
+    d.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--delay:${Math.random()*5}s;--op:${0.3+Math.random()*0.7}`;
+    s.appendChild(d);
+  }
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────
+buildStars();
+renderAll();
+</script>
+</body>
+</html>

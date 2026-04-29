@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Private family app — lock this down once you add Firebase Auth
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hickman Kids Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Playfair+Display:wght@700;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0a1f;
+    --card: #1e1640;
+    --border: #3a2f6b;
+    --text: #f0eaff;
+    --muted: #9b90c2;
+    --yellow: #f5c400;
+    --green: #2cb84e;
+    --rose: #e8547a;
+    --gold: #e8c14a;
+    --peach: #f4a7b9;
+    --lilac: #c9a8e0;
+    --sky: #5bd3f5;
+    --orange: #f57c20;
+    --pink: #e9529e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Nunito', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    padding: 24px 16px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(139,52,196,0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 30% at 80% 80%, rgba(232,84,122,0.15) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .star {
+    position: absolute;
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: white;
+    opacity: 0;
+    animation: twinkle var(--d) var(--delay) infinite;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0; }
+    50% { opacity: var(--op); }
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 520px;
+    width: 100%;
+    text-align: center;
+  }
+
+  header { margin-bottom: 40px; }
+
+  .main-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(32px, 9vw, 56px);
+    background: linear-gradient(135deg, var(--yellow) 0%, var(--orange) 40%, var(--pink) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+    letter-spacing: 1px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 8px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .kid-card {
+    display: block;
+    text-decoration: none;
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 24px;
+    padding: 32px 20px;
+    transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kid-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+    border-radius: 22px;
+  }
+
+  .kid-card:hover { transform: translateY(-6px); }
+  .kid-card:hover::before { opacity: 1; }
+
+  .pete-card { border-color: rgba(91,211,245,0.4); }
+  .pete-card::before { background: radial-gradient(ellipse at top, rgba(91,211,245,0.08) 0%, transparent 70%); }
+  .pete-card:hover { border-color: var(--sky); box-shadow: 0 8px 32px rgba(91,211,245,0.2); }
+
+  .arbor-card { border-color: rgba(232,84,122,0.4); }
+  .arbor-card::before { background: radial-gradient(ellipse at top, rgba(232,84,122,0.08) 0%, transparent 70%); }
+  .arbor-card:hover { border-color: var(--rose); box-shadow: 0 8px 32px rgba(232,84,122,0.2); }
+
+  .kid-emoji {
+    font-size: 52px;
+    display: block;
+    margin-bottom: 12px;
+    animation: bob 3s ease-in-out infinite;
+  }
+
+  .pete-card .kid-emoji { animation-delay: 0s; }
+  .arbor-card .kid-emoji { animation-delay: 1.5s; }
+
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .kid-name {
+    font-family: 'Fredoka One', cursive;
+    font-size: 28px;
+    margin-bottom: 6px;
+  }
+
+  .pete-card .kid-name { color: var(--sky); }
+  .arbor-card .kid-name {
+    font-family: 'Playfair Display', serif;
+    color: var(--gold);
+  }
+
+  .kid-desc {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .arrow {
+    display: inline-block;
+    margin-top: 16px;
+    font-size: 18px;
+    opacity: 0.4;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .kid-card:hover .arrow { opacity: 1; transform: translateX(4px); }
+
+  @media (max-width: 420px) {
+    .cards { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<div class="wrap">
+  <header>
+    <div class="main-title">Hickman Kids</div>
+    <div class="subtitle">Choose your tracker</div>
+  </header>
+
+  <div class="cards">
+    <a class="kid-card pete-card" href="pete.html">
+      <span class="kid-emoji">⭐</span>
+      <div class="kid-name">Pete</div>
+      <div class="kid-desc">Quest for Wonder<br>Mario allowance tracker</div>
+      <div class="arrow">→</div>
+    </a>
+    <a class="kid-card arbor-card" href="arbor.html">
+      <span class="kid-emoji">👑</span>
+      <div class="kid-name">Arbor</div>
+      <div class="kid-desc">Royal Savings Jar<br>Princess treasure tracker</div>
+      <div class="arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<script>
+function buildStars() {
+  const s = document.getElementById('stars');
+  for (let i = 0; i < 70; i++) {
+    const d = document.createElement('div');
+    d.className = 'star';
+    d.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--delay:${Math.random()*5}s;--op:${0.3+Math.random()*0.7}`;
+    s.appendChild(d);
+  }
+}
+buildStars();
+</script>
+</body>
+</html>

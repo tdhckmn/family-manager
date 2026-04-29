@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arbor's Princess Savings</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --rose:     #e8547a;
+    --peach:    #f4a7b9;
+    --blush:    #fce4ec;
+    --gold:     #e8c14a;
+    --cream:    #fff8f0;
+    --lilac:    #c9a8e0;
+    --mint:     #7dd4b0;
+    --sky:      #a8d8f0;
+    --dark:     #2d1a2e;
+    --bg:       #1a0d1e;
+    --card:     #2a1530;
+    --card2:    #351a3d;
+    --text:     #fce8f5;
+    --muted:    #c4a0c8;
+    --border:   #5a3060;
+    --green:    #5dc48a;
+    --red:      #e85470;
+    --orange:   #f0855a;
+    --yellow:   #f0c94a;
+    --blue:     #6aaee8;
+    --purple:   #b07ad8;
+    --pink:     #e87ab8;
+    --otc:      #f4d0f8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Nunito', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 10% 0%, rgba(232,84,122,0.2) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 90%, rgba(201,168,224,0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 50% 50%, rgba(244,167,185,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Floating petals */
+  .petals { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .petal {
+    position: absolute;
+    font-size: var(--fs);
+    opacity: 0;
+    animation: petal-fall var(--d) var(--delay) infinite ease-in;
+    top: -40px;
+  }
+  @keyframes petal-fall {
+    0%   { opacity: 0; transform: translateY(0) rotate(0deg) translateX(0); }
+    10%  { opacity: 0.7; }
+    90%  { opacity: 0.4; }
+    100% { opacity: 0; transform: translateY(110vh) rotate(360deg) translateX(var(--drift)); }
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 16px; }
+
+  /* HEADER */
+  header { text-align: center; padding: 28px 16px 20px; }
+  .crown { font-size: 48px; display: block; margin-bottom: 4px; animation: crown-bob 3s ease-in-out infinite; }
+  @keyframes crown-bob {
+    0%,100% { transform: translateY(0) rotate(-3deg); }
+    50%      { transform: translateY(-8px) rotate(3deg); }
+  }
+  .game-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(26px, 7vw, 46px);
+    background: linear-gradient(135deg, var(--gold) 0%, var(--peach) 40%, var(--lilac) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.15;
+    letter-spacing: 1px;
+  }
+  .subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* JAR GOAL BANNER */
+  .goal-banner {
+    background: linear-gradient(135deg, #2e1535, #1e1030);
+    border: 2px solid rgba(232,84,122,0.4);
+    border-radius: 22px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .goal-banner::after {
+    content: '👑';
+    position: absolute;
+    right: 16px; top: -4px;
+    font-size: 52px;
+    opacity: 0.12;
+    transform: rotate(15deg);
+  }
+  .jar-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .jar-icon { font-size: 44px; flex-shrink: 0; }
+  .jar-info { flex: 1; }
+  .jar-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-weight: 700; }
+  .jar-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: var(--gold);
+    margin: 2px 0;
+  }
+  .jar-total { font-size: 13px; color: var(--muted); font-weight: 600; }
+
+  /* Goal setter */
+  .goal-setter {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .goal-setter label { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  .goal-input {
+    background: rgba(255,255,255,0.07);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 6px 10px;
+    width: 130px;
+  }
+  .goal-input:focus { outline: none; border-color: var(--peach); }
+  .goal-btn {
+    background: linear-gradient(135deg, var(--rose), var(--lilac));
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .goal-btn:hover { opacity: 0.85; }
+
+  /* Savings jar visual */
+  .jar-visual {
+    position: relative;
+    height: 20px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1.5px solid rgba(232,84,122,0.3);
+  }
+  .jar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--rose), var(--gold));
+    border-radius: 10px;
+    transition: width 0.7s cubic-bezier(0.34,1.56,0.64,1);
+    min-width: 4px;
+  }
+  .jar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+    margin-top: 5px;
+  }
+  .jar-labels span:first-child { color: var(--peach); }
+  .jar-labels span:last-child { color: var(--muted); }
+
+  /* WEEK NAV */
+  .week-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+  }
+  .week-nav button {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .week-nav button:hover { background: #5a3060; }
+  .week-title {
+    flex: 1;
+    text-align: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--peach);
+  }
+  .week-earned { font-size: 13px; font-weight: 800; color: var(--gold); white-space: nowrap; }
+
+  /* DAY GRID */
+  .days-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .day-pill {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 8px 4px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .day-pill:hover { border-color: var(--peach); transform: translateY(-2px); }
+  .day-pill.active { border-color: var(--gold); background: var(--card2); box-shadow: 0 0 0 1px var(--gold); }
+  .day-name { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 4px; }
+  .day-coins { font-family: 'Playfair Display', serif; font-size: 13px; color: var(--gold); }
+  .day-dot { width: 8px; height: 8px; border-radius: 50%; margin: 4px auto 0; }
+  .day-dot.full    { background: var(--green); }
+  .day-dot.partial { background: var(--yellow); }
+  .day-dot.empty   { background: rgba(255,255,255,0.12); }
+  .day-dot.future  { background: rgba(255,255,255,0.04); }
+
+  /* CHECKLIST */
+  .checklist-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .checklist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: var(--card2);
+    border-bottom: 1px solid var(--border);
+  }
+  .checklist-title { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--peach); }
+  .checklist-day-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 2px; }
+  .checklist-day-coins { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--gold); }
+
+  .behavior-section {
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(90,48,96,0.5);
+  }
+  .behavior-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+  .behavior-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .beh-btn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    opacity: 0.55;
+  }
+  .beh-btn:hover { opacity: 0.85; transform: scale(1.05); }
+  .beh-btn.selected { opacity: 1; transform: scale(1.07); box-shadow: 0 2px 12px rgba(0,0,0,0.4); }
+  .beh-red    { background: rgba(232,84,112,0.2); color: #f99; border-color: rgba(232,84,112,0.4); }
+  .beh-red.selected    { background: var(--red); color: white; border-color: var(--red); }
+  .beh-orange { background: rgba(240,133,90,0.2); color: #fbb; border-color: rgba(240,133,90,0.4); }
+  .beh-orange.selected { background: var(--orange); color: white; border-color: var(--orange); }
+  .beh-yellow { background: rgba(240,201,74,0.2); color: var(--yellow); border-color: rgba(240,201,74,0.4); }
+  .beh-yellow.selected { background: var(--yellow); color: #1a0d1e; border-color: var(--yellow); }
+  .beh-green  { background: rgba(93,196,138,0.2); color: #9fe; border-color: rgba(93,196,138,0.4); }
+  .beh-green.selected  { background: var(--green); color: white; border-color: var(--green); }
+  .beh-blue   { background: rgba(106,174,232,0.2); color: #adf; border-color: rgba(106,174,232,0.4); }
+  .beh-blue.selected   { background: var(--blue); color: white; border-color: var(--blue); }
+  .beh-purple { background: rgba(176,122,216,0.2); color: #daf; border-color: rgba(176,122,216,0.4); }
+  .beh-purple.selected { background: var(--purple); color: white; border-color: var(--purple); }
+  .beh-pink   { background: rgba(232,122,184,0.2); color: #fce; border-color: rgba(232,122,184,0.4); }
+  .beh-pink.selected   { background: var(--pink); color: white; border-color: var(--pink); }
+  .beh-otc    { background: rgba(244,208,248,0.15); color: var(--otc); border-color: rgba(244,208,248,0.3); }
+  .beh-otc.selected    { background: var(--otc); color: #2d1a2e; border-color: var(--otc); }
+  .behavior-result { font-size: 12px; font-weight: 700; margin-top: 8px; min-height: 18px; }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 18px;
+    border-bottom: 1px solid rgba(90,48,96,0.4);
+    cursor: pointer;
+    transition: background 0.12s;
+    user-select: none;
+  }
+  .task-item:last-child { border-bottom: none; }
+  .task-item:hover { background: rgba(255,255,255,0.03); }
+  .task-check {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    transition: all 0.2s;
+    background: rgba(255,255,255,0.04);
+  }
+  .task-item.done .task-check { background: var(--rose); border-color: var(--rose); }
+  .task-info { flex: 1; min-width: 0; }
+  .task-name { font-weight: 700; font-size: 14px; line-height: 1.3; }
+  .task-note { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .task-item.done .task-name { text-decoration: line-through; color: var(--muted); }
+  .task-coin {
+    font-family: 'Playfair Display', serif;
+    font-size: 14px;
+    color: var(--gold);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* PAYOUT */
+  .payout-card {
+    background: linear-gradient(135deg, #2a1830, #1e1428);
+    border: 2px solid rgba(232,84,122,0.3);
+    border-radius: 22px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .payout-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    color: var(--peach);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .payout-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(232,84,122,0.1);
+    font-size: 13px;
+  }
+  .payout-row:last-child { border-bottom: none; }
+  .payout-row span:first-child { color: var(--muted); font-weight: 600; }
+  .payout-row span:last-child { font-weight: 800; }
+  .payout-total { color: var(--gold) !important; font-family: 'Playfair Display', serif; font-size: 20px !important; }
+  .payout-total-label { color: var(--text) !important; font-size: 14px !important; font-weight: 800 !important; }
+
+  /* RULES */
+  .rules-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .rules-title { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--lilac); margin-bottom: 12px; }
+  .rule { display: flex; gap: 10px; margin-bottom: 8px; font-size: 13px; line-height: 1.4; }
+  .rule-icon { flex-shrink: 0; font-size: 16px; }
+  .rule-text { color: var(--muted); }
+  .rule strong { color: var(--text); }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--card2);
+    border: 2px solid var(--rose);
+    color: var(--text);
+    padding: 12px 24px;
+    border-radius: 14px;
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    z-index: 200;
+    transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 480px) {
+    .days-grid { gap: 4px; }
+    .day-name { font-size: 8px; }
+    .day-coins { font-size: 11px; }
+    .goal-setter { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="petals" id="petals"></div>
+<div class="toast" id="toast"></div>
+
+<div class="wrap">
+
+  <header>
+    <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--muted);font-size:13px;font-weight:700;margin-bottom:12px;opacity:0.7;transition:opacity 0.15s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">← Back</a>
+    <span class="crown">👑</span>
+    <div class="game-title">Arbor's Royal Savings</div>
+    <div class="subtitle">Princess Peach's Treasure Jar</div>
+  </header>
+
+  <!-- JAR GOAL BANNER -->
+  <div class="goal-banner">
+    <div class="jar-row">
+      <div class="jar-icon">🫙</div>
+      <div class="jar-info">
+        <div class="jar-label">Saving For</div>
+        <div class="jar-name" id="goalName">Something Special ✨</div>
+        <div class="jar-total">Total saved: <strong id="totalEarned" style="color:var(--gold)">$0.00</strong></div>
+      </div>
+    </div>
+    <div class="goal-setter">
+      <label>🎯 Set a goal:</label>
+      <input class="goal-input" id="goalInput" type="text" placeholder="e.g. Barbie Dreamhouse" maxlength="40">
+      <input class="goal-input" id="goalAmt" type="number" placeholder="$ amount" min="1" max="500" style="width:110px">
+      <button class="goal-btn" onclick="setGoal()">Set Goal 💖</button>
+    </div>
+    <div class="jar-visual">
+      <div class="jar-fill" id="jarFill" style="width:0%"></div>
+    </div>
+    <div class="jar-labels">
+      <span id="jarPct">0% full</span>
+      <span id="jarGoalLabel">No goal set yet</span>
+    </div>
+  </div>
+
+  <!-- WEEK NAV -->
+  <div class="week-nav">
+    <button onclick="changeWeek(-1)">◀</button>
+    <div class="week-title" id="weekTitle">Week 1</div>
+    <div class="week-earned">💰 <span id="weekEarned">$0.00</span></div>
+    <button onclick="changeWeek(1)">▶</button>
+  </div>
+
+  <!-- DAY GRID -->
+  <div class="days-grid" id="daysGrid"></div>
+
+  <!-- CHECKLIST -->
+  <div class="checklist-card">
+    <div class="checklist-header">
+      <div>
+        <div class="checklist-title">🌸 Today's Quests</div>
+        <div class="checklist-day-label" id="checklistDayLabel">Monday</div>
+      </div>
+      <div class="checklist-day-coins">💰 <span id="dayTotal">$0.00</span></div>
+    </div>
+
+    <div class="behavior-section">
+      <div class="behavior-label">🏫 School Behavior Color</div>
+      <div class="behavior-row" id="behaviorRow"></div>
+      <div class="behavior-result" id="behaviorResult"></div>
+    </div>
+
+    <div id="taskList"></div>
+  </div>
+
+  <!-- PAYOUT -->
+  <div class="payout-card">
+    <div class="payout-title">💵 Weekly Payout Summary</div>
+    <div id="payoutRows"></div>
+  </div>
+
+  <!-- RULES -->
+  <div class="rules-card">
+    <div class="rules-title">📜 Arbor's Royal Rules</div>
+    <div class="rule"><span class="rule-icon">🟢</span><div class="rule-text"><strong>Green = $0.25</strong> · Yellow = $0.10 · Red/Orange = <span style="color:var(--red)">−$0.25</span></div></div>
+    <div class="rule"><span class="rule-icon">👑</span><div class="rule-text"><strong>Blue through OTC</strong> earn bigger bonuses — keep being amazing!</div></div>
+    <div class="rule"><span class="rule-icon">🦷</span><div class="rule-text"><strong>Brush both times</strong> — morning and night, nice and thorough</div></div>
+    <div class="rule"><span class="rule-icon">🛏️</span><div class="rule-text">Room tidy = coins. Not tidy = no coins that day (no penalty, just no earn)</div></div>
+    <div class="rule"><span class="rule-icon">💛</span><div class="rule-text">Kind words to Pete <strong>and</strong> a bedtime hug = both needed for that coin</div></div>
+    <div class="rule"><span class="rule-icon">🎒</span><div class="rule-text">Ready for school means: breakfast, backpack, snack, water, dressed for the weather</div></div>
+    <div class="rule"><span class="rule-icon">🧹</span><div class="rule-text">Put-away means shoes, coat, backpack, toys, books — <em>all neatly where they go</em></div></div>
+    <div class="rule"><span class="rule-icon">🫙</span><div class="rule-text">Coins go straight in the jar. When the jar hits your goal — you earn it!</div></div>
+  </div>
+
+</div>
+
+<script>
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAY_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+const BEHAVIOR_COLORS = [
+  { id:'red',    label:'🔴 Red',    cls:'beh-red',    earn: -0.25, penalty: true,  note: '−$0.25 today' },
+  { id:'orange', label:'🟠 Orange', cls:'beh-orange', earn: -0.25, penalty: true,  note: '−$0.25 today' },
+  { id:'yellow', label:'🟡 Yellow', cls:'beh-yellow', earn:  0.10, penalty: false, note: '+$0.10' },
+  { id:'green',  label:'🟢 Green',  cls:'beh-green',  earn:  0.25, penalty: false, note: '+$0.25 ✨' },
+  { id:'blue',   label:'🔵 Blue',   cls:'beh-blue',   earn:  0.40, penalty: false, note: '+$0.40 🌟' },
+  { id:'purple', label:'🟣 Purple', cls:'beh-purple', earn:  0.55, penalty: false, note: '+$0.55 💜' },
+  { id:'pink',   label:'🩷 Pink',   cls:'beh-pink',   earn:  0.65, penalty: false, note: '+$0.65 🩷' },
+  { id:'otc',    label:'⭐ OTC',    cls:'beh-otc',    earn:  0.80, penalty: false, note: '+$0.80 👑 AMAZING!' },
+];
+
+const TASKS = [
+  { id:'teeth',   name:'Brush Teeth (Morning)',        note:'Nice and thorough — 2 min!',                         earn: 0.15 },
+  { id:'teeth2',  name:'Brush Teeth (Night)',           note:'Nice and thorough — 2 min!',                         earn: 0.15 },
+  { id:'ready',   name:'Ready for School',              note:'Breakfast, backpack, snack, water, dressed for weather', earn: 0.20 },
+  { id:'room',    name:'Room Tidy',                     note:'Floor clear, toys away, bed made',                   earn: 0.20 },
+  { id:'brother', name:'Kind to Pete + Bedtime Hug',   note:'Kind words during the day and a hug at bedtime',     earn: 0.20 },
+  { id:'putaway', name:'Put Things Away Neatly',        note:'Shoes, coat, backpack, toys, books — all where they belong', earn: 0.20 },
+];
+
+const STORAGE_KEY = 'arbor_allowance_v1';
+let state = load();
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (s && s.weeks) return s;
+  } catch(e) {}
+  return { weeks: {}, currentWeek: 1, goalName: '', goalAmt: 0 };
+}
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function getWeekData(w) {
+  if (!state.weeks[w]) state.weeks[w] = {};
+  return state.weeks[w];
+}
+function getDayData(w, d) {
+  const wd = getWeekData(w);
+  if (!wd[d]) wd[d] = { tasks: {}, behavior: null };
+  return wd[d];
+}
+
+function calcDay(w, d) {
+  const dd = getDayData(w, d);
+  let total = 0;
+  if (dd.behavior) {
+    const b = BEHAVIOR_COLORS.find(x => x.id === dd.behavior);
+    if (b) total += b.earn;
+  }
+  TASKS.forEach(t => { if (dd.tasks[t.id]) total += t.earn; });
+  return Math.max(0, total);
+}
+function calcWeek(w) {
+  let t = 0;
+  for (let d = 0; d < 7; d++) t += calcDay(w, d);
+  return t;
+}
+function calcAllTime() {
+  let t = 0;
+  Object.keys(state.weeks).forEach(w => t += calcWeek(parseInt(w)));
+  return t;
+}
+
+let selectedDay = new Date().getDay();
+
+function fmt(n) { return '$' + Math.max(0, n).toFixed(2); }
+
+function setGoal() {
+  const name = document.getElementById('goalInput').value.trim();
+  const amt  = parseFloat(document.getElementById('goalAmt').value);
+  if (name) state.goalName = name;
+  if (!isNaN(amt) && amt > 0) state.goalAmt = amt;
+  save();
+  renderAll();
+  showToast('Goal set! 👑 You\'ve got this, Arbor!');
+}
+
+function renderAll() {
+  renderGoal();
+  renderWeekNav();
+  renderDayGrid();
+  renderChecklist();
+  renderPayout();
+}
+
+function renderGoal() {
+  const earned = calcAllTime();
+  document.getElementById('totalEarned').textContent = fmt(earned);
+  document.getElementById('goalName').textContent = state.goalName || 'Something Special ✨';
+  if (state.goalInput) document.getElementById('goalInput').value = state.goalName;
+
+  const goal = state.goalAmt || 0;
+  const pct  = goal > 0 ? Math.min(100, (earned / goal) * 100) : 0;
+  document.getElementById('jarFill').style.width = pct + '%';
+  document.getElementById('jarPct').textContent = goal > 0 ? Math.round(pct) + '% full' : 'Set a goal to track!';
+  document.getElementById('jarGoalLabel').textContent = goal > 0 ? `Goal: ${fmt(goal)}` : '';
+}
+
+function renderWeekNav() {
+  document.getElementById('weekTitle').textContent = `Week ${state.currentWeek}`;
+  document.getElementById('weekEarned').textContent = fmt(calcWeek(state.currentWeek));
+}
+
+function renderDayGrid() {
+  const grid = document.getElementById('daysGrid');
+  grid.innerHTML = '';
+  for (let d = 0; d < 7; d++) {
+    const earned = calcDay(state.currentWeek, d);
+    const dd = getDayData(state.currentWeek, d);
+    const hasData = dd.behavior || Object.values(dd.tasks).some(v => v);
+    const pill = document.createElement('div');
+    pill.className = 'day-pill' + (d === selectedDay ? ' active' : '');
+    const dotCls = !hasData ? 'future' : earned >= 1.0 ? 'full' : earned > 0 ? 'partial' : 'empty';
+    pill.innerHTML = `
+      <div class="day-name">${DAYS[d]}</div>
+      <div class="day-coins">${earned > 0 ? fmt(earned) : '—'}</div>
+      <div class="day-dot ${dotCls}"></div>`;
+    pill.onclick = () => { selectedDay = d; renderDayGrid(); renderChecklist(); };
+    grid.appendChild(pill);
+  }
+}
+
+function renderChecklist() {
+  const w = state.currentWeek, d = selectedDay;
+  const dd = getDayData(w, d);
+  document.getElementById('checklistDayLabel').textContent = DAY_FULL[d] + ` — Week ${w}`;
+  document.getElementById('dayTotal').textContent = fmt(calcDay(w, d));
+
+  const brow = document.getElementById('behaviorRow');
+  brow.innerHTML = '';
+  BEHAVIOR_COLORS.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = `beh-btn ${b.cls}${dd.behavior === b.id ? ' selected' : ''}`;
+    btn.textContent = b.label;
+    btn.onclick = () => {
+      dd.behavior = dd.behavior === b.id ? null : b.id;
+      save(); renderAll();
+    };
+    brow.appendChild(btn);
+  });
+  const br = document.getElementById('behaviorResult');
+  if (dd.behavior) {
+    const b = BEHAVIOR_COLORS.find(x => x.id === dd.behavior);
+    br.textContent = b ? `${b.label}: ${b.note}` : '';
+    br.style.color = b?.penalty ? 'var(--red)' : 'var(--green)';
+  } else {
+    br.textContent = 'Tap a color to log school behavior';
+    br.style.color = 'var(--muted)';
+  }
+
+  const list = document.getElementById('taskList');
+  list.innerHTML = '';
+  TASKS.forEach(t => {
+    const done = !!dd.tasks[t.id];
+    const item = document.createElement('div');
+    item.className = `task-item${done ? ' done' : ''}`;
+    item.innerHTML = `
+      <div class="task-check">${done ? '♥' : ''}</div>
+      <div class="task-info">
+        <div class="task-name">${t.name}</div>
+        <div class="task-note">${t.note}</div>
+      </div>
+      <div class="task-coin">🌸 ${fmt(t.earn)}</div>`;
+    item.onclick = () => {
+      dd.tasks[t.id] = !done;
+      if (!done) spawnPetal(item);
+      save(); renderAll();
+    };
+    list.appendChild(item);
+  });
+}
+
+function renderPayout() {
+  const rows = document.getElementById('payoutRows');
+  rows.innerHTML = '';
+  let weekTotal = 0;
+  for (let d = 0; d < 7; d++) {
+    const earned = calcDay(state.currentWeek, d);
+    weekTotal += earned;
+    const dd = getDayData(state.currentWeek, d);
+    const hasData = dd.behavior || Object.values(dd.tasks).some(v => v);
+    const row = document.createElement('div');
+    row.className = 'payout-row';
+    row.innerHTML = `<span>${DAY_FULL[d]}</span><span style="color:${earned>0?'var(--gold)':'var(--muted)'}">${hasData ? fmt(earned) : '—'}</span>`;
+    rows.appendChild(row);
+  }
+  const totRow = document.createElement('div');
+  totRow.className = 'payout-row';
+  totRow.innerHTML = `<span class="payout-total-label">📦 Week ${state.currentWeek} Total</span><span class="payout-total">${fmt(weekTotal)}</span>`;
+  rows.appendChild(totRow);
+
+  const allTime = calcAllTime();
+  const grandRow = document.createElement('div');
+  grandRow.className = 'payout-row';
+  grandRow.innerHTML = `<span class="payout-total-label">🫙 Total in the Jar</span><span class="payout-total">${fmt(allTime)}</span>`;
+  rows.appendChild(grandRow);
+}
+
+function changeWeek(dir) {
+  state.currentWeek = Math.max(1, state.currentWeek + dir);
+  save(); renderAll();
+}
+
+function spawnPetal(el) {
+  const rect = el.getBoundingClientRect();
+  const emojis = ['🌸','💖','✨','🌺','💕'];
+  for (let i = 0; i < 6; i++) {
+    const c = document.createElement('div');
+    c.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    c.style.cssText = `position:fixed;font-size:18px;left:${rect.left+rect.width/2}px;top:${rect.top}px;animation:petal-fall 1s ${i*0.08}s ease-in forwards;z-index:99;pointer-events:none;--drift:${(Math.random()-0.5)*80}px;--d:1s;--delay:0s;`;
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 1300);
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// Floating petals background
+function buildPetals() {
+  const p = document.getElementById('petals');
+  const emojis = ['🌸','🌺','✨','💖','🌷'];
+  for (let i = 0; i < 18; i++) {
+    const d = document.createElement('div');
+    d.className = 'petal';
+    d.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    d.style.cssText = `left:${Math.random()*100}%;--fs:${10+Math.random()*14}px;--d:${6+Math.random()*8}s;--delay:${Math.random()*10}s;--drift:${(Math.random()-0.5)*120}px;`;
+    p.appendChild(d);
+  }
+}
+
+buildPetals();
+renderAll();
+</script>
+</body>
+</html>
