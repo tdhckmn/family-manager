@@ -6,60 +6,19 @@ import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import {
   FinancePlan, IncomeSource, Owner, AccountRole,
   BG, SURFACE, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
-  JADE, PURPLE, ORANGE, BLUE, AMBER, DANGER, TAG_COLOR,
+  JADE, PURPLE, ORANGE, BLUE, DANGER, TAG_COLOR,
   MONTH_ABBR, DEFAULT_PLAN,
   countPaydays, emergencyMonthly, expenseMonthly, resolveAccount, displayName,
-  Card, Seg, DonutChart, AccountFundingSection,
+  Card, Seg, DonutChart, useIsMobile,
 } from "./shared";
-import { computePlanNudges, verdictLevel, Nudge } from "./nudges";
+import { computePlanNudges, computeAccountFlows, computeAccountNudges, Nudge } from "./nudges";
 import {
   IncomeSection, FixedExpensesSection, SavingsSection, WantsSection,
+  AccountPlanSection, SectionNudges,
 } from "./PlanSections";
 
 // Legacy one-time income shape (pre-unification) — migrated into incomeSources on load.
 interface LegacyOneTime { id: string; month: string; name: string; amount: number; owner?: Owner }
-
-// ── Plan-health verdict banner ───────────────────────────────────────────────
-
-function HealthVerdict({ level, count, hasPlan }: { level: "ok" | "warn" | "danger"; count: number; hasPlan: boolean }) {
-  const cfg = !hasPlan
-    ? { color: BLUE, emoji: "📋", title: "Build your plan", sub: "Add your income below to see how the month balances." }
-    : level === "ok"
-      ? { color: JADE, emoji: "🟢", title: "Plan looks balanced", sub: "Your plan lines up with the 50/30/20 targets." }
-      : level === "warn"
-        ? { color: AMBER, emoji: "🟡", title: "A few things to tune", sub: `${count} suggestion${count !== 1 ? "s" : ""} below.` }
-        : { color: DANGER, emoji: "🔴", title: "Plan doesn't balance", sub: `${count} thing${count !== 1 ? "s" : ""} need attention below.` };
-
-  return (
-    <div style={{
-      background: `${cfg.color}12`, border: `1px solid ${cfg.color}40`, borderRadius: 16,
-      padding: "20px 24px", marginBottom: 16, display: "flex", alignItems: "center", gap: 18,
-    }}>
-      <div style={{ fontSize: 36, lineHeight: 1 }}>{cfg.emoji}</div>
-      <div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: cfg.color, letterSpacing: -0.3 }}>{cfg.title}</div>
-        <div style={{ fontSize: 13, color: TEXT_DIM, marginTop: 3 }}>{cfg.sub}</div>
-      </div>
-    </div>
-  );
-}
-
-function NudgeList({ nudges }: { nudges: Nudge[] }) {
-  if (nudges.length === 0) return null;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
-      {nudges.map(n => {
-        const color = n.level === "danger" ? DANGER : AMBER;
-        return (
-          <div key={n.id} style={{ background: SURFACE, border: `1px solid ${color}35`, borderLeft: `3px solid ${color}`, borderRadius: 12, padding: "13px 16px" }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color, marginBottom: 3 }}>{n.title}</div>
-            <div style={{ fontSize: 13, color: TEXT, lineHeight: 1.5 }}>{n.message}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // ── Header bar ───────────────────────────────────────────────────────────────
 
@@ -83,7 +42,7 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext }: {
   const modeLabel = isCurrentMonth ? "This month" : "Plan";
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 12 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: "wrap", rowGap: 10 }}>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
@@ -169,6 +128,7 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext }: {
 export default function Finance() {
   const [plan, setPlan] = useState<FinancePlan>(DEFAULT_PLAN);
 
+  const isMobile = useIsMobile();
   const today = useMemo(() => new Date(), []);
   const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const year  = viewDate.getFullYear();
@@ -183,18 +143,32 @@ export default function Finance() {
       if (!snap.exists()) return;
       const data = snap.data() as FinancePlan & { oneTimeIncome?: LegacyOneTime[] };
 
+      let sources: IncomeSource[] = data.incomeSources ?? [];
+      let changed = false;
+
+      // Relabel legacy "Tom" owner → "Self".
+      if (sources.some(s => (s.owner as string) === "Tom")) {
+        sources = sources.map(s => (s.owner as string) === "Tom" ? { ...s, owner: "Self" } : s);
+        changed = true;
+      }
+
       // Migrate legacy one-time income entries into unified income sources.
       const legacy = data.oneTimeIncome;
       if (legacy && legacy.length) {
         const migrated: IncomeSource[] = legacy.map(ot => ({
           id: ot.id,
           name: ot.name,
-          owner: ot.owner ?? "Tom",
+          owner: (ot.owner as string) === "Tom" ? "Self" : (ot.owner ?? "Self"),
           amount: ot.amount,
           frequency: "onetime",
           referenceDate: `${ot.month}-15`,
         }));
-        const next: FinancePlan = { ...data, incomeSources: [...(data.incomeSources ?? []), ...migrated] };
+        sources = [...sources, ...migrated];
+        changed = true;
+      }
+
+      if (changed) {
+        const next: FinancePlan = { ...data, incomeSources: sources };
         delete (next as FinancePlan & { oneTimeIncome?: unknown }).oneTimeIncome;
         setPlan(next);
         setDoc(ref, next).catch(console.error);
@@ -210,14 +184,12 @@ export default function Finance() {
   }, []);
 
   // ── Totals ──
-  const { totalIncome, tomChecks } = useMemo(() => {
-    let totalIncome = 0, tomChecks = 0;
+  const totalIncome = useMemo(() => {
+    let total = 0;
     for (const src of plan.incomeSources) {
-      const n = countPaydays(year, month, src.frequency, src.referenceDate);
-      totalIncome += src.amount * n;
-      if (src.owner === "Tom") tomChecks += n;
+      total += src.amount * countPaydays(year, month, src.frequency, src.referenceDate);
     }
-    return { totalIncome, tomChecks };
+    return total;
   }, [plan.incomeSources, year, month]);
 
   const accounts = plan.bankAccounts ?? [];
@@ -235,12 +207,19 @@ export default function Finance() {
   const totalSavings      = totalEmergency + totalSinkingFunds;
   const totalWants        = Math.max(0, totalIncome - totalNeeds - totalSavings);
 
-  const nudges: Nudge[] = useMemo(
-    () => computePlanNudges({ totalIncome, totalNeeds, totalSavings, totalWants }),
-    [totalIncome, totalNeeds, totalSavings, totalWants],
+  const { flows: accountFlows, unlinkedIncome } = useMemo(
+    () => computeAccountFlows(plan, year, month),
+    [plan, year, month],
   );
-  const verdict = verdictLevel(nudges);
-  const hasPlan = totalIncome > 0;
+
+  const nudges: Nudge[] = useMemo(() => {
+    const planNudges = computePlanNudges({ totalIncome, totalNeeds, totalSavings, totalWants });
+    const acctNudges = computeAccountNudges(accountFlows, unlinkedIncome);
+    return [...planNudges, ...acctNudges];
+  }, [totalIncome, totalNeeds, totalSavings, totalWants, accountFlows, unlinkedIncome]);
+
+  const overviewNudges = nudges.filter(n => n.section === "overview");
+  const accountNudges  = nudges.filter(n => n.section === "accounts");
 
   const chartSegs: Seg[] = [
     { label: "Needs",   value: totalNeeds,   color: PURPLE, target: 0.5 },
@@ -274,29 +253,27 @@ export default function Finance() {
           </div>
         )}
 
-        {/* Verdict + advice */}
-        <HealthVerdict level={verdict} count={nudges.length} hasPlan={hasPlan} />
-        <NudgeList nudges={nudges} />
-
-        {/* Income + overview */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-          <IncomeSection plan={plan} save={save} year={year} month={month} totalIncome={totalIncome} tomChecks={tomChecks} />
+        {/* Income + 50/30/20 (with inline plan nudges) */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
+          <IncomeSection plan={plan} save={save} year={year} month={month} totalIncome={totalIncome} bankAccounts={accounts} />
           <Card title="📊 50/30/20 Overview">
+            <SectionNudges nudges={overviewNudges} />
             <DonutChart segs={chartSegs} total={totalIncome} />
           </Card>
         </div>
 
-        {/* Where money goes */}
-        <AccountFundingSection
+        {/* Merged Budget Plan (funding + cash flow) */}
+        <AccountPlanSection
+          flows={accountFlows}
+          mappings={mappings}
+          totalNeeds={totalNeeds} totalWants={totalWants}
+          totalEmergency={totalEmergency} totalSinkingFunds={totalSinkingFunds}
           totalIncome={totalIncome}
-          needs={totalNeeds} savings={totalSavings} wants={totalWants}
-          emergency={totalEmergency}
-          sinkingFunds={totalSinkingFunds}
-          spending={totalWants} acct={acct}
+          nudges={accountNudges}
         />
 
         {/* Editing: expenses + savings/wants */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginTop: 16 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <FixedExpensesSection plan={plan} save={save} accountOptions={accountOptions} totalIncome={totalIncome} />
           </div>

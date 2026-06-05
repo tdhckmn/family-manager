@@ -1,14 +1,17 @@
 import { useState, useEffect } from "react";
 import {
-  FinancePlan, IncomeSource, FixedExpense, SinkingFund,
+  FinancePlan, IncomeSource, FixedExpense, SinkingFund, BankAccount, PaycheckSplit, SplitType,
+  AccountMappings,
   Frequency, IncomeFrequency, ExpenseFrequency, Owner,
-  SURFACE_HI, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
+  SURFACE, SURFACE_HI, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
   JADE, PURPLE, ORANGE, BLUE, AMBER, DANGER,
   INCOME_FREQ_LABELS, MONTH_NAMES, OWNER_COLOR,
   EXPENSE_FREQ_LABELS, EXPENSE_FREQ_MONTHLY, SAVINGS_FREQ_LABELS, SAVINGS_FREQ_MONTHLY,
-  uid, fmt, fmtDec, pct, countPaydays, emergencyMonthly, expenseMonthly, monthsUntil,
-  Card, Pill, InlineInput, SelectInput,
+  uid, fmt, fmtDec, pct, countPaydays, emergencyMonthly, expenseMonthly, monthsUntil, displayName,
+  normalizeIds,
+  Card, Pill, InlineInput, SelectInput, useIsMobile,
 } from "./shared";
+import { Nudge, AccountFlow, AccountKind } from "./nudges";
 
 // ── Section header total (amount/mo + % of income) ──────────────────────────
 
@@ -27,6 +30,25 @@ function SectionTotal({ amount, color, pctVal, target, hasIncome }: {
   );
 }
 
+// ── Inline section warnings ─────────────────────────────────────────────────
+
+export function SectionNudges({ nudges }: { nudges?: Nudge[] }) {
+  if (!nudges || nudges.length === 0) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+      {nudges.map(n => {
+        const color = n.level === "danger" ? DANGER : AMBER;
+        return (
+          <div key={n.id} style={{ background: `${color}10`, border: `1px solid ${color}35`, borderLeft: `3px solid ${color}`, borderRadius: 10, padding: "10px 12px" }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color, marginBottom: 2 }}>{n.title}</div>
+            <div style={{ fontSize: 12, color: TEXT, lineHeight: 1.45 }}>{n.message}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Income section ────────────────────────────────────────────────────────
 
 function oneTimeLands(referenceDate: string): string {
@@ -34,31 +56,45 @@ function oneTimeLands(referenceDate: string): string {
   return new Date(referenceDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
-export function IncomeSection({ plan, save, year, month, totalIncome, tomChecks }: {
+export function IncomeSection({ plan, save, year, month, totalIncome, bankAccounts }: {
   plan: FinancePlan; save: (p: FinancePlan) => void;
-  year: number; month: number; totalIncome: number; tomChecks: number;
+  year: number; month: number; totalIncome: number; bankAccounts: BankAccount[];
 }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const blank = { id: "", name: "", owner: "Tom" as Owner, amount: 0, frequency: "biweekly" as IncomeFrequency, referenceDate: "" };
+  const blank = { id: "", name: "", owner: "Self" as Owner, amount: 0, frequency: "biweekly" as IncomeFrequency, referenceDate: "", splits: [] as PaycheckSplit[] };
   const [draft, setDraft] = useState(blank);
 
   function openAdd() { setDraft({ ...blank, id: uid() }); setAdding(true); setEditId(null); }
 
   function openEdit(src: IncomeSource) {
-    setDraft({ ...src, amount: src.amount as unknown as number });
+    // Migrate legacy destinationAccountId → splits on open
+    const splits = src.splits && src.splits.length > 0
+      ? src.splits
+      : src.destinationAccountId
+        ? [{ order: 1, type: "balance" as SplitType, accountId: src.destinationAccountId }]
+        : [];
+    setDraft({ ...src, amount: src.amount as unknown as number, splits });
     setEditId(src.id);
     setAdding(false);
   }
 
+  function buildSource(): IncomeSource {
+    const { splits, ...rest } = draft;
+    const src: IncomeSource = { ...rest, amount: Number(rest.amount), splits };
+    // Clear legacy field if present
+    delete src.destinationAccountId;
+    return src;
+  }
+
   function commitAdd() {
     if (!draft.name || !draft.amount) return;
-    save({ ...plan, incomeSources: [...plan.incomeSources, { ...draft, amount: Number(draft.amount) }] });
+    save({ ...plan, incomeSources: [...plan.incomeSources, buildSource()] });
     setAdding(false);
   }
 
   function commitEdit() {
-    save({ ...plan, incomeSources: plan.incomeSources.map(s => s.id === draft.id ? { ...draft, amount: Number(draft.amount) } : s) });
+    save({ ...plan, incomeSources: plan.incomeSources.map(s => s.id === draft.id ? buildSource() : s) });
     setEditId(null);
   }
 
@@ -82,20 +118,40 @@ export function IncomeSection({ plan, save, year, month, totalIncome, tomChecks 
         {sorted.map(src => {
           const isEditing = editId === src.id;
           if (isEditing) {
-            return <div key={src.id}><IncomeForm draft={draft} setDraft={setDraft} onSave={commitEdit} onCancel={() => setEditId(null)} onDelete={() => remove(src.id)} /></div>;
+            return <div key={src.id}><IncomeForm draft={draft} setDraft={setDraft} bankAccounts={bankAccounts} onSave={commitEdit} onCancel={() => setEditId(null)} onDelete={() => remove(src.id)} /></div>;
           }
           const isOneTime = src.frequency === "onetime";
           const checks = countPaydays(year, month, src.frequency, src.referenceDate);
           const total = src.amount * checks;
           const landsThisMonth = !isOneTime || checks > 0;
+          // Resolve effective splits (including legacy destinationAccountId)
+          const effectiveSplits = src.splits && src.splits.length > 0
+            ? src.splits
+            : src.destinationAccountId
+              ? [{ order: 1, type: "balance" as SplitType, accountId: src.destinationAccountId }]
+              : [];
+          const splitSummary = effectiveSplits.length === 0
+            ? <span style={{ color: AMBER }}> · no account linked</span>
+            : effectiveSplits.length === 1
+              ? (() => {
+                  const a = bankAccounts.find(a => a.id === effectiveSplits[0].accountId);
+                  return <span style={{ color: TEXT_MUTED }}> · → {a ? displayName(a) : "unknown"}</span>;
+                })()
+              : <span style={{ color: TEXT_MUTED }}> · {effectiveSplits.length} splits</span>;
+
           return (
             <div key={src.id} onClick={() => openEdit(src)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", gap: 10, opacity: landsThisMonth ? 1 : 0.5 }}
               onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HI}
               onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                 <Pill color={OWNER_COLOR[src.owner]}>{src.owner}</Pill>
-                <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{src.name}</span>
-                <span style={{ fontSize: 11, color: isOneTime ? AMBER : TEXT_DIM }}>{INCOME_FREQ_LABELS[src.frequency]}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{src.name}</div>
+                  <div style={{ fontSize: 10, color: TEXT_DIM }}>
+                    <span style={{ color: isOneTime ? AMBER : TEXT_DIM }}>{INCOME_FREQ_LABELS[src.frequency]}</span>
+                    {splitSummary}
+                  </div>
+                </div>
               </div>
               <div style={{ textAlign: "right", flexShrink: 0 }}>
                 {isOneTime ? (
@@ -118,33 +174,153 @@ export function IncomeSection({ plan, save, year, month, totalIncome, tomChecks 
       {adding && (
         <div style={{ marginTop: 14, padding: "14px", background: "rgba(93,184,138,0.05)", border: `1px solid ${JADE}30`, borderRadius: 12 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: JADE, marginBottom: 12 }}>New Income Source</div>
-          <IncomeForm draft={draft} setDraft={setDraft} onSave={commitAdd} onCancel={() => setAdding(false)} />
+          <IncomeForm draft={draft} setDraft={setDraft} bankAccounts={bankAccounts} onSave={commitAdd} onCancel={() => setAdding(false)} />
         </div>
       )}
 
-      {totalIncome > 0 && (
-        <div style={{ paddingTop: 10, marginTop: 4, borderTop: `1px solid ${BORDER}` }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: TEXT_DIM }}>Tom: {tomChecks} check{tomChecks !== 1 ? "s" : ""}</span>
-        </div>
-      )}
       <button onClick={openAdd} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ Add Income Source</button>
     </Card>
   );
 }
 
-function IncomeForm({ draft, setDraft, onSave, onCancel, onDelete }: {
-  draft: Omit<IncomeSource, "amount"> & { amount: number };
+function SplitEditor({ splits, onChange, bankAccounts, perCheck }: {
+  splits: PaycheckSplit[];
+  onChange: (splits: PaycheckSplit[]) => void;
+  bankAccounts: BankAccount[];
+  perCheck: number;
+}) {
+  const accts = bankAccounts.filter(a => !a.ignored);
+  const hasBalance = splits.some(s => s.type === "balance");
+
+  function addRow(type: SplitType) {
+    const next: PaycheckSplit = {
+      order: splits.length + 1,
+      type,
+      value: type === "percentage" ? 100 : type === "amount" ? 0 : undefined,
+      accountId: accts[0]?.id ?? "",
+    };
+    onChange([...splits, next]);
+  }
+
+  function update(idx: number, patch: Partial<PaycheckSplit>) {
+    onChange(splits.map((s, i) => i === idx ? { ...s, ...patch } : s));
+  }
+
+  function remove(idx: number) {
+    const next = splits.filter((_, i) => i !== idx).map((s, i) => ({ ...s, order: i + 1 }));
+    onChange(next);
+  }
+
+  function move(idx: number, dir: -1 | 1) {
+    const next = [...splits];
+    const swap = idx + dir;
+    if (swap < 0 || swap >= next.length) return;
+    [next[idx], next[swap]] = [next[swap], next[idx]];
+    onChange(next.map((s, i) => ({ ...s, order: i + 1 })));
+  }
+
+  // Validation: sum of non-balance allocations
+  const allocated = splits.reduce((sum, s) => {
+    if (s.type === "amount") return sum + (s.value ?? 0);
+    if (s.type === "percentage") return sum + ((s.value ?? 0) / 100) * perCheck;
+    return sum;
+  }, 0);
+  const over = perCheck > 0 && allocated > perCheck + 0.01;
+
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: TEXT_DIM, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+        Direct Deposit Splits
+      </div>
+
+      {splits.length === 0 && (
+        <div style={{ fontSize: 12, color: TEXT_MUTED, fontStyle: "italic", marginBottom: 8 }}>No splits — add rows below.</div>
+      )}
+
+      {splits.map((sp, idx) => {
+        const acct = accts.find(a => a.id === sp.accountId);
+        return (
+          <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            {/* Order badge */}
+            <span style={{ fontSize: 10, fontWeight: 800, color: TEXT_MUTED, width: 16, textAlign: "right", flexShrink: 0 }}>{sp.order}</span>
+
+            {/* Type selector */}
+            <select
+              value={sp.type}
+              onChange={e => update(idx, { type: e.target.value as SplitType, value: e.target.value === "balance" ? undefined : sp.value })}
+              style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 6px", color: TEXT, fontSize: 12, fontFamily: "'Nunito',sans-serif", outline: "none", flexShrink: 0 }}
+            >
+              <option value="amount">$</option>
+              <option value="percentage">%</option>
+              <option value="balance">balance</option>
+            </select>
+
+            {/* Value input — hidden for "balance" */}
+            {sp.type !== "balance" ? (
+              <input
+                type="number"
+                value={sp.value ?? ""}
+                onChange={e => update(idx, { value: Number(e.target.value) || 0 })}
+                placeholder={sp.type === "percentage" ? "100" : "0"}
+                style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 8px", color: TEXT, fontSize: 12, fontFamily: "'Nunito',sans-serif", outline: "none", width: 72, flexShrink: 0 }}
+                onFocus={e => (e.target.style.borderColor = JADE + "80")}
+                onBlur={e => (e.target.style.borderColor = BORDER)}
+              />
+            ) : (
+              <span style={{ width: 72, flexShrink: 0, fontSize: 11, color: TEXT_MUTED, paddingLeft: 4 }}>remainder</span>
+            )}
+
+            {/* Account selector */}
+            <select
+              value={sp.accountId}
+              onChange={e => update(idx, { accountId: e.target.value })}
+              style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 6px", color: acct ? TEXT : AMBER, fontSize: 12, fontFamily: "'Nunito',sans-serif", outline: "none", flex: 1, minWidth: 0 }}
+            >
+              {!acct && <option value="">— pick account —</option>}
+              {accts.map(a => <option key={a.id} value={a.id}>{displayName(a)}</option>)}
+            </select>
+
+            {/* Reorder */}
+            <button onClick={() => move(idx, -1)} disabled={idx === 0} style={{ background: "transparent", border: "none", color: idx === 0 ? TEXT_MUTED : TEXT_DIM, cursor: idx === 0 ? "default" : "pointer", fontSize: 12, padding: "2px 3px", fontFamily: "'Nunito',sans-serif" }}>↑</button>
+            <button onClick={() => move(idx, 1)} disabled={idx === splits.length - 1} style={{ background: "transparent", border: "none", color: idx === splits.length - 1 ? TEXT_MUTED : TEXT_DIM, cursor: idx === splits.length - 1 ? "default" : "pointer", fontSize: 12, padding: "2px 3px", fontFamily: "'Nunito',sans-serif" }}>↓</button>
+
+            {/* Remove */}
+            <button onClick={() => remove(idx)} style={{ background: "transparent", border: "none", color: DANGER, fontSize: 14, cursor: "pointer", fontFamily: "'Nunito',sans-serif", padding: "2px 3px" }}>×</button>
+          </div>
+        );
+      })}
+
+      {over && (
+        <div style={{ fontSize: 11, color: DANGER, marginBottom: 6 }}>
+          ⚠ Splits exceed the check amount by {(allocated - perCheck).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}.
+        </div>
+      )}
+
+      {/* Add buttons */}
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <button onClick={() => addRow("amount")} style={{ background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 6, color: JADE, fontSize: 11, fontWeight: 700, padding: "4px 10px", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ $</button>
+        <button onClick={() => addRow("percentage")} style={{ background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 6, color: JADE, fontSize: 11, fontWeight: 700, padding: "4px 10px", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ %</button>
+        {!hasBalance && <button onClick={() => addRow("balance")} style={{ background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 6, color: JADE, fontSize: 11, fontWeight: 700, padding: "4px 10px", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ balance</button>}
+      </div>
+    </div>
+  );
+}
+
+function IncomeForm({ draft, setDraft, bankAccounts, onSave, onCancel, onDelete }: {
+  draft: Omit<IncomeSource, "amount"> & { amount: number; splits: PaycheckSplit[] };
   setDraft: (d: typeof draft) => void;
+  bankAccounts: BankAccount[];
   onSave: () => void; onCancel: () => void; onDelete?: () => void;
 }) {
   const set = (k: string, v: string | number) => setDraft({ ...draft, [k]: v });
   const isOneTime = draft.frequency === "onetime";
   const needsDate = isOneTime || draft.frequency === "weekly" || draft.frequency === "biweekly";
+  const isMobile = useIsMobile();
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-      <InlineInput label="Name" value={draft.name} onChange={v => set("name", v)} placeholder={isOneTime ? "e.g. Tax refund" : "e.g. Tom's paycheck"} />
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
+      <InlineInput label="Name" value={draft.name} onChange={v => set("name", v)} placeholder={isOneTime ? "e.g. Tax refund" : "e.g. Paycheck"} />
       <SelectInput label="Owner" value={draft.owner} onChange={v => set("owner", v)}>
-        <option>Tom</option><option>Partner</option><option>Business</option>
+        <option>Self</option><option>Partner</option><option>Business</option>
       </SelectInput>
       <InlineInput label={isOneTime ? "Amount ($)" : "Amount per check ($)"} value={String(draft.amount || "")} onChange={v => set("amount", v)} type="number" placeholder="0" />
       <SelectInput label="Frequency" value={draft.frequency} onChange={v => set("frequency", v)}>
@@ -160,6 +336,14 @@ function IncomeForm({ draft, setDraft, onSave, onCancel, onDelete }: {
           </div>
         </div>
       )}
+      <div style={{ gridColumn: "span 2" }}>
+        <SplitEditor
+          splits={draft.splits}
+          onChange={splits => setDraft({ ...draft, splits })}
+          bankAccounts={bankAccounts}
+          perCheck={Number(draft.amount) || 0}
+        />
+      </div>
       <div style={{ gridColumn: "span 2", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Nunito',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
@@ -324,8 +508,9 @@ interface FundFormProps {
 }
 
 function FundForm({ draft, setDraft, draftTarget, setDraftTarget, draftDue, setDraftDue, onSave, onCancel, onDelete }: FundFormProps) {
+  const isMobile = useIsMobile();
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
       <div style={{ gridColumn: "span 2" }}>
         <InlineInput label="Name" value={draft.name} onChange={v => setDraft(d => ({ ...d, name: v }))} placeholder="e.g. New roof, Vacation" />
       </div>
@@ -351,6 +536,8 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
   plan: FinancePlan; save: (p: FinancePlan) => void;
   totalIncome: number; emergencyAcctName: string; sinkingAcctName: string;
 }) {
+  const isMobile = useIsMobile();
+
   // ── Emergency savings ──
   const transfer = plan.savings.emergencyTransfer;
   const [editing, setEditing] = useState(false);
@@ -441,7 +628,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
       {/* Emergency savings */}
       {editing ? (
         <div style={{ marginBottom: 6 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 8 }}>
             <InlineInput label="Amount per transfer ($)" value={draftAmt} onChange={setDraftAmt} type="number" placeholder="0" />
             <SelectInput label="Transfer frequency" value={draftFreq} onChange={v => setDraftFreq(v as Frequency)}>
               {Object.entries(SAVINGS_FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -552,6 +739,153 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
       )}
       {!adding && <button onClick={openAddFund} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ Add Sinking Fund</button>}
     </Card>
+  );
+}
+
+// ── Account cash flow card ────────────────────────────────────────────────
+
+// ── Merged Account Plan section ───────────────────────────────────────────
+
+interface PlanGroup {
+  label: "Needs" | "Wants" | "Savings";
+  color: string;
+  target: number;   // 0–1
+  planned: number;  // dollar total
+  flows: AccountFlow[];
+}
+
+function AccountRow({ flow }: { flow: AccountFlow }) {
+  const isSavings = flow.kind !== "spending";
+  const covered = flow.net >= -1;
+  const netColor = covered ? JADE : DANGER;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "12px 20px 12px 28px", borderBottom: `1px solid ${BORDER}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{displayName(flow.account)}</span>
+        {!isSavings && (flow.inflow > 0 || flow.expenseOutflow > 0) && (
+          <span style={{ fontSize: 11, fontWeight: 800, color: netColor, flexShrink: 0 }}>
+            {covered ? "✓" : `Short ${fmt(flow.expenseOutflow - flow.inflow)}`}
+          </span>
+        )}
+      </div>
+
+      {/* Inflow */}
+      {flow.inflow > 0 ? (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span style={{ fontSize: 11, color: TEXT_DIM, minWidth: 0, marginRight: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            In: {isSavings ? flow.inflowLabel : (flow.inflowSources.join(", ") || "income")}
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: JADE, flexShrink: 0 }}>+{fmt(flow.inflow)}</span>
+        </div>
+      ) : (
+        <div style={{ fontSize: 11, color: isSavings ? TEXT_MUTED : AMBER }}>
+          {isSavings ? "No transfer planned" : "No income linked"}
+        </div>
+      )}
+
+      {/* Expenses */}
+      {flow.expenseOutflow > 0 && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span style={{ fontSize: 11, color: TEXT_DIM }}>Out: Fixed expenses</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: TEXT }}>−{fmt(flow.expenseOutflow)}</span>
+        </div>
+      )}
+
+      {/* Net / Monthly in */}
+      {(flow.inflow > 0 || flow.expenseOutflow > 0) && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingTop: 5, marginTop: 1, borderTop: `1px solid ${BORDER}` }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: TEXT_DIM }}>{isSavings ? "Monthly in" : "Net"}</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: isSavings ? JADE : netColor }}>
+            {flow.net >= 0 ? "+" : ""}{fmt(flow.net)}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function AccountPlanSection({
+  flows, mappings, totalNeeds, totalWants, totalEmergency, totalSinkingFunds, totalIncome, nudges,
+}: {
+  flows: AccountFlow[];
+  mappings: AccountMappings;
+  totalNeeds: number; totalWants: number;
+  totalEmergency: number; totalSinkingFunds: number; totalIncome: number;
+  nudges?: Nudge[];
+}) {
+  const needsIds   = new Set(normalizeIds(mappings.fixedExpenses));
+  const wantsIds   = new Set(normalizeIds(mappings.dailySpending));
+  const savingsIds = new Set([...normalizeIds(mappings.emergencySavings), ...normalizeIds(mappings.sinkingFunds)]);
+  const allRoleIds = new Set([...needsIds, ...wantsIds, ...savingsIds]);
+
+  const groups: PlanGroup[] = [
+    { label: "Needs",   color: PURPLE, target: 0.5, planned: totalNeeds,                      flows: flows.filter(f => needsIds.has(f.account.id)) },
+    { label: "Wants",   color: ORANGE, target: 0.3, planned: totalWants,                      flows: flows.filter(f => wantsIds.has(f.account.id)) },
+    { label: "Savings", color: BLUE,   target: 0.2, planned: totalEmergency + totalSinkingFunds, flows: flows.filter(f => savingsIds.has(f.account.id)) },
+  ];
+  const unassigned = flows.filter(f => !allRoleIds.has(f.account.id));
+
+  if (flows.length === 0) return null;
+
+  return (
+    <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", marginTop: 16 }}>
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${BORDER}` }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>💸 Budget Plan</div>
+        <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 2 }}>Where every dollar lands this month</div>
+      </div>
+
+      <SectionNudges nudges={nudges} />
+
+      {groups.map((g, gi) => {
+        const actualPct = totalIncome > 0 ? pct(g.planned, totalIncome) : 0;
+        const targetPct = Math.round(g.target * 100);
+        const onTrack = Math.abs(actualPct - targetPct) <= 5;
+        const show = g.flows.length > 0 || g.planned > 0;
+        if (!show) return null;
+
+        return (
+          <div key={g.label} style={{ borderTop: gi === 0 ? "none" : `1px solid ${BORDER}` }}>
+            {/* Group header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", background: `${g.color}0d` }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: g.color, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                {g.label} · {targetPct}% target
+              </span>
+              <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                {g.planned > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>{fmt(g.planned)}/mo</span>
+                )}
+                {totalIncome > 0 && g.planned > 0 && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: onTrack ? JADE : AMBER }}>
+                    {actualPct}%<span style={{ color: TEXT_MUTED }}>/{targetPct}%</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Account rows */}
+            {g.flows.map(f => <AccountRow key={f.account.id} flow={f} />)}
+
+            {g.flows.length === 0 && (
+              <div style={{ padding: "10px 20px 10px 28px", fontSize: 11, color: TEXT_MUTED, fontStyle: "italic" }}>
+                No accounts mapped to this role
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {unassigned.length > 0 && (
+        <div style={{ borderTop: `1px solid ${BORDER}` }}>
+          <div style={{ display: "flex", alignItems: "center", padding: "10px 20px", background: `${TEXT_MUTED}0d` }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: TEXT_DIM, textTransform: "uppercase", letterSpacing: 0.8 }}>
+              Unassigned
+            </span>
+          </div>
+          {unassigned.map(f => <AccountRow key={f.account.id} flow={f} />)}
+        </div>
+      )}
+    </div>
   );
 }
 

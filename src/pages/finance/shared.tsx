@@ -1,10 +1,30 @@
+import { useState, useEffect } from "react";
+
+// ── Responsive helper ───────────────────────────────────────────────────────
+
+/** True when the viewport is at/below the given breakpoint (default 700px). */
+export function useIsMobile(maxWidth = 700): boolean {
+  const query = `(max-width: ${maxWidth}px)`;
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(query).matches : false,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const handler = () => setIsMobile(mql.matches);
+    handler();
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [query]);
+  return isMobile;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────
 
 export type Frequency = "weekly" | "biweekly" | "semimonthly" | "monthly";
 /** Income can also be a single one-time check tied to a specific month. */
 export type IncomeFrequency = Frequency | "onetime";
 export type ExpenseFrequency = "weekly" | "biweekly" | "semimonthly" | "monthly" | "bimonthly" | "quarterly" | "semiannual" | "annual";
-export type Owner = "Tom" | "Partner" | "Business";
+export type Owner = "Self" | "Partner" | "Business";
 export type AccountRole = "fixedExpenses" | "dailySpending" | "emergencySavings" | "sinkingFunds";
 
 export interface BankAccount {
@@ -31,6 +51,16 @@ export function normalizeIds(v: string | string[] | undefined): string[] {
   return v;
 }
 
+export type SplitType = "amount" | "percentage" | "balance";
+
+/** One row in a paycheck's direct-deposit split table — mirrors Workday's [order, type, account] model. */
+export interface PaycheckSplit {
+  order: number;
+  type: SplitType;
+  value?: number;       // dollar amount (type="amount") or 0-100 (type="percentage"); omitted for "balance"
+  accountId: string;   // BankAccount.id
+}
+
 export interface IncomeSource {
   id: string;
   name: string;
@@ -38,6 +68,9 @@ export interface IncomeSource {
   amount: number;
   frequency: IncomeFrequency;
   referenceDate: string;   // reference payday (weekly/biweekly) or the date of a one-time check
+  splits?: PaycheckSplit[]; // ordered direct-deposit split rules; empty/absent = whole check unallocated
+  /** @deprecated use splits instead */
+  destinationAccountId?: string;
 }
 
 export interface FixedExpense {
@@ -103,7 +136,7 @@ export const INCOME_FREQ_LABELS: Record<IncomeFrequency, string> = {
 export const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 export const MONTH_ABBR  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-export const OWNER_COLOR: Record<Owner, string> = { Tom: BLUE, Partner: ROSE, Business: AMBER };
+export const OWNER_COLOR: Record<Owner, string> = { Self: BLUE, Partner: ROSE, Business: AMBER };
 
 export const EXPENSE_FREQ_LABELS: Record<ExpenseFrequency, string> = {
   weekly:       "Weekly",
@@ -353,76 +386,6 @@ export function SaveCancel({ onSave, onCancel }: { onSave: () => void; onCancel:
     <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
       <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Nunito',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
       <button onClick={onCancel} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Nunito',sans-serif", fontWeight: 700, fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
-    </div>
-  );
-}
-
-// ── Account funding plan (read-only display) ──────────────────────────────
-
-interface AccountBucket {
-  name: string; category: "Needs" | "Wants" | "Savings"; amount: number;
-  detail?: string; color: string; target: number;
-}
-
-export function AccountFundingSection({ totalIncome, needs, savings, wants, emergency, sinkingFunds, spending, acct }: {
-  totalIncome: number; needs: number; savings: number; wants: number;
-  emergency: number; sinkingFunds: number; spending: number;
-  acct: (role: AccountRole) => string;
-}) {
-  const buckets: AccountBucket[] = [
-    { name: acct("fixedExpenses"),    category: "Needs",   amount: needs,       color: PURPLE,      detail: "All recurring bills",    target: totalIncome * 0.5  },
-    { name: acct("dailySpending"),    category: "Wants",   amount: spending,    color: ORANGE,      detail: "Safe to spend",          target: totalIncome * 0.3  },
-    { name: acct("emergencySavings"), category: "Savings", amount: emergency,   color: BLUE,        detail: "Monthly contribution",   target: totalIncome * 0.1  },
-    { name: acct("sinkingFunds"),     category: "Savings", amount: sinkingFunds,color: "#4a7fc1",   detail: "Anticipated expenses",   target: totalIncome * 0.1  },
-  ];
-
-  const catColor = { Needs: PURPLE, Wants: ORANGE, Savings: BLUE };
-
-  return (
-    <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", marginTop: 16 }}>
-      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>💸 Account Funding Plan</div>
-        <div style={{ fontSize: 12, color: TEXT_DIM }}>Where each dollar needs to go this month</div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 1, background: BORDER }}>
-        {buckets.map(b => {
-          const fill = b.target > 0 ? Math.min(100, (b.amount / b.target) * 100) : 0;
-          const statusColor = fill >= 90 ? JADE : fill >= 70 ? AMBER : DANGER;
-          return (
-            <div key={b.name} style={{ background: BG, padding: "18px 20px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <Pill color={catColor[b.category]}>{b.category}</Pill>
-                <span style={{ fontSize: 10, color: TEXT_DIM }}>{b.detail}</span>
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: TEXT, marginBottom: 4 }}>{b.name}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: b.amount > 0 ? TEXT : TEXT_MUTED, marginBottom: 10 }}>
-                {b.amount > 0 ? fmt(b.amount) : "—"}
-              </div>
-              <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 2, background: b.color, width: `${fill}%`, transition: "width 0.5s ease" }} />
-              </div>
-              {b.target > 0 && b.amount > 0 && (
-                <div style={{ fontSize: 10, color: statusColor, marginTop: 5, fontWeight: 700 }}>
-                  {fill.toFixed(0)}% of {fmt(b.target)} target
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {totalIncome > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", padding: "12px 20px", borderTop: `1px solid ${BORDER}`, gap: 8 }}>
-          {([["Needs", needs, PURPLE, 0.5], ["Savings", savings, BLUE, 0.2], ["Wants", wants, ORANGE, 0.3]] as [string, number, string, number][]).map(([label, val, color, target]) => (
-            <div key={label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: TEXT_DIM, textTransform: "uppercase", letterSpacing: 0.8 }}>{label}</span>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 5, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 14, fontWeight: 800, color }}>{fmt(val)}</span>
-                {totalIncome > 0 && <span style={{ fontSize: 10, color: TEXT_DIM, fontWeight: 600 }}>{pct(val, totalIncome)}%<span style={{ color: TEXT_MUTED }}>/{Math.round(target * 100)}%</span></span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
