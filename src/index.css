@@ -38,6 +38,33 @@ body {
   50%       { transform: translateY(-8px); }
 }
 
+/* PIN shake animation */
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  18%       { transform: translateX(-8px); }
+  36%       { transform: translateX(8px); }
+  54%       { transform: translateX(-6px); }
+  72%       { transform: translateX(6px); }
+  90%       { transform: translateX(-3px); }
+}
+
+/* Markdown rendered view (Todos detail panel) */
+.md-view { color: #b8b4a4; line-height: 1.7; }
+.md-view h1 { font-size: 20px; color: #e0dcd0; font-weight: 700; margin: 0 0 10px; }
+.md-view h2 { font-size: 16px; color: #cbc7bb; font-weight: 700; margin: 16px 0 8px; }
+.md-view h3 { font-size: 14px; color: #b8b4a4; font-weight: 700; margin: 12px 0 6px; }
+.md-view p  { margin: 0 0 10px; }
+.md-view ul, .md-view ol { padding-left: 20px; margin: 0 0 10px; }
+.md-view li { margin-bottom: 3px; }
+.md-view strong { color: #dedad0; font-weight: 700; }
+.md-view em { color: #a8d5b8; font-style: italic; }
+.md-view code { background: rgba(93,184,138,0.12); color: #7ecfa8; padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: ui-monospace, 'SF Mono', monospace; }
+.md-view pre  { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 12px 16px; overflow-x: auto; margin: 0 0 10px; }
+.md-view pre code { background: none; color: #a8d5b8; padding: 0; font-size: 13px; }
+.md-view blockquote { border-left: 2px solid rgba(93,184,138,0.4); padding-left: 14px; margin: 8px 0 10px; color: #8a8898; font-style: italic; }
+.md-view a { color: #5db88a; text-decoration: underline; text-underline-offset: 2px; }
+.md-view hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 16px 0; }
+
 .sr-only {
   position: absolute;
   width: 1px;

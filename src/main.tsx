@@ -2,12 +2,17 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
+import AuthGate from "./components/AuthGate";
+import GlobalHeader from "./components/GlobalHeader";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <AuthGate>
+      <BrowserRouter>
+        <GlobalHeader />
+        <App />
+      </BrowserRouter>
+    </AuthGate>
   </React.StrictMode>
 );

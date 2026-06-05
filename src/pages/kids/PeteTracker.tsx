@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
+import { useLock, PinModal, LockButton } from "../../components/LockGuard";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -110,6 +111,8 @@ export default function PeteTracker() {
   const [state, setState] = useState<PeteState>(DEFAULT_STATE);
   const [selectedDay, setSelectedDay] = useState(new Date().getDay());
   const [toast, setToast] = useState("");
+  const { locked, lock, unlock } = useLock("pete_locked");
+  const [showPin, setShowPin] = useState(false);
 
   const stars = useMemo(() =>
     Array.from({ length: 70 }, (_, i) => ({
@@ -185,16 +188,22 @@ export default function PeteTracker() {
       <div style={{ position: "fixed", inset: 0, background: "radial-gradient(ellipse 60% 40% at 20% 10%, rgba(139,52,196,0.18) 0%, transparent 60%), radial-gradient(ellipse 50% 30% at 80% 80%, rgba(26,111,207,0.18) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }} />
 
       {/* Toast */}
-      {toast && (
+      {!locked && toast && (
         <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "#261d52", border: "2px solid #2cb84e", color: "#f0eaff", padding: "12px 24px", borderRadius: 14, fontFamily: "'Fredoka One', cursive", fontSize: 16, zIndex: 200, whiteSpace: "nowrap" }}>
           {toast}
         </div>
       )}
 
+      {/* Lock controls */}
+      <LockButton locked={locked} accentColor="#5bd3f5" onLock={lock} onUnlockRequest={() => setShowPin(true)} />
+      {showPin && <PinModal onSuccess={() => { unlock(); setShowPin(false); }} onCancel={() => setShowPin(false)} accentColor="#5bd3f5" surfaceColor="#1e1640" />}
+
+      {/* Page content — pointer events disabled when locked */}
+      <div style={{ pointerEvents: locked ? "none" : "auto" }}>
       <div style={{ position: "relative", zIndex: 1, maxWidth: 720, margin: "0 auto", padding: 16 }}>
         {/* Header */}
         <header style={{ textAlign: "center", padding: "28px 16px 20px" }}>
-          <Link to="/kids" style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: "#9b90c2", fontSize: 13, fontWeight: 700, marginBottom: 12, opacity: 0.7 }}>← Back</Link>
+          <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: "#9b90c2", fontSize: 13, fontWeight: 700, marginBottom: 12, opacity: locked ? 0.3 : 0.7 }}>← Home</Link>
           <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: "clamp(28px, 7vw, 48px)", background: "linear-gradient(135deg, #f5c400 0%, #f57c20 40%, #e9529e 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", lineHeight: 1.1 }}>
             ⭐ Quest for Wonder ⭐
           </div>
@@ -343,6 +352,7 @@ export default function PeteTracker() {
           ))}
         </div>
       </div>
+      </div>{/* end pointer-events wrapper */}
     </div>
   );
 }

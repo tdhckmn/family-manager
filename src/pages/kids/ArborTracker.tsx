@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
+import { useLock, PinModal, LockButton } from "../../components/LockGuard";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -111,6 +112,8 @@ export default function ArborTracker() {
   const [toast, setToast] = useState("");
   const [goalInput, setGoalInput] = useState("");
   const [goalAmtInput, setGoalAmtInput] = useState("");
+  const { locked, lock, unlock } = useLock("arbor_locked");
+  const [showPin, setShowPin] = useState(false);
 
   const petals = useMemo(() =>
     Array.from({ length: 18 }, (_, i) => {
@@ -195,16 +198,22 @@ export default function ArborTracker() {
       <div style={{ position: "fixed", inset: 0, background: "radial-gradient(ellipse 70% 50% at 10% 0%, rgba(232,84,122,0.2) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 90% 90%, rgba(201,168,224,0.18) 0%, transparent 60%)", pointerEvents: "none", zIndex: 0 }} />
 
       {/* Toast */}
-      {toast && (
+      {!locked && toast && (
         <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "#351a3d", border: "2px solid #e8547a", color: "#fce8f5", padding: "12px 24px", borderRadius: 14, fontFamily: "'Playfair Display', serif", fontSize: 16, zIndex: 200, whiteSpace: "nowrap" }}>
           {toast}
         </div>
       )}
 
+      {/* Lock controls */}
+      <LockButton locked={locked} accentColor="#e8547a" onLock={lock} onUnlockRequest={() => setShowPin(true)} />
+      {showPin && <PinModal onSuccess={() => { unlock(); setShowPin(false); }} onCancel={() => setShowPin(false)} accentColor="#e8547a" surfaceColor="#2a1530" />}
+
+      {/* Page content — pointer events disabled when locked */}
+      <div style={{ pointerEvents: locked ? "none" : "auto" }}>
       <div style={{ position: "relative", zIndex: 1, maxWidth: 720, margin: "0 auto", padding: 16 }}>
         {/* Header */}
         <header style={{ textAlign: "center", padding: "28px 16px 20px" }}>
-          <Link to="/kids" style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: "#c4a0c8", fontSize: 13, fontWeight: 700, marginBottom: 12, opacity: 0.7 }}>← Back</Link>
+          <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", color: "#c4a0c8", fontSize: 13, fontWeight: 700, marginBottom: 12, opacity: locked ? 0.3 : 0.7 }}>← Home</Link>
           <div style={{ fontSize: 48, display: "block", marginBottom: 4, animation: "crown-bob 3s ease-in-out infinite" }}>👑</div>
           <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(26px, 7vw, 46px)", background: "linear-gradient(135deg, #e8c14a 0%, #f4a7b9 40%, #c9a8e0 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", lineHeight: 1.15, letterSpacing: 1 }}>
             Arbor's Royal Savings
@@ -357,6 +366,7 @@ export default function ArborTracker() {
           ))}
         </div>
       </div>
+      </div>{/* end pointer-events wrapper */}
     </div>
   );
 }
