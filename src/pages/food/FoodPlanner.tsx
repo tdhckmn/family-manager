@@ -111,8 +111,8 @@ const TYPE_ICON: Record<string, string> = {
 };
 
 const titleFont = "'Press Start 2P', cursive";
-const headFont  = "'Fredoka One', cursive";
-const bodyFont  = "'Nunito', sans-serif";
+const headFont  = "'Montserrat', sans-serif";
+const bodyFont  = "'Montserrat', sans-serif";
 
 // Shared style helpers
 const pill = (bg: string, color: string): React.CSSProperties => ({
@@ -275,29 +275,10 @@ export default function FoodPlanner() {
   }
   async function generateRecipe() {
     if (!aiPrompt.trim()) return;
-    setAiLoading(true); setAiResult(null); setAiError("");
-    const p = data.profile;
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY || "",
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001", max_tokens: 1000,
-          system: `Family meal planner. Preferences: meat=${p.meatPreference}, complexity=${p.complexity}, avoid="${p.avoidIngredients}", notes="${p.familyNotes}". Return ONLY valid JSON no markdown: {"name":"...","type":"American|Italian|Mexican|Asian|Mediterranean|Indian|Greek|Breakfast|Soup/Salad|Other","protein":"None/Vegetarian|Chicken|Fish/Seafood|Beef|Pork|Turkey|Eggs|Beans/Legumes|Tofu|Other","prepTime":"...","servings":4,"ingredients":"one per line","notes":"3-5 sentence instructions","source":"AI Generated"}`,
-          messages: [{ role: "user", content: aiPrompt }]
-        })
-      });
-      const d = await res.json();
-      const text = d.content?.find((c: { type: string }) => c.type === "text")?.text || "";
-      const recipe = JSON.parse(text.replace(/```json|```/g, "").trim());
-      setAiResult({ ...recipe, id: Date.now().toString(), rating: 0, ratingNote: "", needsReview: true });
-    } catch { setAiError("Couldn't generate recipe — try again."); }
+    // AI recipe generation has been removed from this build (no external API / key).
+    setAiResult(null);
     setAiLoading(false);
+    setAiError("Recipe generation is no longer available.");
   }
 
   const groceryItems = buildGroceryList();
@@ -554,11 +535,6 @@ export default function FoodPlanner() {
                   <div style={{ fontSize: 13, color: C.inkMid, lineHeight: 1.6 }}>Tell Toad what you're craving and he'll whip up a family-friendly recipe. All AI recipes are flagged for review automatically.</div>
                 </div>
               </div>
-              {!import.meta.env.VITE_ANTHROPIC_API_KEY && (
-                <div style={{ marginBottom: 12, padding: "10px 14px", background: C.yellowLight, border: `2px solid ${C.yellow}`, borderRadius: 8, fontSize: 12, color: C.inkMid, fontWeight: 700 }}>
-                  ⚠️ Add <code>VITE_ANTHROPIC_API_KEY</code> to your <code>.env</code> to enable recipe generation.
-                </div>
-              )}
               <div style={{ display: "flex", gap: 8 }}>
                 <input style={{ ...inputStyle, flex: 1, fontSize: 14 }} value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} onKeyDown={e => e.key === "Enter" && generateRecipe()} placeholder="e.g. easy pasta night, kid-friendly tacos, cozy soup..." />
                 <button style={marioBtn(C.red, C.white)} onClick={generateRecipe} disabled={aiLoading}>
@@ -744,7 +720,7 @@ function Modal({ children, onClose, title, accentColor, maxWidth = 500 }: {
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ background: "#FFFAED", borderRadius: 16, padding: 24, width: "100%", maxWidth, maxHeight: "88vh", overflowY: "auto", border: `3px solid ${accentColor}`, boxShadow: `0 8px 0 ${accentColor}aa, 0 16px 40px rgba(0,0,0,0.3)` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, paddingBottom: 12, borderBottom: `2px dashed ${accentColor}` }}>
-          <div style={{ fontFamily: "'Fredoka One', cursive", fontSize: 18, color: "#1A0A00" }}>{title}</div>
+          <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 18, color: "#1A0A00" }}>{title}</div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: "#9B6E3A", fontWeight: 700, lineHeight: 1 }}>×</button>
         </div>
         {children}

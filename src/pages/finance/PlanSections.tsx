@@ -4,7 +4,7 @@ import {
   AccountMappings,
   Frequency, IncomeFrequency, ExpenseFrequency, Owner,
   SURFACE, SURFACE_HI, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
-  JADE, PURPLE, ORANGE, BLUE, AMBER, DANGER,
+  JADE, PURPLE, BLUE, AMBER, DANGER, PINK, TEAL,
   INCOME_FREQ_LABELS, MONTH_NAMES, OWNER_COLOR,
   EXPENSE_FREQ_LABELS, EXPENSE_FREQ_MONTHLY, SAVINGS_FREQ_LABELS, SAVINGS_FREQ_MONTHLY,
   uid, fmt, fmtDec, pct, countPaydays, emergencyMonthly, expenseMonthly, monthsUntil, displayName,
@@ -12,6 +12,7 @@ import {
   Card, Pill, InlineInput, SelectInput, useIsMobile,
 } from "./shared";
 import { Nudge, AccountFlow, AccountKind } from "./nudges";
+import { Icon } from "../../components/Icon";
 
 // ── Section header total (amount/mo + % of income) ──────────────────────────
 
@@ -103,11 +104,16 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
     if (editId === id) setEditId(null);
   }
 
-  const sorted = [...plan.incomeSources].sort((a, b) => a.owner.localeCompare(b.owner));
+  const sorted = [...plan.incomeSources]
+    .filter(src =>
+      src.frequency !== "onetime" || countPaydays(year, month, src.frequency, src.referenceDate) > 0
+    )
+    .sort((a, b) => a.owner.localeCompare(b.owner));
 
   return (
     <Card
-      title={`📅 ${MONTH_NAMES[month]} Income`}
+      icon={<Icon name="calendar" />}
+      title={`${MONTH_NAMES[month]} Income`}
       action={totalIncome > 0 ? <span style={{ fontSize: 16, fontWeight: 800, color: JADE }}>{fmt(totalIncome)}</span> : undefined}
     >
       {sorted.length === 0 && !adding && (
@@ -123,7 +129,6 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
           const isOneTime = src.frequency === "onetime";
           const checks = countPaydays(year, month, src.frequency, src.referenceDate);
           const total = src.amount * checks;
-          const landsThisMonth = !isOneTime || checks > 0;
           // Resolve effective splits (including legacy destinationAccountId)
           const effectiveSplits = src.splits && src.splits.length > 0
             ? src.splits
@@ -140,7 +145,7 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
               : <span style={{ color: TEXT_MUTED }}> · {effectiveSplits.length} splits</span>;
 
           return (
-            <div key={src.id} onClick={() => openEdit(src)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", gap: 10, opacity: landsThisMonth ? 1 : 0.5 }}
+            <div key={src.id} onClick={() => openEdit(src)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", gap: 10 }}
               onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HI}
               onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
@@ -156,7 +161,7 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
               <div style={{ textAlign: "right", flexShrink: 0 }}>
                 {isOneTime ? (
                   <>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: landsThisMonth ? TEXT : TEXT_DIM }}>{fmtDec(src.amount)}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: TEXT }}>{fmtDec(src.amount)}</div>
                     <div style={{ fontSize: 10, color: TEXT_DIM }}>lands {oneTimeLands(src.referenceDate)}</div>
                   </>
                 ) : (
@@ -178,7 +183,7 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
         </div>
       )}
 
-      <button onClick={openAdd} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ Add Income Source</button>
+      <button onClick={openAdd} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Income Source</button>
     </Card>
   );
 }
@@ -248,7 +253,7 @@ function SplitEditor({ splits, onChange, bankAccounts, perCheck }: {
             <select
               value={sp.type}
               onChange={e => update(idx, { type: e.target.value as SplitType, value: e.target.value === "balance" ? undefined : sp.value })}
-              style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 6px", color: TEXT, fontSize: 12, fontFamily: "'Nunito',sans-serif", outline: "none", flexShrink: 0 }}
+              style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 6px", color: TEXT, fontSize: 12, fontFamily: "'Montserrat',sans-serif", outline: "none", flexShrink: 0 }}
             >
               <option value="amount">$</option>
               <option value="percentage">%</option>
@@ -262,7 +267,7 @@ function SplitEditor({ splits, onChange, bankAccounts, perCheck }: {
                 value={sp.value ?? ""}
                 onChange={e => update(idx, { value: Number(e.target.value) || 0 })}
                 placeholder={sp.type === "percentage" ? "100" : "0"}
-                style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 8px", color: TEXT, fontSize: 12, fontFamily: "'Nunito',sans-serif", outline: "none", width: 72, flexShrink: 0 }}
+                style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 8px", color: TEXT, fontSize: 12, fontFamily: "'Montserrat',sans-serif", outline: "none", width: 72, flexShrink: 0 }}
                 onFocus={e => (e.target.style.borderColor = JADE + "80")}
                 onBlur={e => (e.target.style.borderColor = BORDER)}
               />
@@ -274,18 +279,18 @@ function SplitEditor({ splits, onChange, bankAccounts, perCheck }: {
             <select
               value={sp.accountId}
               onChange={e => update(idx, { accountId: e.target.value })}
-              style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 6px", color: acct ? TEXT : AMBER, fontSize: 12, fontFamily: "'Nunito',sans-serif", outline: "none", flex: 1, minWidth: 0 }}
+              style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 6, padding: "5px 6px", color: acct ? TEXT : AMBER, fontSize: 12, fontFamily: "'Montserrat',sans-serif", outline: "none", flex: 1, minWidth: 0 }}
             >
               {!acct && <option value="">— pick account —</option>}
               {accts.map(a => <option key={a.id} value={a.id}>{displayName(a)}</option>)}
             </select>
 
             {/* Reorder */}
-            <button onClick={() => move(idx, -1)} disabled={idx === 0} style={{ background: "transparent", border: "none", color: idx === 0 ? TEXT_MUTED : TEXT_DIM, cursor: idx === 0 ? "default" : "pointer", fontSize: 12, padding: "2px 3px", fontFamily: "'Nunito',sans-serif" }}>↑</button>
-            <button onClick={() => move(idx, 1)} disabled={idx === splits.length - 1} style={{ background: "transparent", border: "none", color: idx === splits.length - 1 ? TEXT_MUTED : TEXT_DIM, cursor: idx === splits.length - 1 ? "default" : "pointer", fontSize: 12, padding: "2px 3px", fontFamily: "'Nunito',sans-serif" }}>↓</button>
+            <button onClick={() => move(idx, -1)} disabled={idx === 0} style={{ background: "transparent", border: "none", color: idx === 0 ? TEXT_MUTED : TEXT_DIM, cursor: idx === 0 ? "default" : "pointer", fontSize: 12, padding: "2px 3px", fontFamily: "'Montserrat',sans-serif" }}>↑</button>
+            <button onClick={() => move(idx, 1)} disabled={idx === splits.length - 1} style={{ background: "transparent", border: "none", color: idx === splits.length - 1 ? TEXT_MUTED : TEXT_DIM, cursor: idx === splits.length - 1 ? "default" : "pointer", fontSize: 12, padding: "2px 3px", fontFamily: "'Montserrat',sans-serif" }}>↓</button>
 
             {/* Remove */}
-            <button onClick={() => remove(idx)} style={{ background: "transparent", border: "none", color: DANGER, fontSize: 14, cursor: "pointer", fontFamily: "'Nunito',sans-serif", padding: "2px 3px" }}>×</button>
+            <button onClick={() => remove(idx)} style={{ background: "transparent", border: "none", color: DANGER, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat',sans-serif", padding: "2px 3px" }}>×</button>
           </div>
         );
       })}
@@ -298,9 +303,9 @@ function SplitEditor({ splits, onChange, bankAccounts, perCheck }: {
 
       {/* Add buttons */}
       <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-        <button onClick={() => addRow("amount")} style={{ background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 6, color: JADE, fontSize: 11, fontWeight: 700, padding: "4px 10px", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ $</button>
-        <button onClick={() => addRow("percentage")} style={{ background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 6, color: JADE, fontSize: 11, fontWeight: 700, padding: "4px 10px", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ %</button>
-        {!hasBalance && <button onClick={() => addRow("balance")} style={{ background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 6, color: JADE, fontSize: 11, fontWeight: 700, padding: "4px 10px", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ balance</button>}
+        <button onClick={() => addRow("amount")} style={{ background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 6, color: JADE, fontSize: 11, fontWeight: 700, padding: "4px 10px", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ $</button>
+        <button onClick={() => addRow("percentage")} style={{ background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 6, color: JADE, fontSize: 11, fontWeight: 700, padding: "4px 10px", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ %</button>
+        {!hasBalance && <button onClick={() => addRow("balance")} style={{ background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 6, color: JADE, fontSize: 11, fontWeight: 700, padding: "4px 10px", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ balance</button>}
       </div>
     </div>
   );
@@ -346,11 +351,11 @@ function IncomeForm({ draft, setDraft, bankAccounts, onSave, onCancel, onDelete 
       </div>
       <div style={{ gridColumn: "span 2", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Nunito',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
-          <button onClick={onCancel} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Nunito',sans-serif", fontSize: 12, fontWeight: 700, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
+          <button onClick={onCancel} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif", fontSize: 12, fontWeight: 700, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
         </div>
         {onDelete && (
-          <button onClick={onDelete} style={{ background: "transparent", border: "none", color: DANGER, fontSize: 12, cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>Remove</button>
+          <button onClick={onDelete} style={{ background: "transparent", border: "none", color: DANGER, fontSize: 12, cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>Remove</button>
         )}
       </div>
     </div>
@@ -392,29 +397,47 @@ function ExpenseForm({ draft, set, accountOptions, onSave, onCancel, onDelete }:
         {accountOptions.map(a => <option key={a}>{a}</option>)}
         {draft.account && !accountOptions.includes(draft.account) && <option value={draft.account}>{draft.account}</option>}
       </SelectInput>
+      <InlineInput label="Website URL (optional)" value={draft.url ?? ""} onChange={v => set("url", v)} placeholder="https://…" />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Nunito',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
-          <button onClick={onCancel} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Nunito',sans-serif", fontWeight: 700, fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
+          <button onClick={onCancel} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
         </div>
-        {onDelete && <button onClick={onDelete} style={{ background: "transparent", border: "none", color: DANGER, fontSize: 12, cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>Remove</button>}
+        {onDelete && <button onClick={onDelete} style={{ background: "transparent", border: "none", color: DANGER, fontSize: 12, cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>Remove</button>}
       </div>
     </div>
   );
 }
+
+type ExpenseSortKey = "date" | "name" | "amount";
 
 export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }: {
   plan: FinancePlan; save: (p: FinancePlan) => void; accountOptions: string[]; totalIncome: number;
 }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [sortKey, setSortKey] = useState<ExpenseSortKey>("date");
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
   const defaultAcct = accountOptions[0] ?? "Other";
   const blank: ExpenseDraft = { id: "", name: "", amount: 0, dayOfMonth: undefined, account: defaultAcct, frequency: "monthly" };
   const [draft, setDraft] = useState<ExpenseDraft>(blank);
 
+  function toggleSort(key: ExpenseSortKey) {
+    if (key === sortKey) setSortDir(d => (d === 1 ? -1 : 1));
+    else { setSortKey(key); setSortDir(key === "amount" ? -1 : 1); }
+  }
+
   const sorted = [...plan.fixedExpenses].sort((a, b) => {
-    const da = a.dayOfMonth ?? 999, db = b.dayOfMonth ?? 999;
-    return da !== db ? da - db : a.name.localeCompare(b.name);
+    let cmp: number;
+    if (sortKey === "name") {
+      cmp = a.name.localeCompare(b.name);
+    } else if (sortKey === "amount") {
+      cmp = expenseMonthly(a) - expenseMonthly(b);
+    } else {
+      const da = a.dayOfMonth ?? 999, db = b.dayOfMonth ?? 999;
+      cmp = da !== db ? da - db : a.name.localeCompare(b.name);
+    }
+    return cmp * sortDir;
   });
   const totalMonthly = plan.fixedExpenses.reduce((s, e) => s + expenseMonthly(e), 0);
 
@@ -424,6 +447,8 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
     const e: FixedExpense = { ...draft, amount: Number(draft.amount) };
     if (e.frequency === "monthly") delete e.frequency;
     if (!e.dayOfMonth) delete e.dayOfMonth;
+    if (e.url) e.url = e.url.trim();
+    if (!e.url) delete e.url;
     return e;
   }
 
@@ -447,11 +472,33 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
 
   return (
     <Card
-      title="📋 Fixed Expenses"
+      icon={<Icon name="list" />}
+      title="Fixed Expenses"
       action={totalMonthly > 0 ? <SectionTotal amount={totalMonthly} color={PURPLE} pctVal={pct(totalMonthly, totalIncome)} target={50} hasIncome={totalIncome > 0} /> : undefined}
     >
       {sorted.length === 0 && !adding && (
         <div style={{ color: TEXT_MUTED, fontSize: 13, fontStyle: "italic", textAlign: "center", padding: "16px 0" }}>No fixed expenses yet.</div>
+      )}
+
+      {plan.fixedExpenses.length > 1 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: TEXT_MUTED, letterSpacing: 1, textTransform: "uppercase", marginRight: 2 }}>Sort</span>
+          {([["date", "Date"], ["name", "Name"], ["amount", "Amount"]] as [ExpenseSortKey, string][]).map(([key, label]) => {
+            const active = sortKey === key;
+            return (
+              <button key={key} onClick={() => toggleSort(key)}
+                style={{
+                  background: active ? `${JADE}1a` : "transparent",
+                  border: `1px solid ${active ? JADE + "55" : BORDER}`,
+                  borderRadius: 7, color: active ? JADE : TEXT_DIM,
+                  fontSize: 11, fontWeight: 700, padding: "3px 9px", cursor: "pointer",
+                  fontFamily: "'Montserrat',sans-serif", display: "flex", alignItems: "center", gap: 3,
+                }}>
+                {label}{active && <span style={{ fontSize: 9 }}>{sortDir === 1 ? "▲" : "▼"}</span>}
+              </button>
+            );
+          })}
+        </div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -472,7 +519,18 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
                   onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: TEXT_MUTED, width: 22, textAlign: "right", flexShrink: 0 }}>{exp.dayOfMonth ?? ""}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: TEXT, fontWeight: 600 }}>{exp.name}</div>
+                    <div style={{ fontSize: 13, color: TEXT, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                      {exp.name}
+                      {exp.url && (
+                        <a href={exp.url} target="_blank" rel="noopener noreferrer" title={`Open ${exp.name} website`}
+                          onClick={e => e.stopPropagation()}
+                          style={{ color: JADE, fontSize: 11, textDecoration: "none", opacity: 0.7, flexShrink: 0, lineHeight: 1 }}
+                          onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
+                          onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
+                          ↗
+                        </a>
+                      )}
+                    </div>
                     {!isMonthly && <div style={{ fontSize: 10, color: TEXT_DIM }}>{EXPENSE_FREQ_LABELS[freq]} · {fmtDec(monthly)}/mo equiv</div>}
                   </div>
                   {!isMonthly && <Pill color={BLUE}>{EXPENSE_FREQ_LABELS[freq]}</Pill>}
@@ -493,7 +551,7 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
           <ExpenseForm draft={draft} set={set} accountOptions={accountOptions} onSave={commitAdd} onCancel={() => setAdding(false)} />
         </div>
       )}
-      {!adding && <button onClick={openAdd} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ Add Expense</button>}
+      {!adding && <button onClick={openAdd} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Expense</button>}
     </Card>
   );
 }
@@ -504,11 +562,13 @@ interface FundFormProps {
   draft: SinkingFund; setDraft: React.Dispatch<React.SetStateAction<SinkingFund>>;
   draftTarget: string; setDraftTarget: (v: string) => void;
   draftDue: string; setDraftDue: (v: string) => void;
+  sinkingAccounts: BankAccount[];
   onSave: () => void; onCancel: () => void; onDelete?: () => void;
 }
 
-function FundForm({ draft, setDraft, draftTarget, setDraftTarget, draftDue, setDraftDue, onSave, onCancel, onDelete }: FundFormProps) {
+function FundForm({ draft, setDraft, draftTarget, setDraftTarget, draftDue, setDraftDue, sinkingAccounts, onSave, onCancel, onDelete }: FundFormProps) {
   const isMobile = useIsMobile();
+  const showAccount = sinkingAccounts.length > 1;
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
       <div style={{ gridColumn: "span 2" }}>
@@ -519,12 +579,20 @@ function FundForm({ draft, setDraft, draftTarget, setDraftTarget, draftDue, setD
       <div style={{ gridColumn: "span 2" }}>
         <InlineInput label="Due date (optional)" value={draftDue} onChange={setDraftDue} type="date" />
       </div>
+      {showAccount && (
+        <div style={{ gridColumn: "span 2" }}>
+          <SelectInput label="Held in account" value={draft.accountId ?? ""} onChange={v => setDraft(d => ({ ...d, accountId: v || undefined }))}>
+            <option value="">— pick account —</option>
+            {sinkingAccounts.map(a => <option key={a.id} value={a.id}>{displayName(a)}</option>)}
+          </SelectInput>
+        </div>
+      )}
       <div style={{ gridColumn: "span 2", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Nunito',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
-          <button onClick={onCancel} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Nunito',sans-serif", fontSize: 12, fontWeight: 700, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
+          <button onClick={onCancel} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif", fontSize: 12, fontWeight: 700, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
         </div>
-        {onDelete && <button onClick={onDelete} style={{ background: "transparent", border: "none", color: DANGER, fontSize: 12, cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>Remove</button>}
+        {onDelete && <button onClick={onDelete} style={{ background: "transparent", border: "none", color: DANGER, fontSize: 12, cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>Remove</button>}
       </div>
     </div>
   );
@@ -532,11 +600,13 @@ function FundForm({ draft, setDraft, draftTarget, setDraftTarget, draftDue, setD
 
 const blankFund: SinkingFund = { id: "", name: "", monthlyAmount: 0 };
 
-export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sinkingAcctName }: {
+export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sinkingAccounts }: {
   plan: FinancePlan; save: (p: FinancePlan) => void;
-  totalIncome: number; emergencyAcctName: string; sinkingAcctName: string;
+  totalIncome: number; emergencyAcctName: string; sinkingAccounts: BankAccount[];
 }) {
   const isMobile = useIsMobile();
+  const sinkingAcctName = sinkingAccounts.length > 0 ? sinkingAccounts.map(displayName).join(" & ") : "Sinking Funds";
+  const multiSinking = sinkingAccounts.length > 1;
 
   // ── Emergency savings ──
   const transfer = plan.savings.emergencyTransfer;
@@ -600,6 +670,12 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
     else delete fund.targetAmount;
     if (draftDue) fund.dueDate = draftDue;
     else delete fund.dueDate;
+    // Only persist accountId when several sinking accounts exist and one is chosen & still valid
+    if (multiSinking && fund.accountId && sinkingAccounts.some(a => a.id === fund.accountId)) {
+      // keep
+    } else {
+      delete fund.accountId;
+    }
     return fund;
   }
   function commitAddFund() {
@@ -615,14 +691,15 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
     save({ ...plan, sinkingFunds: funds.filter(f => f.id !== id) });
     if (editId === id) setEditId(null);
   }
-  const formProps = { draft, setDraft, draftTarget, setDraftTarget, draftDue, setDraftDue };
+  const formProps = { draft, setDraft, draftTarget, setDraftTarget, draftDue, setDraftDue, sinkingAccounts };
 
   const totalSavings = monthlyAmt + totalSinkingFunds;
   const pctVal = pct(totalSavings, totalIncome);
 
   return (
     <Card
-      title="🛡️ Savings"
+      icon={<Icon name="shield" />}
+      title="Savings"
       action={totalSavings > 0 ? <SectionTotal amount={totalSavings} color={JADE} pctVal={pctVal} target={20} hasIncome={totalIncome > 0} /> : undefined}
     >
       {/* Emergency savings */}
@@ -641,8 +718,8 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
           )}
           <div style={{ fontSize: 11, color: TEXT_DIM, marginBottom: 10 }}>→ {emergencyAcctName}</div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={commitEmergency} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Nunito',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
-            <button onClick={cancelEmergency} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Nunito',sans-serif", fontWeight: 700, fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
+            <button onClick={commitEmergency} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
+            <button onClick={cancelEmergency} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
           </div>
         </div>
       ) : (
@@ -673,7 +750,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
         <span style={{ fontSize: 11, fontWeight: 800, color: TEXT_DIM, letterSpacing: 1, textTransform: "uppercase" }}>Sinking Funds</span>
         {totalSinkingFunds > 0 && (
           <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-            <span style={{ fontSize: 12, fontWeight: 800, color: "#4a7fc1" }}>{fmt(totalSinkingFunds)}/mo</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: TEAL }}>{fmt(totalSinkingFunds)}/mo</span>
             {sinkingAcctName && <span style={{ fontSize: 10, color: TEXT_MUTED }}>→ {sinkingAcctName}</span>}
           </div>
         )}
@@ -696,28 +773,37 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
             </div>
           ) : (
             <div key={f.id} onClick={() => openEditFund(f)}
-              style={{ padding: "10px 4px", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.1s" }}
+              style={{ padding: "8px 4px", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.1s" }}
               onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HI}
               onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: fillPct != null ? 6 : 0 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{f.name}</div>
-                  <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 2 }}>
-                    {fmt(f.monthlyAmount)}/mo
-                    {f.targetAmount != null && <span> · target {fmt(f.targetAmount)}</span>}
-                    {mo != null && <span> · <span style={{ color: mo <= 3 ? DANGER : mo <= 6 ? AMBER : TEXT_DIM }}>{mo === 0 ? "due this month" : `${mo} mo`}</span></span>}
-                    {projected != null && f.targetAmount != null && (
-                      <span style={{ color: onTrack ? JADE : DANGER }}> · saves {fmt(projected)} by due date</span>
-                    )}
-                    {f.dueDate && !f.targetAmount && (
-                      <span> · due {new Date(f.dueDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
-                    )}
-                  </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: TEXT, fontWeight: 600 }}>{f.name}</div>
+                  {(multiSinking || f.targetAmount != null || f.dueDate) && (
+                    <div style={{ fontSize: 10, color: TEXT_DIM }}>
+                      {multiSinking && (() => {
+                        const a = f.accountId ? sinkingAccounts.find(x => x.id === f.accountId) : undefined;
+                        return <span style={{ color: a ? TEXT_DIM : AMBER }}>→ {a ? displayName(a) : "no account"}</span>;
+                      })()}
+                      {multiSinking && f.targetAmount != null && <span> · </span>}
+                      {f.targetAmount != null && <span>target {fmt(f.targetAmount)}</span>}
+                      {projected != null && f.targetAmount != null && (
+                        <span style={{ color: onTrack ? JADE : DANGER }}> · saves {fmt(projected)} by due</span>
+                      )}
+                      {f.dueDate && !f.targetAmount && (
+                        <span>{multiSinking ? " · " : ""}due {new Date(f.dueDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#4a7fc1", flexShrink: 0, marginLeft: 12 }}>{fmt(f.monthlyAmount)}/mo</div>
+                {mo != null && <Pill color={mo <= 3 ? DANGER : mo <= 6 ? AMBER : TEAL}>{mo === 0 ? "due now" : `${mo} mo`}</Pill>}
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>{fmt(f.monthlyAmount)}</div>
+                  <div style={{ fontSize: 10, color: TEXT_DIM }}>/mo</div>
+                </div>
               </div>
               {fillPct != null && (
-                <div>
+                <div style={{ marginTop: 6 }}>
                   <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{ height: "100%", borderRadius: 2, background: onTrack ? JADE : AMBER, width: `${fillPct}%`, transition: "width 0.5s ease" }} />
                   </div>
@@ -737,7 +823,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
           <FundForm {...formProps} onSave={commitAddFund} onCancel={() => setAdding(false)} />
         </div>
       )}
-      {!adding && <button onClick={openAddFund} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }}>+ Add Sinking Fund</button>}
+      {!adding && <button onClick={openAddFund} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Sinking Fund</button>}
     </Card>
   );
 }
@@ -821,8 +907,8 @@ export function AccountPlanSection({
 
   const groups: PlanGroup[] = [
     { label: "Needs",   color: PURPLE, target: 0.5, planned: totalNeeds,                      flows: flows.filter(f => needsIds.has(f.account.id)) },
-    { label: "Wants",   color: ORANGE, target: 0.3, planned: totalWants,                      flows: flows.filter(f => wantsIds.has(f.account.id)) },
-    { label: "Savings", color: BLUE,   target: 0.2, planned: totalEmergency + totalSinkingFunds, flows: flows.filter(f => savingsIds.has(f.account.id)) },
+    { label: "Wants",   color: PINK,   target: 0.3, planned: totalWants,                      flows: flows.filter(f => wantsIds.has(f.account.id)) },
+    { label: "Savings", color: JADE,   target: 0.2, planned: totalEmergency + totalSinkingFunds, flows: flows.filter(f => savingsIds.has(f.account.id)) },
   ];
   const unassigned = flows.filter(f => !allRoleIds.has(f.account.id));
 
@@ -831,7 +917,10 @@ export function AccountPlanSection({
   return (
     <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden", marginTop: 16 }}>
       <div style={{ padding: "14px 20px", borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>💸 Budget Plan</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ display: "flex", color: TEXT_DIM }}><Icon name="flow" /></span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>Budget Plan</span>
+        </div>
         <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 2 }}>Where every dollar lands this month</div>
       </div>
 
@@ -898,13 +987,13 @@ export function WantsSection({ totalWants, totalIncome, dailySpendingAcctName }:
   const onTarget = Math.abs(wantsPct - 30) <= 3;
 
   return (
-    <Card title="🛍️ Safe to Spend">
+    <Card icon={<Icon name="bag" />} title="Safe to Spend">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_DIM, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
             → {dailySpendingAcctName}
           </div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: totalWants > 0 ? ORANGE : TEXT_MUTED }}>
+          <div style={{ fontSize: 32, fontWeight: 800, color: totalWants > 0 ? PINK : TEXT_MUTED }}>
             {totalWants > 0 ? fmt(totalWants) : "—"}
           </div>
           <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 4 }}>per month after needs &amp; savings</div>

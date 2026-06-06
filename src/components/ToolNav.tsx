@@ -1,0 +1,104 @@
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Icon } from "./Icon";
+
+const TEXT = "#dedad0";
+const TEXT_DIM = "#7a7890";
+const BORDER = "rgba(255,255,255,0.10)";
+const JADE = "#5db88a"; // Finances accent (greenish)
+const BLUE = "#5b8fd4"; // Todos accent (blueish)
+
+export type ToolKey = "finance" | "todos";
+
+const TOOLS: { key: ToolKey; to: string; label: string; accent: string }[] = [
+  { key: "finance", to: "/finance", label: "Finances", accent: JADE },
+  { key: "todos",   to: "/todos",   label: "Todos",    accent: BLUE },
+];
+
+function useIsMobile(maxWidth = 640): boolean {
+  const query = `(max-width: ${maxWidth}px)`;
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(query).matches : false,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const handler = () => setIsMobile(mql.matches);
+    handler();
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [query]);
+  return isMobile;
+}
+
+/**
+ * Header tool switcher used on Finance & Todos.
+ * Desktop: the tool names sit side-by-side, active one highlighted with its accent.
+ * Mobile: the current tool name + a chevron opens a bottom sheet to jump tools.
+ */
+export default function ToolNav({ current }: { current: ToolKey }) {
+  const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const cur = TOOLS.find(t => t.key === current)!;
+
+  if (isMobile) {
+    return (
+      <>
+        <button onClick={() => setSheetOpen(true)}
+          style={{ display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", cursor: "pointer", padding: 0, fontFamily: "'Montserrat',sans-serif" }}>
+          <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: cur.accent }}>{cur.label}</span>
+          <Icon name="chevronDown" size={15} color={cur.accent} />
+        </button>
+
+        {sheetOpen && (
+          <div onClick={() => setSheetOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(3,5,15,0.72)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-end" }}>
+            <div onClick={e => e.stopPropagation()}
+              style={{ width: "100%", background: "#0b0f22", borderTop: `1px solid ${BORDER}`, borderRadius: "20px 20px 0 0", padding: "10px 0 calc(10px + env(safe-area-inset-bottom))", boxShadow: "0 -12px 48px rgba(0,0,0,0.6)" }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "6px auto 10px" }} />
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_DIM, padding: "4px 20px 8px", opacity: 0.6 }}>
+                Switch tool
+              </div>
+              {TOOLS.map(t => {
+                const active = t.key === current;
+                return (
+                  <button key={t.key}
+                    onClick={() => { setSheetOpen(false); if (!active) navigate(t.to); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left",
+                      padding: "14px 20px", background: active ? `${t.accent}14` : "transparent", border: "none",
+                      cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
+                    }}>
+                    <Icon name={t.key === "finance" ? "wallet" : "check"} size={20} color={active ? t.accent : TEXT_DIM} />
+                    <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: active ? t.accent : TEXT }}>{t.label}</span>
+                    {active && <span style={{ fontSize: 12, fontWeight: 700, color: t.accent }}>●</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // Desktop: side-by-side links
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+      {TOOLS.map(t => {
+        const active = t.key === current;
+        return (
+          <Link key={t.key} to={t.to}
+            style={{
+              textDecoration: "none", fontSize: 14, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase",
+              color: active ? t.accent : TEXT_DIM, opacity: active ? 1 : 0.55, transition: "opacity 0.15s, color 0.15s",
+            }}
+            onMouseEnter={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.opacity = "0.9"; }}
+            onMouseLeave={e => { if (!active) (e.currentTarget as HTMLAnchorElement).style.opacity = "0.55"; }}>
+            {t.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}

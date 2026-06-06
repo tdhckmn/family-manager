@@ -226,23 +226,10 @@ export default function App() {
 
   async function generateRecipe() {
     if (!aiPrompt.trim()) return;
-    setAiLoading(true); setAiResult(null); setAiError("");
-    const p = data.profile;
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 1000,
-          system: `Family meal planner. Preferences: meat=${p.meatPreference}, complexity=${p.complexity}, avoid="${p.avoidIngredients}", notes="${p.familyNotes}". Return ONLY valid JSON no markdown: {"name":"...","type":"American|Italian|Mexican|Asian|Mediterranean|Indian|Greek|Breakfast|Soup/Salad|Other","protein":"None/Vegetarian|Chicken|Fish/Seafood|Beef|Pork|Turkey|Eggs|Beans/Legumes|Tofu|Other","prepTime":"...","servings":4,"ingredients":"one per line","notes":"3-5 sentence instructions","source":"AI Generated"}`,
-          messages: [{ role: "user", content: aiPrompt }]
-        })
-      });
-      const d = await res.json();
-      const text = d.content?.find(c => c.type === "text")?.text || "";
-      const recipe = JSON.parse(text.replace(/```json|```/g, "").trim());
-      setAiResult({ ...recipe, id: Date.now().toString(), rating: 0, ratingNote: "", needsReview: true });
-    } catch { setAiError("Couldn't generate recipe — try again."); }
+    // AI recipe generation removed — no external API integration in this project.
+    setAiResult(null);
     setAiLoading(false);
+    setAiError("Recipe generation is no longer available.");
   }
 
   const groceryItems = buildGroceryList();

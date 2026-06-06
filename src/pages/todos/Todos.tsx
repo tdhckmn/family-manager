@@ -1,57 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
+import ToolNav from "../../components/ToolNav";
+import { useAuth } from "../../auth";
 import ReactMarkdown from "react-markdown";
 import {
   collection, onSnapshot, addDoc, updateDoc, deleteDoc,
   doc, query, orderBy,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-
-// ── Wisdom ────────────────────────────────────────────────────────────────
-
-const WISDOM = [
-  { text: "You have power over your mind, not outside events. Realize this, and you will find strength.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "Nature does not hurry, yet everything is accomplished.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "Waste no more time arguing about what a good man should be. Be one.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "Knowing others is wisdom. Knowing yourself is enlightenment.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "The happiness of your life depends upon the quality of your thoughts.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "When you realize there is nothing lacking, the whole world belongs to you.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "Be tolerant with others and strict with yourself.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "Life is a series of natural and spontaneous changes. Don't resist them.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "You become what you give your attention to.", author: "Epictetus", tradition: "Stoic" },
-  { text: "To the mind that is still, the whole universe surrenders.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "Wealth consists not in having great possessions, but in having few wants.", author: "Epictetus", tradition: "Stoic" },
-  { text: "Do you have the patience to wait until your mud settles and the water is clear?", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "Receive without pride, relinquish without struggle.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "Simplicity, patience, compassion. These three are your greatest treasures.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "No man is free who is not master of himself.", author: "Epictetus", tradition: "Stoic" },
-  { text: "Act without expectation.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "First say to yourself what you would be; and then do what you have to do.", author: "Epictetus", tradition: "Stoic" },
-  { text: "At the center of your being you have the answer; you know who you are and you know what you want.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "Very little is needed to make a happy life; it is all within yourself, in your way of thinking.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "Those who know do not speak. Those who speak do not know.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "The impediment to action advances action. What stands in the way becomes the way.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "The journey of a thousand miles begins with a single step.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "Never let the future disturb you. You will meet it, if you have to, with the same weapons of reason that arm you today.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "A man with outward courage dares to die; a man with inner courage dares to live.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "Dwell on the beauty of life. Watch the stars, and see yourself running with them.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "The key to growth is the introduction of higher dimensions of consciousness into our awareness.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "If you want to improve, be content to be thought foolish and stupid.", author: "Epictetus", tradition: "Stoic" },
-  { text: "Doing nothing is better than being busy doing nothing.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "It never ceases to amaze me: we all love ourselves more than other people, but care more about their opinion than our own.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "When I let go of what I am, I become what I might be.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "How long are you going to wait before you demand the best for yourself?", author: "Epictetus", tradition: "Stoic" },
-  { text: "Be careful what you water your dreams with. Water them with worry and fear and you will produce weeds that choke the life from your dream.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "Confine yourself to the present.", author: "Marcus Aurelius", tradition: "Stoic" },
-  { text: "The flame that burns twice as bright burns half as long.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "Make the best use of what is in your power, and take the rest as it happens.", author: "Epictetus", tradition: "Stoic" },
-];
-
-function getDayOfYear(): number {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  return Math.floor((now.getTime() - start.getTime()) / 86_400_000);
-}
+import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import StarField from "../../components/StarField";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -93,6 +51,7 @@ function useIsMobile(breakpoint = 640) {
 // ── Component ─────────────────────────────────────────────────────────────
 
 export default function Todos() {
+  const uid = useAuth().uid;
   const [todos, setTodos] = useState<Todo[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -109,17 +68,17 @@ export default function Todos() {
   const addInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  const quote = useMemo(() => WISDOM[getDayOfYear() % WISDOM.length], []);
+  const quote = useMemo(() => quoteOfDay(), []);
   const selected = todos.find(t => t.id === selectedId) ?? null;
   const open = todos.filter(t => !t.completed);
   const done = todos.filter(t => t.completed);
 
   useEffect(() => {
-    const q = query(collection(db, "todos"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "users", uid, "todos"), orderBy("createdAt", "desc"));
     return onSnapshot(q, snap => {
       setTodos(snap.docs.map(d => ({ id: d.id, ...d.data() } as Todo)));
-    });
-  }, []);
+    }, err => console.error("Todos load failed:", err));
+  }, [uid]);
 
   useEffect(() => {
     if (showAdd) addInputRef.current?.focus();
@@ -160,7 +119,7 @@ export default function Todos() {
 
   async function saveEdit() {
     if (!selected) return;
-    await updateDoc(doc(db, "todos", selected.id), {
+    await updateDoc(doc(db, "users", uid, "todos", selected.id), {
       title: draftTitle.trim() || selected.title,
       notes: draftNotes,
     });
@@ -172,13 +131,13 @@ export default function Todos() {
   }
 
   async function toggleComplete(todo: Todo) {
-    await updateDoc(doc(db, "todos", todo.id), { completed: !todo.completed });
+    await updateDoc(doc(db, "users", uid, "todos", todo.id), { completed: !todo.completed });
   }
 
   async function addTodo() {
     const title = addingTitle.trim();
     if (!title) return;
-    const ref = await addDoc(collection(db, "todos"), {
+    const ref = await addDoc(collection(db, "users", uid, "todos"), {
       title,
       notes: "",
       completed: false,
@@ -193,7 +152,7 @@ export default function Todos() {
 
   async function deleteTodo() {
     if (!selected) return;
-    await deleteDoc(doc(db, "todos", selected.id));
+    await deleteDoc(doc(db, "users", uid, "todos", selected.id));
     setSelectedId(null);
     setEditing(false);
     setConfirmDelete(false);
@@ -214,9 +173,8 @@ export default function Todos() {
 
   if (isMobile) {
     return (
-      <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Nunito', sans-serif", color: TEXT, position: "relative" }}>
-        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
-          background: "radial-gradient(ellipse 55% 35% at 10% 0%, rgba(40,90,70,0.22) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 90% 100%, rgba(20,40,80,0.25) 0%, transparent 60%)" }} />
+      <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat', sans-serif", color: TEXT, position: "relative" }}>
+        <StarField />
 
         <div style={{ position: "relative", zIndex: 1 }}>
 
@@ -224,9 +182,10 @@ export default function Todos() {
           {!mobileShowDetail && (
             <div style={{ padding: "16px 16px 100px" }}>
               {/* Top bar */}
-              <div style={{ display: "flex", alignItems: "center", marginBottom: 18 }}>
-                <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.8, marginRight: 16 }}>← Home</Link>
-                <span style={{ fontSize: 14, color: TEXT_DIM, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", opacity: 0.5 }}>My Todos</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+                <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.8 }}>← Home</Link>
+                <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)" }} />
+                <ToolNav current="todos" />
               </div>
 
               {/* Wisdom — compact on mobile */}
@@ -241,7 +200,7 @@ export default function Todos() {
                     onChange={e => setAddingTitle(e.target.value)}
                     onKeyDown={handleAddKey}
                     placeholder="New todo…"
-                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 15, fontFamily: "'Nunito', sans-serif" }}
+                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 15, fontFamily: "'Montserrat', sans-serif" }}
                   />
                   <button onClick={addTodo} style={{ ...btnStyle(JADE), padding: "7px 16px", fontSize: 13 }}>Add</button>
                   <button onClick={() => { setShowAdd(false); setAddingTitle(""); }}
@@ -310,7 +269,7 @@ export default function Todos() {
                   ref={titleInputRef}
                   value={draftTitle}
                   onChange={e => setDraftTitle(e.target.value)}
-                  style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", borderBottom: `1.5px solid ${JADE_DIM}`, outline: "none", color: TEXT, fontSize: 22, fontWeight: 700, fontFamily: "'Nunito', sans-serif", padding: "4px 0", marginBottom: 20 }}
+                  style={{ width: "100%", boxSizing: "border-box", background: "transparent", border: "none", borderBottom: `1.5px solid ${JADE_DIM}`, outline: "none", color: TEXT, fontSize: 22, fontWeight: 700, fontFamily: "'Montserrat', sans-serif", padding: "4px 0", marginBottom: 20 }}
                 />
               ) : (
                 <h2 style={{ fontSize: 22, fontWeight: 700, color: selected.completed ? TEXT_MUTED : TEXT, textDecoration: selected.completed ? "line-through" : "none", margin: "0 0 20px 0", lineHeight: 1.3 }}>
@@ -364,7 +323,7 @@ export default function Todos() {
                 color: "#06091a", fontSize: 28, fontWeight: 700,
                 cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                 boxShadow: "0 4px 20px rgba(93,184,138,0.4)",
-                fontFamily: "'Nunito', sans-serif",
+                fontFamily: "'Montserrat', sans-serif",
               }}
             >
               +
@@ -378,25 +337,21 @@ export default function Todos() {
   // ── Desktop layout (unchanged) ────────────────────────────────────────────
 
   return (
-    <div style={{ background: BG, minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Nunito', sans-serif" }}>
+    <div style={{ background: BG, minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Montserrat', sans-serif" }}>
 
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
-        background: "radial-gradient(ellipse 55% 35% at 10% 0%, rgba(40,90,70,0.22) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 90% 100%, rgba(20,40,80,0.25) 0%, transparent 60%), radial-gradient(ellipse 60% 50% at 50% 50%, rgba(6,9,26,0) 0%, rgba(6,9,26,0.6) 100%)" }} />
-
-      <Particles />
+      <StarField />
 
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minHeight: "100vh", maxWidth: 1200, margin: "0 auto", width: "100%", padding: "24px 20px" }}>
 
         {/* Top bar */}
-        <div style={{ display: "flex", alignItems: "center", marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
           <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 6, opacity: 0.7, transition: "opacity 0.15s" }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
             ← Home
           </Link>
-          <div style={{ marginLeft: 20, fontSize: 14, color: TEXT_DIM, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", opacity: 0.5 }}>
-            My Todos
-          </div>
+          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)" }} />
+          <ToolNav current="todos" />
         </div>
 
         <WisdomCard quote={quote} />
@@ -413,7 +368,7 @@ export default function Todos() {
                   onChange={e => setAddingTitle(e.target.value)}
                   onKeyDown={handleAddKey}
                   placeholder="Todo title…"
-                  style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 14, fontFamily: "'Nunito', sans-serif" }}
+                  style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 14, fontFamily: "'Montserrat', sans-serif" }}
                 />
                 <button onClick={addTodo} style={{ ...btnStyle(JADE), padding: "4px 12px", fontSize: 12 }}>Add</button>
                 <button onClick={() => { setShowAdd(false); setAddingTitle(""); }} style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "4px 8px", fontSize: 12 }}>✕</button>
@@ -482,28 +437,6 @@ export default function Todos() {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────
-
-function WisdomCard({ quote, compact = false }: { quote: typeof WISDOM[0]; compact?: boolean }) {
-  return (
-    <div style={{ background: "rgba(255,255,255,0.025)", border: `1px solid ${BORDER}`, borderRadius: 16, padding: compact ? "14px 18px" : "22px 28px", position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(93,184,138,0.04) 0%, transparent 70%)", pointerEvents: "none" }} />
-      <div style={{ position: "relative" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: compact ? 8 : 12 }}>
-          <div style={{ width: 3, height: 12, background: `linear-gradient(180deg, ${JADE}, ${JADE_DIM})`, borderRadius: 2 }} />
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: JADE, opacity: 0.8 }}>
-            {quote.tradition} · Daily Wisdom
-          </span>
-        </div>
-        <p style={{ fontSize: compact ? 13 : 15, lineHeight: 1.65, color: "#c8c4b8", fontStyle: "italic", margin: 0, maxWidth: 760 }}>
-          "{quote.text}"
-        </p>
-        <p style={{ fontSize: 12, color: TEXT_DIM, marginTop: 8, marginBottom: 0, fontWeight: 600 }}>
-          — {quote.author}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 /** Desktop sidebar todo row */
 function TodoItem({ todo, selected, onSelect, onToggle }: {
@@ -592,7 +525,7 @@ function DetailPanel({
             ref={titleInputRef}
             value={draftTitle}
             onChange={e => onDraftTitle(e.target.value)}
-            style={{ flex: 1, background: "transparent", border: "none", borderBottom: `1.5px solid ${JADE_DIM}`, outline: "none", color: TEXT, fontSize: 20, fontWeight: 700, fontFamily: "'Nunito', sans-serif", padding: "2px 0" }}
+            style={{ flex: 1, background: "transparent", border: "none", borderBottom: `1.5px solid ${JADE_DIM}`, outline: "none", color: TEXT, fontSize: 20, fontWeight: 700, fontFamily: "'Montserrat', sans-serif", padding: "2px 0" }}
           />
         ) : (
           <h2 style={{ flex: 1, fontSize: 20, fontWeight: 700, color: todo.completed ? TEXT_MUTED : TEXT, textDecoration: todo.completed ? "line-through" : "none", margin: 0, lineHeight: 1.3 }}>
@@ -664,29 +597,8 @@ function DetailPanel({
   );
 }
 
-function Particles() {
-  const particles = useMemo(() =>
-    Array.from({ length: 40 }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      size: 1 + Math.random() * 2,
-      delay: Math.random() * 8,
-      duration: 4 + Math.random() * 6,
-      op: 0.15 + Math.random() * 0.35,
-    })), []);
-
-  return (
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-      {particles.map(p => (
-        <div key={p.id} style={{ position: "absolute", borderRadius: "50%", background: "rgba(93,184,138,0.6)", width: p.size, height: p.size, left: `${p.left}%`, top: `${p.top}%`, animation: `twinkle ${p.duration}s ${p.delay}s infinite`, ["--op" as string]: p.op }} />
-      ))}
-    </div>
-  );
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 function btnStyle(bg: string): React.CSSProperties {
-  return { background: bg, border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "'Nunito', sans-serif", fontWeight: 700, color: bg === "transparent" ? TEXT : "#06091a" };
+  return { background: bg, border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontWeight: 700, color: bg === "transparent" ? TEXT : "#06091a" };
 }

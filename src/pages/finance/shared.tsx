@@ -80,6 +80,7 @@ export interface FixedExpense {
   dayOfMonth?: number; // optional — used for display ordering when known
   account: string;
   frequency?: ExpenseFrequency; // omitted = "monthly" for backward compat
+  url?: string;        // optional link to the service's website (pay/manage)
 }
 
 export interface SinkingFund {
@@ -88,6 +89,7 @@ export interface SinkingFund {
   monthlyAmount: number;
   targetAmount?: number;
   dueDate?: string;
+  accountId?: string; // which sinking-fund account holds this fund (when several are mapped)
 }
 
 export interface EmergencySavings {
@@ -119,10 +121,11 @@ export const TEXT_DIM = "#7a7890";
 export const TEXT_MUTED = "#3d3d52";
 export const JADE = "#5db88a";   // Healthy / on-target (green) — reserved for good dollar amounts & status
 export const PURPLE = "#9b7fe8"; // Needs (50%) category
-export const ORANGE = "#e07a35"; // Wants (30%) category
 export const BLUE = "#5b8fd4";   // Savings (20%) category — also Tom income owner
 export const AMBER = "#d4a45b";  // Warning / caution (yellow) — reserved for dollar amounts & status
 export const ROSE = "#d45b7a";   // Partner income owner
+export const PINK = "#e070a8";   // Wants (30%) category — Safe to Spend / Daily Spending
+export const TEAL = "#46b6ad";   // Emergency savings role accent
 export const DANGER = "#c0566a"; // Problem / action needed (red) — reserved for bad dollar amounts & status
 
 export const FREQ_LABELS: Record<Frequency, string> = {
@@ -170,7 +173,7 @@ export const ROLE_FALLBACKS: Record<AccountRole, string> = {
 };
 
 export const TAG_COLOR: Record<"personal" | "business", string> = {
-  personal: BLUE,
+  personal: JADE,
   business: AMBER,
 };
 
@@ -290,8 +293,8 @@ export function DonutChart({ segs, total }: { segs: Seg[]; total: number }) {
           : arcs.map((a, i) => a.d && <path key={i} d={a.d} fill={a.color} />)
         }
         <circle cx={cx} cy={cy} r={ri - 1} fill={BG} />
-        <text x={cx} y={cy - 8} textAnchor="middle" fill={TEXT_DIM} fontSize={8.5} fontWeight={700} fontFamily="Nunito,sans-serif" letterSpacing={1.2}>MONTHLY</text>
-        <text x={cx} y={cy + 11} textAnchor="middle" fill={TEXT} fontSize={16} fontWeight={800} fontFamily="Nunito,sans-serif">
+        <text x={cx} y={cy - 8} textAnchor="middle" fill={TEXT_DIM} fontSize={8.5} fontWeight={700} fontFamily="Montserrat,sans-serif" letterSpacing={1.2}>MONTHLY</text>
+        <text x={cx} y={cy + 11} textAnchor="middle" fill={TEXT} fontSize={16} fontWeight={800} fontFamily="Montserrat,sans-serif">
           {total > 0 ? fmt(total) : "—"}
         </text>
       </svg>
@@ -335,11 +338,14 @@ export function DonutChart({ segs, total }: { segs: Seg[]; total: number }) {
 
 // ── Shared UI primitives ──────────────────────────────────────────────────
 
-export function Card({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+export function Card({ title, icon, action, children }: { title: string; icon?: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: `1px solid ${BORDER}` }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: TEXT, letterSpacing: -0.2 }}>{title}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          {icon && <span style={{ display: "flex", alignItems: "center", color: TEXT_DIM, flexShrink: 0 }}>{icon}</span>}
+          <span style={{ fontSize: 13, fontWeight: 800, color: TEXT, letterSpacing: -0.2 }}>{title}</span>
+        </div>
         {action}
       </div>
       <div style={{ padding: "18px 20px" }}>{children}</div>
@@ -359,7 +365,7 @@ export function InlineInput({ label, value, onChange, type = "text", placeholder
       <span style={{ fontSize: 10, fontWeight: 700, color: TEXT_DIM, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
       <input
         type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 10px", color: TEXT, fontSize: 13, fontFamily: "'Nunito',sans-serif", outline: "none", width: "100%", boxSizing: "border-box" }}
+        style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 10px", color: TEXT, fontSize: 13, fontFamily: "'Montserrat',sans-serif", outline: "none", width: "100%", boxSizing: "border-box" }}
         onFocus={e => (e.target.style.borderColor = JADE + "80")}
         onBlur={e => (e.target.style.borderColor = BORDER)}
       />
@@ -374,7 +380,7 @@ export function SelectInput({ label, value, onChange, children }: {
     <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <span style={{ fontSize: 10, fontWeight: 700, color: TEXT_DIM, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
       <select value={value} onChange={e => onChange(e.target.value)}
-        style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 10px", color: TEXT, fontSize: 13, fontFamily: "'Nunito',sans-serif", outline: "none" }}>
+        style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 10px", color: TEXT, fontSize: 13, fontFamily: "'Montserrat',sans-serif", outline: "none" }}>
         {children}
       </select>
     </label>
@@ -384,8 +390,8 @@ export function SelectInput({ label, value, onChange, children }: {
 export function SaveCancel({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) {
   return (
     <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-      <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Nunito',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
-      <button onClick={onCancel} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Nunito',sans-serif", fontWeight: 700, fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
+      <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
+      <button onClick={onCancel} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
     </div>
   );
 }

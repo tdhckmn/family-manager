@@ -1,8 +1,23 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
+import StarField from "./StarField";
+import { AuthContext } from "../auth";
+import { migrateLegacyDataOnce } from "../migrate";
 
-const ALLOWED_EMAIL = "thomasdhickman@gmail.com";
+// Allowlist — everyone who can sign in.
+const ALLOWED_EMAILS = [
+  "thomasdhickman@gmail.com",
+  "tracisz14@gmail.com",
+  "lesterburton17@gmail.com",
+  "theusedfreak2811@gmail.com",
+];
+
+// Only this account gets the food planner link.
+export const FOOD_PLANNER_EMAIL = "thomasdhickman@gmail.com";
+
+const isAllowed = (email: string | null | undefined) =>
+  !!email && ALLOWED_EMAILS.includes(email.toLowerCase());
 
 const BG = "#06091a";
 const TEXT = "#dedad0";
@@ -19,6 +34,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return onAuthStateChanged(auth, setUser);
   }, []);
 
+  // One-time migration of the owner's legacy shared data into their per-user space.
+  useEffect(() => {
+    if (user && user !== "loading" && isAllowed(user.email)) {
+      migrateLegacyDataOnce(user.uid, user.email);
+    }
+  }, [user]);
+
   async function handleSignIn() {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -31,17 +53,16 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   if (user === "loading") {
     return (
       <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ fontSize: 13, color: TEXT_DIM, fontFamily: "'Nunito',sans-serif" }}>Loading…</div>
+        <div style={{ fontSize: 13, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif" }}>Loading…</div>
       </div>
     );
   }
 
-  // Signed in but wrong account
-  if (user && user.email !== ALLOWED_EMAIL) {
+  // Signed in but not on the beta allowlist
+  if (user && !isAllowed(user.email)) {
     return (
-      <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Nunito',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "40px 48px", maxWidth: 400, textAlign: "center" }}>
-          <div style={{ fontSize: 32, marginBottom: 16 }}>🚫</div>
           <div style={{ fontSize: 17, fontWeight: 800, color: TEXT, marginBottom: 8 }}>Access Denied</div>
           <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 6 }}>
             Signed in as <strong style={{ color: DANGER }}>{user.email}</strong>
@@ -51,7 +72,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           </div>
           <button
             onClick={() => signOut(auth)}
-            style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 10, color: TEXT_DIM, fontFamily: "'Nunito',sans-serif", fontWeight: 700, fontSize: 13, padding: "9px 24px", cursor: "pointer" }}
+            style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 10, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13, padding: "9px 24px", cursor: "pointer" }}
           >
             Sign out
           </button>
@@ -63,18 +84,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   // Not signed in
   if (!user) {
     return (
-      <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Nunito',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse 55% 35% at 10% 0%, rgba(40,90,70,0.2) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 90% 100%, rgba(20,40,80,0.22) 0%, transparent 60%)" }} />
+      <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <StarField />
         <div style={{ position: "relative", background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "48px 56px", maxWidth: 380, textAlign: "center" }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>💰</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: TEXT, marginBottom: 6, letterSpacing: -0.3 }}>Family Manager</div>
-          <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 32 }}>Sign in to access your dashboard</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: JADE, opacity: 0.8, marginBottom: 10 }}>Stoic · Taoist</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: TEXT, marginBottom: 6, letterSpacing: -0.3 }}>Equanimity</div>
+          <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 32 }}>Finances &amp; focus for a steady mind</div>
           <button
             onClick={handleSignIn}
             style={{
               display: "flex", alignItems: "center", gap: 10, margin: "0 auto",
               background: "#fff", border: "none", borderRadius: 10,
-              color: "#1f1f1f", fontFamily: "'Nunito',sans-serif", fontWeight: 700,
+              color: "#1f1f1f", fontFamily: "'Montserrat',sans-serif", fontWeight: 700,
               fontSize: 14, padding: "11px 24px", cursor: "pointer",
               boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
             }}
@@ -89,7 +110,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   // Authorized
-  return <>{children}</>;
+  return <AuthContext.Provider value={user}>{children}</AuthContext.Provider>;
 }
 
 function GoogleIcon() {

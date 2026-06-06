@@ -188,11 +188,15 @@ export function computeAccountFlows(plan: FinancePlan, year: number, month: numb
   // ── Savings amounts ──────────────────────────────────────────────────────
   const emergencyMonthlyAmt = emergencyMonthly(plan.savings);
   const sinkingByAccount = new Map<string, number>(); // accountId → monthly total
+  const sinkingIdsArr = [...sinkingIds];
   for (const f of plan.sinkingFunds ?? []) {
     if (f.monthlyAmount <= 0) continue;
-    for (const id of sinkingIds) {
-      sinkingByAccount.set(id, (sinkingByAccount.get(id) ?? 0) + f.monthlyAmount);
-    }
+    // Route each fund to its chosen account; fall back to the sole sinking account
+    // when there's only one. (Previously every fund was added to every account.)
+    let target: string | undefined;
+    if (f.accountId && sinkingIds.has(f.accountId)) target = f.accountId;
+    else if (sinkingIdsArr.length === 1) target = sinkingIdsArr[0];
+    if (target) sinkingByAccount.set(target, (sinkingByAccount.get(target) ?? 0) + f.monthlyAmount);
   }
 
   // ── Build a flow row for every non-ignored account ───────────────────────

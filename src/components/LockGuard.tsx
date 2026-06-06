@@ -75,7 +75,7 @@ export function PinModal({ onSuccess, onCancel, accentColor, surfaceColor }: Pin
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: surfaceColor, borderRadius: 28, padding: "36px 28px 28px", border: `1.5px solid ${accentColor}35`, boxShadow: `0 0 80px ${accentColor}18`, width: 300, textAlign: "center", fontFamily: "'Nunito', sans-serif" }}>
+      <div style={{ background: surfaceColor, borderRadius: 28, padding: "36px 28px 28px", border: `1.5px solid ${accentColor}35`, boxShadow: `0 0 80px ${accentColor}18`, width: 300, textAlign: "center", fontFamily: "'Montserrat', sans-serif" }}>
 
         <div style={{ fontSize: 32, marginBottom: 6 }}>🔒</div>
         <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.5)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 28 }}>
@@ -98,7 +98,7 @@ export function PinModal({ onSuccess, onCancel, accentColor, surfaceColor }: Pin
               <button
                 key={i}
                 onClick={() => press(key)}
-                style={{ height: 62, borderRadius: 16, background: isBack ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.08)", border: "1.5px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.85)", fontSize: isBack ? 20 : 24, fontFamily: "'Nunito', sans-serif", fontWeight: 800, cursor: "pointer", transition: "background 0.1s", userSelect: "none", WebkitUserSelect: "none" }}
+                style={{ height: 62, borderRadius: 16, background: isBack ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.08)", border: "1.5px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.85)", fontSize: isBack ? 20 : 24, fontFamily: "'Montserrat', sans-serif", fontWeight: 800, cursor: "pointer", transition: "background 0.1s", userSelect: "none", WebkitUserSelect: "none" }}
                 onPointerDown={e => (e.currentTarget.style.background = `${accentColor}28`)}
                 onPointerUp={e => (e.currentTarget.style.background = isBack ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.08)")}
                 onPointerLeave={e => (e.currentTarget.style.background = isBack ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.08)")}
@@ -109,7 +109,7 @@ export function PinModal({ onSuccess, onCancel, accentColor, surfaceColor }: Pin
           })}
         </div>
 
-        <button onClick={onCancel} style={{ marginTop: 22, background: "transparent", border: "none", color: "rgba(255,255,255,0.28)", fontSize: 13, cursor: "pointer", fontFamily: "'Nunito', sans-serif", padding: "4px 12px" }}>
+        <button onClick={onCancel} style={{ marginTop: 22, background: "transparent", border: "none", color: "rgba(255,255,255,0.28)", fontSize: 13, cursor: "pointer", fontFamily: "'Montserrat', sans-serif", padding: "4px 12px" }}>
           Cancel
         </button>
       </div>
@@ -136,7 +136,7 @@ export function LockButton({ locked, accentColor, onLock, onUnlockRequest }: Loc
       onMouseLeave={e => (e.currentTarget.style.opacity = locked ? "0.85" : "0.28")}
     >
       <span style={{ fontSize: 15 }}>{locked ? "🔒" : "🔓"}</span>
-      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", fontFamily: "'Nunito', sans-serif", letterSpacing: 0.5 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", fontFamily: "'Montserrat', sans-serif", letterSpacing: 0.5 }}>
         {locked ? "Locked" : "Lock"}
       </span>
     </button>

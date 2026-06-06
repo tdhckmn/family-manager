@@ -1,9 +1,37 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Private family app — lock this down once you add Firebase Auth
-    match /{document=**} {
-      allow read, write: if true;
+
+    // ── Beta allowlist ───────────────────────────────────────────────────────
+    // Keep this list in sync with ALLOWED_EMAILS in src/components/AuthGate.tsx.
+    function allowedEmails() {
+      return [
+        'thomasdhickman@gmail.com'
+      ];
     }
+    function isAllowed() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in allowedEmails();
+    }
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email == 'thomasdhickman@gmail.com';
+    }
+
+    // ── Per-user private data ────────────────────────────────────────────────
+    // Each user can only ever touch their own subtree, and only if allowlisted.
+    match /users/{uid}/{document=**} {
+      allow read, write: if isAllowed() && request.auth.uid == uid;
+    }
+
+    // ── Legacy shared data (pre-isolation) ───────────────────────────────────
+    // Only the owner may read/delete these — used once to migrate into their
+    // per-user space, then safe to remove. No one else can access them.
+    match /finance/{doc} { allow read, delete: if isOwner(); }
+    match /todos/{doc}   { allow read, delete: if isOwner(); }
+    match /config/{doc}  { allow read, delete: if isOwner(); }
+
+    // Everything else is denied by default.
   }
 }

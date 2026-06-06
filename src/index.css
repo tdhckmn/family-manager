@@ -1,15 +1,24 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Nunito', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Star twinkle animation used by kids pages */
+/* Star twinkle animation used app-wide (StarField background) */
 @keyframes twinkle {
   0%, 100% { opacity: 0; }
   50% { opacity: var(--op, 0.6); }
+}
+
+/* Glowing orb bloom (ported from Ultraphonics hero) — used app-wide via StarField */
+@keyframes orbPulse {
+  0%   { opacity: 0;    transform: scale(0.9)  translate(0,    0);   }
+  25%  { opacity: 0.85; transform: scale(1.05) translate(2%,  -2%);  }
+  50%  { opacity: 0.45; transform: scale(0.95) translate(-2%,  3%);  }
+  75%  { opacity: 0.85; transform: scale(1.08) translate(3%,   1%);  }
+  100% { opacity: 0;    transform: scale(0.9)  translate(0,    0);   }
 }
 
 /* Petal fall animation used by Arbor's page */
