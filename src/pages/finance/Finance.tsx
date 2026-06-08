@@ -109,7 +109,7 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
   const modeLabel = isCurrentMonth ? "This month" : "Plan";
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: "wrap", rowGap: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, gap: 12, flexWrap: "wrap", rowGap: 10, boxSizing: "border-box" }}>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
@@ -337,9 +337,11 @@ export default function Finance() {
     <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT }}>
       <StarField />
 
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 1100, margin: "0 auto", padding: "24px 20px 64px" }}>
+      <div style={{ position: "relative", zIndex: 1 }}>
 
         <FinanceHeader month={month} year={year} isCurrentMonth={isCurrentMonth} onPrev={prevMonth} onNext={nextMonth} onPick={pickMonth} />
+
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 64px" }}>
 
         {/* Stoic / Taoist daily wisdom */}
         <div style={{ marginBottom: 20 }}>
@@ -395,6 +397,7 @@ export default function Finance() {
             />
             <WantsSection totalWants={totalWants} totalIncome={totalIncome} dailySpendingAcctName={acct("dailySpending")} />
           </div>
+        </div>
         </div>
       </div>
     </div>

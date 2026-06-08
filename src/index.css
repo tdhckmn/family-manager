@@ -21,41 +21,6 @@ body {
   100% { opacity: 0;    transform: scale(0.9)  translate(0,    0);   }
 }
 
-/* Petal fall animation used by Arbor's page */
-@keyframes petal-fall {
-  0%   { opacity: 0; transform: translateY(0) rotate(0deg) translateX(0); }
-  10%  { opacity: 0.7; }
-  90%  { opacity: 0.4; }
-  100% { opacity: 0; transform: translateY(110vh) rotate(360deg) translateX(var(--drift, 0px)); }
-}
-
-/* Coin fall animation used by Pete's page */
-@keyframes confetti-fall {
-  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
-}
-
-/* Crown bob for Arbor's header */
-@keyframes crown-bob {
-  0%, 100% { transform: translateY(0) rotate(-3deg); }
-  50%       { transform: translateY(-8px) rotate(3deg); }
-}
-
-/* Emoji bob for kids home landing */
-@keyframes bob {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-8px); }
-}
-
-/* PIN shake animation */
-@keyframes pin-shake {
-  0%, 100% { transform: translateX(0); }
-  18%       { transform: translateX(-8px); }
-  36%       { transform: translateX(8px); }
-  54%       { transform: translateX(-6px); }
-  72%       { transform: translateX(6px); }
-  90%       { transform: translateX(-3px); }
-}
 
 /* Markdown rendered view (Todos detail panel) */
 .md-view { color: #b8b4a4; line-height: 1.7; }

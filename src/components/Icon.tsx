@@ -4,7 +4,8 @@
 export type IconName =
   | "home" | "wallet" | "check" | "chart" | "calendar" | "list"
   | "shield" | "bag" | "flow" | "bank" | "droplet" | "card"
-  | "gear" | "chevronDown" | "external" | "plus" | "signout" | "book";
+  | "gear" | "chevronDown" | "external" | "plus" | "signout" | "book"
+  | "utensils" | "star" | "clock" | "pencil" | "x";
 
 export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.8, style }: {
   name: IconName;
@@ -55,5 +56,15 @@ export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.
       return <svg {...p}><path d="M15 4h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3" /><path d="M10 17l5-5-5-5" /><path d="M15 12H3" /></svg>;
     case "book":
       return <svg {...p}><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M4 5v14" /></svg>;
+    case "utensils":
+      return <svg {...p}><path d="M8 3v5a2 2 0 0 0 2 2H8v7" /><path d="M6 3v16" /><path d="M10 3v16" /><path d="M17 3v16" /><path d="M15 3a2 2 0 0 1 2 2v4h-4V5a2 2 0 0 1 2-2z" /></svg>;
+    case "star":
+      return <svg {...p}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>;
+    case "clock":
+      return <svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>;
+    case "pencil":
+      return <svg {...p}><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" /></svg>;
+    case "x":
+      return <svg {...p}><path d="M18 6 6 18" /><path d="M6 6l12 12" /></svg>;
   }
 }

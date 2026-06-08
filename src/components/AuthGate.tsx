@@ -1,31 +1,32 @@
 import { useEffect, useState } from "react";
-import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
+import { onAuthStateChanged, signInWithPopup, User } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
 import StarField from "./StarField";
 import { AuthContext } from "../auth";
 import { migrateLegacyDataOnce } from "../migrate";
 
-// Allowlist — everyone who can sign in.
-const ALLOWED_EMAILS = [
-  "thomasdhickman@gmail.com",
-  "tracisz14@gmail.com",
-  "lesterburton17@gmail.com",
-  "theusedfreak2811@gmail.com",
-];
-
-// Only this account gets the food planner link.
-export const FOOD_PLANNER_EMAIL = "thomasdhickman@gmail.com";
-
-const isAllowed = (email: string | null | undefined) =>
-  !!email && ALLOWED_EMAILS.includes(email.toLowerCase());
-
-const BG = "#06091a";
-const TEXT = "#dedad0";
+const BG     = "#06091a";
+const TEXT   = "#dedad0";
 const TEXT_DIM = "#7a7890";
-const JADE = "#5db88a";
-const DANGER = "#c0566a";
+const JADE   = "#5db88a";
 const SURFACE = "rgba(255,255,255,0.04)";
-const BORDER = "rgba(255,255,255,0.08)";
+const BORDER  = "rgba(255,255,255,0.08)";
+
+function YinYang({ size }: { size: number }) {
+  const YANG = "#5db88a";
+  const YIN  = "#1a5c3e";
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} style={{ display: "block", opacity: 0.72 }}>
+      <circle cx="50" cy="50" r="45" fill={YIN} />
+      <path d="M50,5 A45,45,0,0,1,50,95 Z" fill={YANG} />
+      <circle cx="50" cy="27.5" r="22.5" fill={YANG} />
+      <circle cx="50" cy="72.5" r="22.5" fill={YIN} />
+      <circle cx="50" cy="27.5" r="7.5" fill={YIN} />
+      <circle cx="50" cy="72.5" r="7.5" fill={YANG} />
+      <circle cx="50" cy="50" r="45" fill="none" stroke={YANG} strokeWidth="1.5" />
+    </svg>
+  );
+}
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null | "loading">("loading");
@@ -34,9 +35,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return onAuthStateChanged(auth, setUser);
   }, []);
 
-  // One-time migration of the owner's legacy shared data into their per-user space.
   useEffect(() => {
-    if (user && user !== "loading" && isAllowed(user.email)) {
+    if (user && user !== "loading") {
       migrateLegacyDataOnce(user.uid, user.email);
     }
   }, [user]);
@@ -49,7 +49,6 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Still resolving auth state — show nothing to avoid flash
   if (user === "loading") {
     return (
       <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -58,36 +57,14 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Signed in but not on the beta allowlist
-  if (user && !isAllowed(user.email)) {
-    return (
-      <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "40px 48px", maxWidth: 400, textAlign: "center" }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: TEXT, marginBottom: 8 }}>Access Denied</div>
-          <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 6 }}>
-            Signed in as <strong style={{ color: DANGER }}>{user.email}</strong>
-          </div>
-          <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 28 }}>
-            This app is private. Only the authorized account may sign in.
-          </div>
-          <button
-            onClick={() => signOut(auth)}
-            style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 10, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13, padding: "9px 24px", cursor: "pointer" }}
-          >
-            Sign out
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Not signed in
   if (!user) {
     return (
       <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <StarField />
         <div style={{ position: "relative", background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "48px 56px", maxWidth: 380, textAlign: "center" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: JADE, opacity: 0.8, marginBottom: 10 }}>Stoic · Taoist</div>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16, filter: "drop-shadow(0 0 20px rgba(93,184,138,0.22))" }}>
+            <YinYang size={56} />
+          </div>
           <div style={{ fontSize: 24, fontWeight: 800, color: TEXT, marginBottom: 6, letterSpacing: -0.3 }}>Equanimity</div>
           <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 32 }}>Finances &amp; focus for a steady mind</div>
           <button
@@ -103,13 +80,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
             <GoogleIcon />
             Sign in with Google
           </button>
-          <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 20, opacity: 0.6 }}>Private — authorized users only</div>
         </div>
       </div>
     );
   }
 
-  // Authorized
   return <AuthContext.Provider value={user}>{children}</AuthContext.Provider>;
 }
 

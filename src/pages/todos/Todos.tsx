@@ -178,15 +178,20 @@ export default function Todos() {
 
         <div style={{ position: "relative", zIndex: 1 }}>
 
+          {/* Header bar */}
+          <div style={{ padding: "14px 16px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
+            <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+              onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
+              onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
+              ← Home
+            </Link>
+            <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} />
+            <ToolNav current="todos" />
+          </div>
+
           {/* ── LIST VIEW ── */}
           {!mobileShowDetail && (
             <div style={{ padding: "16px 16px 100px" }}>
-              {/* Top bar */}
-              <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
-                <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.8 }}>← Home</Link>
-                <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)" }} />
-                <ToolNav current="todos" />
-              </div>
 
               {/* Wisdom — compact on mobile */}
               <WisdomCard quote={quote} compact />
@@ -199,7 +204,7 @@ export default function Todos() {
                     value={addingTitle}
                     onChange={e => setAddingTitle(e.target.value)}
                     onKeyDown={handleAddKey}
-                    placeholder="New todo…"
+                    placeholder="New note…"
                     style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 15, fontFamily: "'Montserrat', sans-serif" }}
                   />
                   <button onClick={addTodo} style={{ ...btnStyle(JADE), padding: "7px 16px", fontSize: 13 }}>Add</button>
@@ -341,18 +346,20 @@ export default function Todos() {
 
       <StarField />
 
-      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minHeight: "100vh", maxWidth: 1200, margin: "0 auto", width: "100%", padding: "24px 20px" }}>
+      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-        {/* Top bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
-          <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 6, opacity: 0.7, transition: "opacity 0.15s" }}
+        {/* Header bar */}
+        <div style={{ padding: "14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
+          <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
             ← Home
           </Link>
-          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)" }} />
+          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} />
           <ToolNav current="todos" />
         </div>
+
+        <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%", padding: "24px 20px", display: "flex", flexDirection: "column", flex: 1 }}>
 
         <WisdomCard quote={quote} />
 
@@ -367,7 +374,7 @@ export default function Todos() {
                   value={addingTitle}
                   onChange={e => setAddingTitle(e.target.value)}
                   onKeyDown={handleAddKey}
-                  placeholder="Todo title…"
+                  placeholder="Note title…"
                   style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 14, fontFamily: "'Montserrat', sans-serif" }}
                 />
                 <button onClick={addTodo} style={{ ...btnStyle(JADE), padding: "4px 12px", fontSize: 12 }}>Add</button>
@@ -379,7 +386,7 @@ export default function Todos() {
                 style={{ ...btnStyle("transparent"), border: `1px dashed ${BORDER}`, borderRadius: 12, padding: "10px 14px", marginBottom: 8, textAlign: "left", color: TEXT_DIM, fontSize: 13, display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s" }}
                 onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; (e.currentTarget as HTMLButtonElement).style.color = JADE; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; }}>
-                <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> New todo
+                <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> New note
               </button>
             )}
 
@@ -426,10 +433,11 @@ export default function Todos() {
               />
             ) : (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: TEXT_MUTED, fontSize: 14, fontStyle: "italic" }}>
-                Select a todo to view details
+                Select a note to view details
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>

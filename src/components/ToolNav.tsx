@@ -5,15 +5,18 @@ import { Icon } from "./Icon";
 const TEXT = "#dedad0";
 const TEXT_DIM = "#7a7890";
 const BORDER = "rgba(255,255,255,0.10)";
-const JADE = "#5db88a"; // Finances accent (greenish)
-const BLUE = "#5b8fd4"; // Todos accent (blueish)
+const JADE = "#5db88a";
+const BLUE = "#5b8fd4";
+const LAV  = "#a78bfa";
 
-export type ToolKey = "finance" | "todos";
+export type ToolKey = "finance" | "todos" | "food";
 
-const TOOLS: { key: ToolKey; to: string; label: string; accent: string }[] = [
-  { key: "finance", to: "/finance", label: "Finances", accent: JADE },
-  { key: "todos",   to: "/todos",   label: "Todos",    accent: BLUE },
+const BASE_TOOLS: { key: ToolKey; to: string; label: string; accent: string; icon: string }[] = [
+  { key: "finance", to: "/finance", label: "Finances", accent: JADE,  icon: "wallet" },
+  { key: "todos",   to: "/todos",   label: "Notes",    accent: BLUE,  icon: "check"  },
 ];
+const FOOD_TOOL: { key: ToolKey; to: string; label: string; accent: string; icon: string } =
+  { key: "food", to: "/food", label: "Meals", accent: LAV, icon: "book" };
 
 function useIsMobile(maxWidth = 640): boolean {
   const query = `(max-width: ${maxWidth}px)`;
@@ -30,16 +33,13 @@ function useIsMobile(maxWidth = 640): boolean {
   return isMobile;
 }
 
-/**
- * Header tool switcher used on Finance & Todos.
- * Desktop: the tool names sit side-by-side, active one highlighted with its accent.
- * Mobile: the current tool name + a chevron opens a bottom sheet to jump tools.
- */
 export default function ToolNav({ current }: { current: ToolKey }) {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const cur = TOOLS.find(t => t.key === current)!;
+
+  const tools = [...BASE_TOOLS, FOOD_TOOL];
+  const cur = tools.find(t => t.key === current) ?? tools[0];
 
   if (isMobile) {
     return (
@@ -59,7 +59,7 @@ export default function ToolNav({ current }: { current: ToolKey }) {
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_DIM, padding: "4px 20px 8px", opacity: 0.6 }}>
                 Switch tool
               </div>
-              {TOOLS.map(t => {
+              {tools.map(t => {
                 const active = t.key === current;
                 return (
                   <button key={t.key}
@@ -69,7 +69,7 @@ export default function ToolNav({ current }: { current: ToolKey }) {
                       padding: "14px 20px", background: active ? `${t.accent}14` : "transparent", border: "none",
                       cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
                     }}>
-                    <Icon name={t.key === "finance" ? "wallet" : "check"} size={20} color={active ? t.accent : TEXT_DIM} />
+                    <Icon name={t.icon as "wallet" | "check" | "book"} size={20} color={active ? t.accent : TEXT_DIM} />
                     <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: active ? t.accent : TEXT }}>{t.label}</span>
                     {active && <span style={{ fontSize: 12, fontWeight: 700, color: t.accent }}>●</span>}
                   </button>
@@ -82,10 +82,9 @@ export default function ToolNav({ current }: { current: ToolKey }) {
     );
   }
 
-  // Desktop: side-by-side links
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-      {TOOLS.map(t => {
+      {tools.map(t => {
         const active = t.key === current;
         return (
           <Link key={t.key} to={t.to}
