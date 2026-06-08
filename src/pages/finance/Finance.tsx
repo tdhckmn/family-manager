@@ -5,11 +5,12 @@ import { auth, db } from "../../firebase";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import {
   FinancePlan, IncomeSource, Owner, AccountRole, BankAccount,
+  BudgetTargets, DEFAULT_TARGETS, getPlanTargets,
   BG, SURFACE, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
   JADE, PURPLE, PINK, BLUE, DANGER, TAG_COLOR,
   MONTH_ABBR, DEFAULT_PLAN,
   countPaydays, emergencyMonthly, expenseMonthly, resolveAccount, displayName, normalizeIds,
-  Card, Seg, DonutChart, useIsMobile,
+  Card, Seg, DonutChart, SaveCancel, useIsMobile,
 } from "./shared";
 import { computePlanNudges, computeAccountFlows, computeAccountNudges, Nudge } from "./nudges";
 import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
@@ -213,6 +214,140 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
   );
 }
 
+// ── Budget Overview card (with editable targets) ─────────────────────────────
+
+function BudgetOverviewCard({
+  plan, save, totalIncome, totalNeeds, totalSavings, totalWants, overviewNudges,
+}: {
+  plan: FinancePlan; save: (p: FinancePlan) => void;
+  totalIncome: number; totalNeeds: number; totalSavings: number; totalWants: number;
+  overviewNudges: import("./nudges").Nudge[];
+}) {
+  const activeTargets = getPlanTargets(plan);
+  const [editing, setEditing] = useState(false);
+  const [draftEnabled, setDraftEnabled] = useState(true);
+  const [draftNeeds, setDraftNeeds] = useState("50");
+  const [draftSavings, setDraftSavings] = useState("20");
+
+  function openEdit() {
+    const t = activeTargets ?? DEFAULT_TARGETS;
+    setDraftEnabled(activeTargets !== null);
+    setDraftNeeds(String(Math.round(t.needs * 100)));
+    setDraftSavings(String(Math.round(t.savings * 100)));
+    setEditing(true);
+  }
+
+  const needsN = Math.max(0, Math.min(100, Math.round(Number(draftNeeds) || 0)));
+  const savingsN = Math.max(0, Math.min(100, Math.round(Number(draftSavings) || 0)));
+  const wantsN = Math.max(0, 100 - needsN - savingsN);
+  const overAllocated = needsN + savingsN > 100;
+
+  const savedTargets = plan.budgetTargets;
+  const isDefault = savedTargets === undefined || (savedTargets !== null && savedTargets.needs === 0.5 && savedTargets.savings === 0.2 && savedTargets.wants === 0.3);
+  const isCustom = !isDefault;
+
+  function handleSave() {
+    if (draftEnabled) {
+      if (overAllocated) return;
+      save({ ...plan, budgetTargets: { needs: needsN / 100, savings: savingsN / 100, wants: wantsN / 100 } });
+    } else {
+      save({ ...plan, budgetTargets: null });
+    }
+    setEditing(false);
+  }
+
+  const displayTargets = activeTargets ?? DEFAULT_TARGETS;
+  const chartSegs: Seg[] = activeTargets !== null ? [
+    { label: "Needs",   value: totalNeeds,   color: PURPLE, target: displayTargets.needs },
+    { label: "Wants",   value: totalWants,   color: PINK,   target: displayTargets.wants },
+    { label: "Savings", value: totalSavings, color: JADE,   target: displayTargets.savings },
+  ] : [
+    { label: "Needs",   value: totalNeeds,   color: PURPLE },
+    { label: "Wants",   value: totalWants,   color: PINK   },
+    { label: "Savings", value: totalSavings, color: JADE   },
+  ];
+
+  const numInputStyle: React.CSSProperties = {
+    width: 52, textAlign: "right", background: "rgba(0,0,0,0.25)",
+    border: `1px solid ${BORDER}`, borderRadius: 6,
+    padding: "4px 8px", color: TEXT, fontSize: 13,
+    fontFamily: "'Montserrat',sans-serif", outline: "none",
+  };
+
+  const editBtn = (
+    <button
+      onClick={() => editing ? setEditing(false) : openEdit()}
+      title={editing ? "Close" : "Edit targets"}
+      style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 7, color: TEXT_DIM, padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s", fontFamily: "'Montserrat',sans-serif" }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.18)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}
+    >
+      <Icon name={editing ? "x" : "pencil"} size={13} />
+      {isCustom && !editing && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8, color: JADE }}>custom</span>}
+    </button>
+  );
+
+  return (
+    <Card icon={<Icon name="chart" />} title="Budget Overview" action={editBtn}>
+      {editing ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input type="checkbox" checked={draftEnabled} onChange={e => setDraftEnabled(e.target.checked)}
+              style={{ accentColor: JADE, width: 14, height: 14 }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Use budget targets</span>
+          </label>
+
+          {draftEnabled && (
+            <>
+              {([
+                { label: "Needs",   color: PURPLE, value: draftNeeds,   set: setDraftNeeds   },
+                { label: "Savings", color: JADE,   value: draftSavings, set: setDraftSavings },
+              ] as const).map(row => (
+                  <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 9, height: 9, borderRadius: 2, background: row.color, flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: TEXT }}>{row.label}</span>
+                    <input type="number" min={0} max={100} value={row.value}
+                      onChange={e => row.set(e.target.value)}
+                      onFocus={e => (e.target.style.borderColor = JADE + "80")}
+                      onBlur={e => (e.target.style.borderColor = BORDER)}
+                      style={numInputStyle} />
+                    <span style={{ fontSize: 13, color: TEXT_DIM, width: 14 }}>%</span>
+                  </div>
+              ))}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 9, height: 9, borderRadius: 2, background: PINK, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: TEXT }}>Wants</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: overAllocated ? DANGER : TEXT_DIM, width: 52, textAlign: "right" }}>{wantsN}</span>
+                <span style={{ fontSize: 13, color: TEXT_DIM, width: 14 }}>%</span>
+              </div>
+              {overAllocated && (
+                <div style={{ fontSize: 12, color: DANGER, fontWeight: 600 }}>Needs + Savings cannot exceed 100%</div>
+              )}
+            </>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: `1px solid ${BORDER}`, paddingTop: 10 }}>
+            {!isDefault && draftEnabled ? (
+              <button
+                onClick={() => { setDraftNeeds("50"); setDraftSavings("20"); }}
+                style={{ background: "transparent", border: "none", color: TEXT_DIM, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Montserrat',sans-serif", padding: 0 }}
+                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = TEXT}
+                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM}
+              >Reset to 50/30/20</button>
+            ) : <div />}
+            <SaveCancel onSave={handleSave} onCancel={() => setEditing(false)} />
+          </div>
+        </div>
+      ) : (
+        <>
+          <SectionNudges nudges={overviewNudges} />
+          <DonutChart segs={chartSegs} total={totalIncome} />
+        </>
+      )}
+    </Card>
+  );
+}
+
 // ── Main page (single-page planner) ──────────────────────────────────────────
 
 export default function Finance() {
@@ -319,19 +454,16 @@ export default function Finance() {
   );
 
   const nudges: Nudge[] = useMemo(() => {
-    const planNudges = computePlanNudges({ totalIncome, totalNeeds, totalSavings, totalWants });
+    const targets = getPlanTargets(plan);
+    const planNudges = computePlanNudges({ totalIncome, totalNeeds, totalSavings, totalWants, targets });
     const acctNudges = computeAccountNudges(accountFlows, unlinkedIncome);
     return [...planNudges, ...acctNudges];
-  }, [totalIncome, totalNeeds, totalSavings, totalWants, accountFlows, unlinkedIncome]);
+  }, [plan, totalIncome, totalNeeds, totalSavings, totalWants, accountFlows, unlinkedIncome]);
 
   const overviewNudges = nudges.filter(n => n.section === "overview");
   const accountNudges  = nudges.filter(n => n.section === "accounts");
 
-  const chartSegs: Seg[] = [
-    { label: "Needs",   value: totalNeeds,   color: PURPLE, target: 0.5 },
-    { label: "Wants",   value: totalWants,   color: PINK,   target: 0.3 },
-    { label: "Savings", value: totalSavings, color: JADE,   target: 0.2 },
-  ];
+  const activeTargets = getPlanTargets(plan);
 
   return (
     <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT }}>
@@ -366,13 +498,14 @@ export default function Finance() {
           </div>
         )}
 
-        {/* Income + 50/30/20 (with inline plan nudges) */}
+        {/* Income + Budget Overview */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
           <IncomeSection plan={plan} save={save} year={year} month={month} totalIncome={totalIncome} bankAccounts={accounts} />
-          <Card icon={<Icon name="chart" />} title="50/30/20 Overview">
-            <SectionNudges nudges={overviewNudges} />
-            <DonutChart segs={chartSegs} total={totalIncome} />
-          </Card>
+          <BudgetOverviewCard
+            plan={plan} save={save}
+            totalIncome={totalIncome} totalNeeds={totalNeeds} totalSavings={totalSavings} totalWants={totalWants}
+            overviewNudges={overviewNudges}
+          />
         </div>
 
         {/* Merged Budget Plan (funding + cash flow) */}
@@ -383,19 +516,23 @@ export default function Finance() {
           totalEmergency={totalEmergency} totalSinkingFunds={totalSinkingFunds}
           totalIncome={totalIncome}
           nudges={accountNudges}
+          targets={activeTargets}
         />
 
         {/* Editing: expenses + savings/wants */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginTop: 16 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <FixedExpensesSection plan={plan} save={save} accountOptions={accountOptions} totalIncome={totalIncome} />
+            <FixedExpensesSection plan={plan} save={save} accountOptions={accountOptions} totalIncome={totalIncome}
+              needsTarget={activeTargets ? Math.round(activeTargets.needs * 100) : undefined} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <SavingsSection
               plan={plan} save={save} totalIncome={totalIncome}
               emergencyAcctName={acct("emergencySavings")} sinkingAccounts={sinkingAccounts}
+              savingsTarget={activeTargets ? Math.round(activeTargets.savings * 100) : undefined}
             />
-            <WantsSection totalWants={totalWants} totalIncome={totalIncome} dailySpendingAcctName={acct("dailySpending")} />
+            <WantsSection totalWants={totalWants} totalIncome={totalIncome} dailySpendingAcctName={acct("dailySpending")}
+              wantsTarget={activeTargets ? Math.round(activeTargets.wants * 100) : undefined} />
           </div>
         </div>
         </div>

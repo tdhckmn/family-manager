@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   FinancePlan, IncomeSource, FixedExpense, SinkingFund, BankAccount, PaycheckSplit, SplitType,
-  AccountMappings,
+  AccountMappings, BudgetTargets,
   Frequency, IncomeFrequency, ExpenseFrequency, Owner,
   SURFACE, SURFACE_HI, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
   JADE, PURPLE, BLUE, AMBER, DANGER, PINK, TEAL,
@@ -17,14 +17,14 @@ import { Icon } from "../../components/Icon";
 // ── Section header total (amount/mo + % of income) ──────────────────────────
 
 function SectionTotal({ amount, color, pctVal, target, hasIncome }: {
-  amount: number; color: string; pctVal: number; target: number; hasIncome: boolean;
+  amount: number; color: string; pctVal: number; target?: number; hasIncome: boolean;
 }) {
   return (
     <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
       <span style={{ fontSize: 16, fontWeight: 800, color }}>{fmt(amount)}/mo</span>
       {hasIncome && (
         <span style={{ fontSize: 11, fontWeight: 700, color: TEXT_DIM }}>
-          {pctVal}%<span style={{ color: TEXT_MUTED }}>/{target}%</span>
+          {pctVal}%{target !== undefined && <span style={{ color: TEXT_MUTED }}>/{target}%</span>}
         </span>
       )}
     </div>
@@ -411,8 +411,8 @@ function ExpenseForm({ draft, set, accountOptions, onSave, onCancel, onDelete }:
 
 type ExpenseSortKey = "date" | "name" | "amount";
 
-export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }: {
-  plan: FinancePlan; save: (p: FinancePlan) => void; accountOptions: string[]; totalIncome: number;
+export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, needsTarget }: {
+  plan: FinancePlan; save: (p: FinancePlan) => void; accountOptions: string[]; totalIncome: number; needsTarget?: number;
 }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -474,7 +474,7 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
     <Card
       icon={<Icon name="list" />}
       title="Fixed Expenses"
-      action={totalMonthly > 0 ? <SectionTotal amount={totalMonthly} color={PURPLE} pctVal={pct(totalMonthly, totalIncome)} target={50} hasIncome={totalIncome > 0} /> : undefined}
+      action={totalMonthly > 0 ? <SectionTotal amount={totalMonthly} color={PURPLE} pctVal={pct(totalMonthly, totalIncome)} target={needsTarget} hasIncome={totalIncome > 0} /> : undefined}
     >
       {sorted.length === 0 && !adding && (
         <div style={{ color: TEXT_MUTED, fontSize: 13, fontStyle: "italic", textAlign: "center", padding: "16px 0" }}>No fixed expenses yet.</div>
@@ -600,9 +600,9 @@ function FundForm({ draft, setDraft, draftTarget, setDraftTarget, draftDue, setD
 
 const blankFund: SinkingFund = { id: "", name: "", monthlyAmount: 0 };
 
-export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sinkingAccounts }: {
+export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sinkingAccounts, savingsTarget }: {
   plan: FinancePlan; save: (p: FinancePlan) => void;
-  totalIncome: number; emergencyAcctName: string; sinkingAccounts: BankAccount[];
+  totalIncome: number; emergencyAcctName: string; sinkingAccounts: BankAccount[]; savingsTarget?: number;
 }) {
   const isMobile = useIsMobile();
   const sinkingAcctName = sinkingAccounts.length > 0 ? sinkingAccounts.map(displayName).join(" & ") : "Sinking Funds";
@@ -700,7 +700,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
     <Card
       icon={<Icon name="shield" />}
       title="Savings"
-      action={totalSavings > 0 ? <SectionTotal amount={totalSavings} color={JADE} pctVal={pctVal} target={20} hasIncome={totalIncome > 0} /> : undefined}
+      action={totalSavings > 0 ? <SectionTotal amount={totalSavings} color={JADE} pctVal={pctVal} target={savingsTarget} hasIncome={totalIncome > 0} /> : undefined}
     >
       {/* Emergency savings */}
       {editing ? (
@@ -835,7 +835,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
 interface PlanGroup {
   label: "Needs" | "Wants" | "Savings";
   color: string;
-  target: number;   // 0–1
+  target?: number;  // 0–1; absent when user has disabled budget targets
   planned: number;  // dollar total
   flows: AccountFlow[];
 }
@@ -892,13 +892,14 @@ function AccountRow({ flow }: { flow: AccountFlow }) {
 }
 
 export function AccountPlanSection({
-  flows, mappings, totalNeeds, totalWants, totalEmergency, totalSinkingFunds, totalIncome, nudges,
+  flows, mappings, totalNeeds, totalWants, totalEmergency, totalSinkingFunds, totalIncome, nudges, targets,
 }: {
   flows: AccountFlow[];
   mappings: AccountMappings;
   totalNeeds: number; totalWants: number;
   totalEmergency: number; totalSinkingFunds: number; totalIncome: number;
   nudges?: Nudge[];
+  targets?: BudgetTargets | null;
 }) {
   const needsIds   = new Set(normalizeIds(mappings.fixedExpenses));
   const wantsIds   = new Set(normalizeIds(mappings.dailySpending));
@@ -906,9 +907,9 @@ export function AccountPlanSection({
   const allRoleIds = new Set([...needsIds, ...wantsIds, ...savingsIds]);
 
   const groups: PlanGroup[] = [
-    { label: "Needs",   color: PURPLE, target: 0.5, planned: totalNeeds,                      flows: flows.filter(f => needsIds.has(f.account.id)) },
-    { label: "Wants",   color: PINK,   target: 0.3, planned: totalWants,                      flows: flows.filter(f => wantsIds.has(f.account.id)) },
-    { label: "Savings", color: JADE,   target: 0.2, planned: totalEmergency + totalSinkingFunds, flows: flows.filter(f => savingsIds.has(f.account.id)) },
+    { label: "Needs",   color: PURPLE, target: targets ? targets.needs   : undefined, planned: totalNeeds,                         flows: flows.filter(f => needsIds.has(f.account.id)) },
+    { label: "Wants",   color: PINK,   target: targets ? targets.wants   : undefined, planned: totalWants,                         flows: flows.filter(f => wantsIds.has(f.account.id)) },
+    { label: "Savings", color: JADE,   target: targets ? targets.savings : undefined, planned: totalEmergency + totalSinkingFunds, flows: flows.filter(f => savingsIds.has(f.account.id)) },
   ];
   const unassigned = flows.filter(f => !allRoleIds.has(f.account.id));
 
@@ -928,8 +929,8 @@ export function AccountPlanSection({
 
       {groups.map((g, gi) => {
         const actualPct = totalIncome > 0 ? pct(g.planned, totalIncome) : 0;
-        const targetPct = Math.round(g.target * 100);
-        const onTrack = Math.abs(actualPct - targetPct) <= 5;
+        const targetPct = g.target !== undefined ? Math.round(g.target * 100) : null;
+        const onTrack = targetPct !== null ? Math.abs(actualPct - targetPct) <= 5 : true;
         const show = g.flows.length > 0 || g.planned > 0;
         if (!show) return null;
 
@@ -938,7 +939,7 @@ export function AccountPlanSection({
             {/* Group header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", background: `${g.color}0d` }}>
               <span style={{ fontSize: 11, fontWeight: 800, color: g.color, textTransform: "uppercase", letterSpacing: 0.8 }}>
-                {g.label} · {targetPct}% target
+                {g.label}{targetPct !== null ? ` · ${targetPct}% target` : ""}
               </span>
               <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
                 {g.planned > 0 && (
@@ -946,7 +947,7 @@ export function AccountPlanSection({
                 )}
                 {totalIncome > 0 && g.planned > 0 && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: onTrack ? JADE : AMBER }}>
-                    {actualPct}%<span style={{ color: TEXT_MUTED }}>/{targetPct}%</span>
+                    {actualPct}%{targetPct !== null && <span style={{ color: TEXT_MUTED }}>/{targetPct}%</span>}
                   </span>
                 )}
               </div>
@@ -980,11 +981,11 @@ export function AccountPlanSection({
 
 // ── Wants ─────────────────────────────────────────────────────────────────
 
-export function WantsSection({ totalWants, totalIncome, dailySpendingAcctName }: {
-  totalWants: number; totalIncome: number; dailySpendingAcctName: string;
+export function WantsSection({ totalWants, totalIncome, dailySpendingAcctName, wantsTarget }: {
+  totalWants: number; totalIncome: number; dailySpendingAcctName: string; wantsTarget?: number;
 }) {
   const wantsPct = pct(totalWants, totalIncome);
-  const onTarget = Math.abs(wantsPct - 30) <= 3;
+  const onTarget = wantsTarget !== undefined ? Math.abs(wantsPct - wantsTarget) <= 3 : true;
 
   return (
     <Card icon={<Icon name="bag" />} title="Safe to Spend">
@@ -1003,7 +1004,9 @@ export function WantsSection({ totalWants, totalIncome, dailySpendingAcctName }:
           <div style={{ fontSize: 20, fontWeight: 800, color: onTarget ? JADE : DANGER }}>
             {totalIncome > 0 ? `${wantsPct}%` : "—"}
           </div>
-          <div style={{ fontSize: 10, color: TEXT_DIM, marginTop: 2 }}>target 30%</div>
+          {wantsTarget !== undefined && (
+            <div style={{ fontSize: 10, color: TEXT_DIM, marginTop: 2 }}>target {wantsTarget}%</div>
+          )}
         </div>
       </div>
     </Card>

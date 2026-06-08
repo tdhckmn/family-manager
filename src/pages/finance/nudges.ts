@@ -1,5 +1,5 @@
 import {
-  BankAccount, FinancePlan, PaycheckSplit,
+  BankAccount, FinancePlan, PaycheckSplit, BudgetTargets,
   countPaydays, displayName, expenseMonthly, emergencyMonthly, normalizeIds, fmt,
 } from "./shared";
 
@@ -18,24 +18,26 @@ export interface Nudge {
   message: string;
 }
 
-const DRIFT = 0.05; // 5% drift from a 50/30/20 target before we flag it
+const DRIFT = 0.05; // 5% tolerance around a target before flagging
 
 /**
- * Advice derived purely from the plan (no actuals). Flags when the plan doesn't
- * balance or drifts from 50/30/20. An empty result means the plan looks healthy.
+ * Advice derived purely from the plan (no actuals).
+ * - The overcommitted check (spending > income) always runs — cannot be suppressed.
+ * - Percentage-split checks only run when targets is non-null.
  */
 export function computePlanNudges(args: {
   totalIncome: number;
   totalNeeds: number;
   totalSavings: number;
   totalWants: number;
+  targets: BudgetTargets | null;
 }): Nudge[] {
-  const { totalIncome, totalNeeds, totalSavings, totalWants } = args;
+  const { totalIncome, totalNeeds, totalSavings, totalWants, targets } = args;
   if (totalIncome <= 0) return [];
 
   const nudges: Nudge[] = [];
 
-  // Overcommitted — fixed expenses + savings exceed income
+  // Overcommitted — always checked regardless of targets
   const committed = totalNeeds + totalSavings;
   if (committed > totalIncome + 1) {
     nudges.push({
@@ -47,37 +49,42 @@ export function computePlanNudges(args: {
     });
   }
 
+  if (!targets) return nudges;
+
   const needsShare = totalNeeds / totalIncome;
   const savingsShare = totalSavings / totalIncome;
   const wantsShare = totalWants / totalIncome;
+  const needsPct = Math.round(targets.needs * 100);
+  const savingsPct = Math.round(targets.savings * 100);
+  const wantsPct = Math.round(targets.wants * 100);
 
-  if (needsShare > 0.5 + DRIFT) {
+  if (needsShare > targets.needs + DRIFT) {
     nudges.push({
       id: "needs-high",
-      level: needsShare > 0.6 ? "danger" : "warn",
+      level: needsShare > targets.needs + 0.1 ? "danger" : "warn",
       section: "overview",
       title: "Needs are above target",
-      message: `Fixed expenses are ${Math.round(needsShare * 100)}% of income, above the 50% target. See if any recurring bills can be trimmed.`,
+      message: `Fixed expenses are ${Math.round(needsShare * 100)}% of income, above your ${needsPct}% target. See if any recurring bills can be trimmed.`,
     });
   }
 
-  if (savingsShare < 0.2 - DRIFT) {
+  if (savingsShare < targets.savings - DRIFT) {
     nudges.push({
       id: "savings-low",
-      level: savingsShare < 0.1 ? "danger" : "warn",
+      level: savingsShare < targets.savings - 0.1 ? "danger" : "warn",
       section: "overview",
       title: "Savings is below target",
-      message: `You're planning to save ${Math.round(savingsShare * 100)}% of income, below the 20% target. Consider raising your emergency transfer or a sinking fund.`,
+      message: `You're planning to save ${Math.round(savingsShare * 100)}% of income, below your ${savingsPct}% target. Consider raising your emergency transfer or a sinking fund.`,
     });
   }
 
-  if (wantsShare > 0.3 + DRIFT) {
+  if (wantsShare > targets.wants + DRIFT) {
     nudges.push({
       id: "wants-high",
       level: "warn",
       section: "overview",
       title: "Discretionary is above target",
-      message: `After needs and savings, ${Math.round(wantsShare * 100)}% of income is left for wants, above the 30% guideline. You could direct more toward savings.`,
+      message: `After needs and savings, ${Math.round(wantsShare * 100)}% of income is left for wants, above your ${wantsPct}% guideline. You could direct more toward savings.`,
     });
   }
 

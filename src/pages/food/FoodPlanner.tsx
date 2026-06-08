@@ -175,12 +175,12 @@ function SectionDivider({ label, accent }: { label: string; accent: string }) {
   );
 }
 
-function PlanEntryRow({ meal, label, onEdit, onRemove }: { meal: Meal; label?: string; onEdit: () => void; onRemove: () => void }) {
+function PlanEntryRow({ meal, label, onView, onEdit, onRemove }: { meal: Meal; label?: string; onView: () => void; onEdit: () => void; onRemove: () => void }) {
   const [hov, setHov] = useState(false);
   return (
-    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 16px", background: hov ? SURFACE_HOVER : SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, transition: "all 0.15s" }}>
-      <div style={{ flexShrink: 0, color: TYPE_COLOR[meal.type] || TEXT_DIM }}>
+    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)} onClick={onView}
+      style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 16px", background: hov ? SURFACE_HOVER : SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, transition: "all 0.15s", cursor: "pointer" }}>
+      <div style={{ flexShrink: 0 }}>
         <Icon name="utensils" size={18} color={TYPE_COLOR[meal.type] || TEXT_DIM} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -205,13 +205,13 @@ function PlanEntryRow({ meal, label, onEdit, onRemove }: { meal: Meal; label?: s
           )}
         </div>
       </div>
-      <button onClick={onEdit}
+      <button onClick={e => { e.stopPropagation(); onEdit(); }}
         style={{ background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED, padding: "4px 8px", borderRadius: 6, display: "flex", alignItems: "center" }}
         onMouseEnter={e => (e.currentTarget.style.color = LAV)}
         onMouseLeave={e => (e.currentTarget.style.color = TEXT_MUTED)}>
         <Icon name="pencil" size={14} color="currentColor" />
       </button>
-      <button onClick={onRemove}
+      <button onClick={e => { e.stopPropagation(); onRemove(); }}
         style={{ background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED, padding: "4px 8px", borderRadius: 6, display: "flex", alignItems: "center" }}
         onMouseEnter={e => (e.currentTarget.style.color = DANGER)}
         onMouseLeave={e => (e.currentTarget.style.color = TEXT_MUTED)}>
@@ -241,6 +241,8 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
   const [editEntry, setEditEntry] = useState<PlanEntry | null>(null);
   const [editEntryDay, setEditEntryDay] = useState("");
   const [editEntryLabel, setEditEntryLabel] = useState("");
+  const [viewMealId, setViewMealId] = useState<string | null>(null);
+  const viewMeal = viewMealId ? (data.meals.find(m => m.id === viewMealId) ?? null) : null;
 
   useEffect(() => {
     try {
@@ -450,7 +452,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                         {entriesByDay[day].map(entry => {
                           const meal = data.meals.find(m => m.id === entry.mealId);
                           if (!meal) return null;
-                          return <PlanEntryRow key={entry.id} meal={meal} label={entry.label} onEdit={() => openEditEntry(entry)} onRemove={() => removePlanEntry(entry.id)} />;
+                          return <PlanEntryRow key={entry.id} meal={meal} label={entry.label} onView={() => setViewMealId(meal.id)} onEdit={() => openEditEntry(entry)} onRemove={() => removePlanEntry(entry.id)} />;
                         })}
                       </div>
                     </div>
@@ -463,7 +465,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                         {noDayByLabel[lbl].map(entry => {
                           const meal = data.meals.find(m => m.id === entry.mealId);
                           if (!meal) return null;
-                          return <PlanEntryRow key={entry.id} meal={meal} label={entry.label} onEdit={() => openEditEntry(entry)} onRemove={() => removePlanEntry(entry.id)} />;
+                          return <PlanEntryRow key={entry.id} meal={meal} label={entry.label} onView={() => setViewMealId(meal.id)} onEdit={() => openEditEntry(entry)} onRemove={() => removePlanEntry(entry.id)} />;
                         })}
                       </div>
                     </div>
@@ -476,7 +478,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                         {noDayNoLabel.map(entry => {
                           const meal = data.meals.find(m => m.id === entry.mealId);
                           if (!meal) return null;
-                          return <PlanEntryRow key={entry.id} meal={meal} onEdit={() => openEditEntry(entry)} onRemove={() => removePlanEntry(entry.id)} />;
+                          return <PlanEntryRow key={entry.id} meal={meal} onView={() => setViewMealId(meal.id)} onEdit={() => openEditEntry(entry)} onRemove={() => removePlanEntry(entry.id)} />;
                         })}
                       </div>
                     </div>
@@ -548,15 +550,15 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 12 }}>
                 {filteredMeals.map(m => (
-                  <div key={m.id}
-                    style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: `2px solid ${m.needsReview ? "#fbbf24" : "#4ade80"}`, borderRadius: 12, padding: "14px 16px", transition: "transform 0.15s, box-shadow 0.15s" }}
+                  <div key={m.id} onClick={() => setViewMealId(m.id)}
+                    style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: `2px solid ${m.needsReview ? "#fbbf24" : "#4ade80"}`, borderRadius: 12, padding: "14px 16px", transition: "transform 0.15s, box-shadow 0.15s", cursor: "pointer" }}
                     onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.3)"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
                       <div style={{ fontWeight: 800, fontSize: 15, color: TEXT, lineHeight: 1.3, flex: 1, marginRight: 8 }}>{m.name}</div>
                       <Icon name="utensils" size={18} color={TYPE_COLOR[m.type] || TEXT_DIM} />
                     </div>
-                    <div style={{ marginBottom: 8 }}>
+                    <div style={{ marginBottom: 8 }} onClick={e => e.stopPropagation()}>
                       <ReviewTag needsReview={m.needsReview} onToggle={() => toggleReview(m.id)} />
                     </div>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
@@ -574,7 +576,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                         {m.ratingNote && <span style={{ fontSize: 11, color: TEXT_DIM, fontStyle: "italic" }}>{m.ratingNote}</span>}
                       </div>
                     )}
-                    <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                    <div style={{ display: "flex", gap: 6, marginTop: 10 }} onClick={e => e.stopPropagation()}>
                       <button style={{ ...btn("transparent", TEXT_DIM, BORDER), fontSize: 11, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5 }} onClick={() => openMealForm(m)}><Icon name="pencil" size={11} color={TEXT_DIM} /> Edit</button>
                       <button style={{ ...btn(SURFACE_ACCENT, LAV), fontSize: 11, padding: "5px 12px", border: `1px solid ${BORDER_ACCENT}`, display: "flex", alignItems: "center", gap: 5 }} onClick={() => setRatingModal({ ...m })}><Icon name="star" size={11} color={LAV} /> Rate</button>
                     </div>
@@ -620,6 +622,15 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
 
         </div>
       </div>
+
+      {/* ── RECIPE DETAIL ── */}
+      {viewMeal && (
+        <RecipeDetail
+          meal={viewMeal}
+          onClose={() => setViewMealId(null)}
+          onEdit={() => openMealForm(viewMeal)}
+        />
+      )}
 
       {/* ── MEAL FORM MODAL ── */}
       {mealForm && (
@@ -771,6 +782,95 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+
+// ── Recipe Detail (full-screen overlay) ───────────────────────────────────────
+function RecipeDetail({ meal, onClose, onEdit }: { meal: Meal; onClose: () => void; onEdit: () => void }) {
+  const ingredients = meal.ingredients.split("\n").filter(l => l.trim());
+
+  const iconBtn = (onClick: () => void, icon: "x" | "pencil", hoverColor: string) => {
+    const el = (
+      <button onClick={onClick}
+        style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, cursor: "pointer", color: TEXT_DIM, padding: "6px 10px", display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0 }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = hoverColor; (e.currentTarget as HTMLButtonElement).style.borderColor = hoverColor + "60"; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
+        <Icon name={icon} size={16} color="currentColor" />
+      </button>
+    );
+    return el;
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: BG, zIndex: 50, overflowY: "auto", fontFamily: "'Montserrat', sans-serif", color: TEXT }}>
+      <StarField />
+      <div style={{ position: "relative", zIndex: 1 }}>
+
+        {/* Header */}
+        <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 20px", minHeight: 60, gap: 12, boxSizing: "border-box" }}>
+          {iconBtn(onClose, "x", TEXT)}
+          <div style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: 16, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: -0.2 }}>
+            {meal.name}
+          </div>
+          {iconBtn(onEdit, "pencil", LAV)}
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "28px 24px 80px", maxWidth: 720, margin: "0 auto" }}>
+
+          {/* Meta pills */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginBottom: 16 }}>
+            <span style={pill(TYPE_COLOR[meal.type] || "#9ca3af")}>{meal.type}</span>
+            <span style={pill(PROTEIN_COLOR[meal.protein] || "#9ca3af")}>{meal.protein}</span>
+            {meal.prepTime && (
+              <span style={{ ...pill(TEXT_DIM), display: "inline-flex", alignItems: "center", gap: 3 }}>
+                <Icon name="clock" size={9} color={TEXT_DIM} />{meal.prepTime}
+              </span>
+            )}
+            {meal.servings > 0 && <span style={pill(TEXT_DIM)}>{meal.servings} servings</span>}
+            <ReviewTag needsReview={meal.needsReview} />
+          </div>
+
+          {/* Rating */}
+          {meal.rating > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
+              <StarRating value={meal.rating} size={15} />
+              {meal.ratingNote && <span style={{ fontSize: 12, color: TEXT_DIM, fontStyle: "italic" }}>{meal.ratingNote}</span>}
+            </div>
+          )}
+
+          {/* Ingredients */}
+          {ingredients.length > 0 && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: LAV, marginBottom: 12 }}>Ingredients</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {ingredients.map((ing, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 14px", background: SURFACE, borderRadius: 8, border: `1px solid ${BORDER}` }}>
+                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: LAV_DIM, marginTop: 7, flexShrink: 0 }} />
+                    <span style={{ fontSize: 14, color: TEXT, lineHeight: 1.5 }}>{ing}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Instructions */}
+          {meal.notes && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: LAV, marginBottom: 12 }}>Instructions</div>
+              <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "16px 18px", fontSize: 14, color: TEXT, lineHeight: 1.75 }}>
+                {meal.notes}
+              </div>
+            </div>
+          )}
+
+          {/* Source */}
+          {meal.source && (
+            <div style={{ fontSize: 12, color: TEXT_MUTED, fontStyle: "italic" }}>Source: {meal.source}</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

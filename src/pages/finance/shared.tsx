@@ -97,6 +97,14 @@ export interface EmergencySavings {
   frequency: Frequency;  // how often the transfer happens
 }
 
+export interface BudgetTargets {
+  needs: number;    // 0–1 decimal (e.g. 0.5)
+  savings: number;
+  wants: number;    // should equal 1 - needs - savings
+}
+
+export const DEFAULT_TARGETS: BudgetTargets = { needs: 0.5, savings: 0.2, wants: 0.3 };
+
 export interface FinancePlan {
   incomeSources: IncomeSource[];
   fixedExpenses: FixedExpense[];
@@ -108,6 +116,8 @@ export interface FinancePlan {
   wants: { projectsMonthly: number; cashAppPerCheck: number };
   bankAccounts?: BankAccount[];
   accountMappings?: AccountMappings;
+  /** undefined → use DEFAULT_TARGETS; null → no percentage targets (overcommitted check still runs) */
+  budgetTargets?: BudgetTargets | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -176,6 +186,12 @@ export const TAG_COLOR: Record<"personal" | "business", string> = {
   personal: JADE,
   business: AMBER,
 };
+
+/** Returns the active budget targets, or null if the user has disabled them. */
+export function getPlanTargets(plan: FinancePlan): BudgetTargets | null {
+  if (plan.budgetTargets === null) return null;
+  return plan.budgetTargets ?? DEFAULT_TARGETS;
+}
 
 export const DEFAULT_PLAN: FinancePlan = {
   incomeSources: [], fixedExpenses: [],
@@ -272,7 +288,7 @@ function donutPath(cx: number, cy: number, ro: number, ri: number, a0: number, a
   return `M${p1.x.toFixed(1)},${p1.y.toFixed(1)} A${ro},${ro} 0 ${large} 1 ${p2.x.toFixed(1)},${p2.y.toFixed(1)} L${p3.x.toFixed(1)},${p3.y.toFixed(1)} A${ri},${ri} 0 ${large} 0 ${p4.x.toFixed(1)},${p4.y.toFixed(1)} Z`;
 }
 
-export interface Seg { label: string; value: number; color: string; target: number }
+export interface Seg { label: string; value: number; color: string; target?: number }
 
 export function DonutChart({ segs, total }: { segs: Seg[]; total: number }) {
   const cx = 95, cy = 95, ro = 78, ri = 50;
@@ -302,8 +318,8 @@ export function DonutChart({ segs, total }: { segs: Seg[]; total: number }) {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
         {segs.map((s, i) => {
           const p = pct(s.value, total);
-          const delta = p - Math.round(s.target * 100);
-          const ok = Math.abs(delta) <= 3;
+          const delta = s.target !== undefined && total > 0 ? p - Math.round(s.target * 100) : null;
+          const ok = delta === null || Math.abs(delta) <= 3;
           const indicator = ok ? JADE : DANGER;
           return (
             <div key={i}>
@@ -316,12 +332,12 @@ export function DonutChart({ segs, total }: { segs: Seg[]; total: number }) {
                   <span style={{ fontSize: 13, color: TEXT }}>{fmt(s.value)}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: indicator }}>
                     {total > 0 ? `${p}%` : "—"}
-                    <span style={{ color: TEXT_DIM, fontWeight: 400 }}> /{Math.round(s.target * 100)}%</span>
+                    {s.target !== undefined && <span style={{ color: TEXT_DIM, fontWeight: 400 }}> /{Math.round(s.target * 100)}%</span>}
                   </span>
                 </div>
               </div>
               <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 2, background: s.color, width: `${Math.min(100, total > 0 ? p / (s.target * 100) * 100 : 0)}%`, transition: "width 0.5s ease" }} />
+                <div style={{ height: "100%", borderRadius: 2, background: s.color, width: `${Math.min(100, s.target !== undefined && total > 0 ? p / (s.target * 100) * 100 : 100)}%`, transition: "width 0.5s ease" }} />
               </div>
             </div>
           );
