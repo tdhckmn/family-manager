@@ -81,6 +81,12 @@ export interface FixedExpense {
   account: string;
   frequency?: ExpenseFrequency; // omitted = "monthly" for backward compat
   url?: string;        // optional link to the service's website (pay/manage)
+  // ── Subscription fields (a subscription is a recurring expense with extra metadata) ──
+  kind?: "subscription";          // omitted = a regular bill
+  bucket?: "needs" | "wants";     // which 50/30/20 bucket it counts toward; omitted = "needs"
+  active?: boolean;               // false = paused (excluded from all budget math); omitted = active
+  renewalDate?: string;           // YYYY-MM-DD next renewal (subscriptions) — surfaces on the calendar
+  category?: string;              // subscription category (Streaming, Software, …)
 }
 
 export interface SinkingFund {
@@ -105,9 +111,18 @@ export interface BudgetTargets {
 
 export const DEFAULT_TARGETS: BudgetTargets = { needs: 0.5, savings: 0.2, wants: 0.3 };
 
+/** A user-written intention for a given month — keyed under FinancePlan.monthlyGoals by "YYYY-MM". */
+export interface MonthlyGoal {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 export interface FinancePlan {
   incomeSources: IncomeSource[];
   fixedExpenses: FixedExpense[];
+  /** Per-month focus goals, keyed by "YYYY-MM". Purely intentional — separate from the budget math. */
+  monthlyGoals?: Record<string, MonthlyGoal[]>;
   savings: {
     emergency: number;              // legacy flat monthly amount (backward compat)
     emergencyTransfer?: EmergencySavings; // replaces legacy when present
@@ -122,13 +137,13 @@ export interface FinancePlan {
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
-export const BG = "#06091a";
-export const SURFACE = "rgba(255,255,255,0.04)";
-export const SURFACE_HI = "rgba(255,255,255,0.07)";
-export const BORDER = "rgba(255,255,255,0.08)";
-export const TEXT = "#dedad0";
-export const TEXT_DIM = "#7a7890";
-export const TEXT_MUTED = "#3d3d52";
+export const BG = "var(--bg)";
+export const SURFACE = "var(--surface)";
+export const SURFACE_HI = "var(--surface-hi)";
+export const BORDER = "var(--border)";
+export const TEXT = "var(--text)";
+export const TEXT_DIM = "var(--text-dim)";
+export const TEXT_MUTED = "var(--text-muted)";
 export const JADE = "#5db88a";   // Healthy / on-target (green) — reserved for good dollar amounts & status
 export const PURPLE = "#9b7fe8"; // Needs (50%) category
 export const BLUE = "#5b8fd4";   // Savings (20%) category — also Tom income owner
@@ -137,6 +152,7 @@ export const ROSE = "#d45b7a";   // Partner income owner
 export const PINK = "#e070a8";   // Wants (30%) category — Safe to Spend / Daily Spending
 export const TEAL = "#46b6ad";   // Emergency savings role accent
 export const DANGER = "#c0566a"; // Problem / action needed (red) — reserved for bad dollar amounts & status
+export const INK = "#08101f";    // fixed dark "ink" for text/icons on accent fills (both themes)
 
 export const FREQ_LABELS: Record<Frequency, string> = {
   weekly: "Weekly", biweekly: "Bi-weekly", semimonthly: "Semi-monthly", monthly: "Monthly",
@@ -247,6 +263,28 @@ export function expenseMonthly(e: FixedExpense): number {
   return e.amount * EXPENSE_FREQ_MONTHLY[e.frequency ?? "monthly"];
 }
 
+/** A paused subscription (active === false) is excluded from every budget total. */
+export function isExpenseActive(e: FixedExpense): boolean {
+  return e.active !== false;
+}
+
+/** Which 50/30/20 bucket a recurring expense counts toward. Bills default to needs. */
+export function expenseBucket(e: FixedExpense): "needs" | "wants" {
+  return e.bucket === "wants" ? "wants" : "needs";
+}
+
+/** Split active recurring expenses into the Needs total and the Wants-committed total. */
+export function recurringTotals(expenses: FixedExpense[]): { needs: number; wantsCommitted: number } {
+  let needs = 0, wantsCommitted = 0;
+  for (const e of expenses) {
+    if (!isExpenseActive(e)) continue;
+    const m = expenseMonthly(e);
+    if (expenseBucket(e) === "wants") wantsCommitted += m;
+    else needs += m;
+  }
+  return { needs, wantsCommitted };
+}
+
 export function monthsUntil(dateStr: string): number {
   const due = new Date(dateStr + "T12:00:00");
   const now = new Date();
@@ -305,7 +343,7 @@ export function DonutChart({ segs, total }: { segs: Seg[]; total: number }) {
     <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
       <svg width={190} height={190} viewBox="0 0 190 190" style={{ flexShrink: 0 }}>
         {total === 0
-          ? <circle cx={cx} cy={cy} r={(ro + ri) / 2} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={ro - ri} />
+          ? <circle cx={cx} cy={cy} r={(ro + ri) / 2} fill="none" stroke="var(--surface-hi)" strokeWidth={ro - ri} />
           : arcs.map((a, i) => a.d && <path key={i} d={a.d} fill={a.color} />)
         }
         <circle cx={cx} cy={cy} r={ri - 1} fill={BG} />
@@ -336,7 +374,7 @@ export function DonutChart({ segs, total }: { segs: Seg[]; total: number }) {
                   </span>
                 </div>
               </div>
-              <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ height: 4, background: "var(--surface-hi)", borderRadius: 2, overflow: "hidden" }}>
                 <div style={{ height: "100%", borderRadius: 2, background: s.color, width: `${Math.min(100, s.target !== undefined && total > 0 ? p / (s.target * 100) * 100 : 100)}%`, transition: "width 0.5s ease" }} />
               </div>
             </div>
@@ -381,7 +419,7 @@ export function InlineInput({ label, value, onChange, type = "text", placeholder
       <span style={{ fontSize: 10, fontWeight: 700, color: TEXT_DIM, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
       <input
         type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 10px", color: TEXT, fontSize: 13, fontFamily: "'Montserrat',sans-serif", outline: "none", width: "100%", boxSizing: "border-box" }}
+        style={{ background: "var(--input-bg)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 10px", color: TEXT, fontSize: 13, fontFamily: "'Montserrat',sans-serif", outline: "none", width: "100%", boxSizing: "border-box" }}
         onFocus={e => (e.target.style.borderColor = JADE + "80")}
         onBlur={e => (e.target.style.borderColor = BORDER)}
       />
@@ -396,7 +434,7 @@ export function SelectInput({ label, value, onChange, children }: {
     <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <span style={{ fontSize: 10, fontWeight: 700, color: TEXT_DIM, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
       <select value={value} onChange={e => onChange(e.target.value)}
-        style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 10px", color: TEXT, fontSize: 13, fontFamily: "'Montserrat',sans-serif", outline: "none" }}>
+        style={{ background: "var(--input-bg)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 10px", color: TEXT, fontSize: 13, fontFamily: "'Montserrat',sans-serif", outline: "none" }}>
         {children}
       </select>
     </label>

@@ -2,18 +2,17 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../firebase";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, getDoc, getDocs, deleteDoc, collection } from "firebase/firestore";
 import {
-  FinancePlan, IncomeSource, Owner, AccountRole, BankAccount,
+  FinancePlan, IncomeSource, Owner, AccountRole, BankAccount, MonthlyGoal, FixedExpense,
   BudgetTargets, DEFAULT_TARGETS, getPlanTargets,
   BG, SURFACE, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
-  JADE, PURPLE, PINK, BLUE, DANGER, TAG_COLOR,
-  MONTH_ABBR, DEFAULT_PLAN,
-  countPaydays, emergencyMonthly, expenseMonthly, resolveAccount, displayName, normalizeIds,
+  JADE, PURPLE, PINK, BLUE, AMBER, DANGER, INK, TAG_COLOR,
+  MONTH_ABBR, MONTH_NAMES, DEFAULT_PLAN, uid as genId,
+  countPaydays, emergencyMonthly, recurringTotals, resolveAccount, displayName, normalizeIds,
   Card, Seg, DonutChart, SaveCancel, useIsMobile,
 } from "./shared";
 import { computePlanNudges, computeAccountFlows, computeAccountNudges, Nudge } from "./nudges";
-import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
 import ToolNav from "../../components/ToolNav";
 import { Icon } from "../../components/Icon";
 import { useAuth } from "../../auth";
@@ -38,7 +37,7 @@ function MonthYearPicker({ year, month, onPick }: {
   return (
     <div style={{
       position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 200, width: 232,
-      background: "rgba(10,13,30,0.97)", border: `1px solid ${BORDER}`, borderRadius: 14,
+      background: "var(--panel)", border: `1px solid ${BORDER}`, borderRadius: 14,
       padding: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.55)", backdropFilter: "blur(16px)",
     }}>
       {/* Year navigator */}
@@ -65,7 +64,7 @@ function MonthYearPicker({ year, month, onPick }: {
                 border: `1px solid ${selected ? JADE : isToday ? JADE + "55" : BORDER}`,
                 transition: "all 0.12s",
               }}
-              onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; }}
+              onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.background = "var(--surface-hi)"; }}
               onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}>
               {m}
             </button>
@@ -118,7 +117,7 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
           onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
           ← Home
         </Link>
-        <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} />
+        <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
         <ToolNav current="finance" />
       </div>
 
@@ -131,12 +130,12 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
               title="Pick month"
               style={{
                 display: "flex", alignItems: "center", gap: 4,
-                background: pickerOpen ? "rgba(255,255,255,0.08)" : "transparent",
-                border: `1px solid ${pickerOpen ? "rgba(255,255,255,0.18)" : "transparent"}`,
+                background: pickerOpen ? "var(--surface-hi)" : "transparent",
+                border: `1px solid ${pickerOpen ? "var(--border-hi)" : "transparent"}`,
                 borderRadius: 8, padding: "3px 7px", cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
                 transition: "all 0.15s",
               }}
-              onMouseEnter={e => { if (!pickerOpen) (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)"; }}
+              onMouseEnter={e => { if (!pickerOpen) (e.currentTarget as HTMLButtonElement).style.background = "var(--surface)"; }}
               onMouseLeave={e => { if (!pickerOpen) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
             >
               <span style={{ fontSize: 13, fontWeight: 700, color: TEXT, width: 64, textAlign: "right", display: "inline-block" }}>
@@ -164,14 +163,14 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
             onClick={() => setMenuOpen(o => !o)}
             title="Menu"
             style={{
-              background: menuOpen ? "rgba(255,255,255,0.08)" : "transparent",
-              border: `1px solid ${menuOpen ? "rgba(255,255,255,0.18)" : BORDER}`,
+              background: menuOpen ? "var(--surface-hi)" : "transparent",
+              border: `1px solid ${menuOpen ? "var(--border-hi)" : BORDER}`,
               borderRadius: 8, color: menuOpen ? TEXT : TEXT_DIM,
               fontSize: 16, width: 32, height: 32,
               cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
               transition: "all 0.15s",
             }}
-            onMouseEnter={e => { if (!menuOpen) { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.18)"; } }}
+            onMouseEnter={e => { if (!menuOpen) { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-hi)"; } }}
             onMouseLeave={e => { if (!menuOpen) { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; } }}
           >
             <Icon name="gear" size={17} />
@@ -180,7 +179,7 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
           {menuOpen && (
             <div style={{
               position: "absolute", top: "calc(100% + 8px)", right: 0, minWidth: 220,
-              background: "rgba(10,13,30,0.97)", border: `1px solid ${BORDER}`,
+              background: "var(--panel)", border: `1px solid ${BORDER}`,
               borderRadius: 14, overflow: "hidden",
               boxShadow: "0 8px 32px rgba(0,0,0,0.55)", backdropFilter: "blur(16px)",
               zIndex: 200,
@@ -193,9 +192,15 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
                 </div>
                 <Link to="/accounts" onClick={() => setMenuOpen(false)}
                   style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", color: TEXT, fontSize: 13, fontWeight: 600, transition: "background 0.1s" }}
-                  onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.06)"}
+                  onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = "var(--surface-hi)"}
                   onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = "transparent"}>
                   <Icon name="bank" size={15} /> Accounts
+                </Link>
+                <Link to="/settings" onClick={() => setMenuOpen(false)}
+                  style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", color: TEXT, fontSize: 13, fontWeight: 600, transition: "background 0.1s" }}
+                  onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = "var(--surface-hi)"}
+                  onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = "transparent"}>
+                  <Icon name="gear" size={15} /> Settings
                 </Link>
                 <div style={{ height: 1, background: BORDER, margin: "4px 0" }} />
                 <button
@@ -279,7 +284,7 @@ function BudgetOverviewCard({
       onClick={() => editing ? setEditing(false) : openEdit()}
       title={editing ? "Close" : "Edit targets"}
       style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 7, color: TEXT_DIM, padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s", fontFamily: "'Montserrat',sans-serif" }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.18)"; }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-hi)"; }}
       onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}
     >
       <Icon name={editing ? "x" : "pencil"} size={13} />
@@ -348,19 +353,106 @@ function BudgetOverviewCard({
   );
 }
 
+// ── Monthly focus goals ──────────────────────────────────────────────────────
+
+function MonthlyGoalsCard({ plan, save, monthKey, monthLabel }: {
+  plan: FinancePlan; save: (p: FinancePlan) => void; monthKey: string; monthLabel: string;
+}) {
+  const goals = plan.monthlyGoals?.[monthKey] ?? [];
+  const [adding, setAdding] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
+  function saveGoals(next: MonthlyGoal[]) {
+    const map = { ...(plan.monthlyGoals ?? {}) };
+    if (next.length) map[monthKey] = next; else delete map[monthKey];
+    save({ ...plan, monthlyGoals: map });
+  }
+
+  function addGoal() {
+    const text = adding.trim();
+    if (!text) return;
+    saveGoals([...goals, { id: genId(), text, completed: false }]);
+    setAdding("");
+  }
+  function toggle(id: string) {
+    saveGoals(goals.map(g => g.id === id ? { ...g, completed: !g.completed } : g));
+  }
+  function remove(id: string) {
+    saveGoals(goals.filter(g => g.id !== id));
+  }
+  function commitEdit() {
+    if (editId) {
+      const text = editText.trim();
+      saveGoals(text ? goals.map(g => g.id === editId ? { ...g, text } : g) : goals.filter(g => g.id !== editId));
+    }
+    setEditId(null);
+    setEditText("");
+  }
+
+  return (
+    <Card icon={<Icon name="target" />} title={`Focus · ${monthLabel}`}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {goals.length === 0 && (
+          <div style={{ fontSize: 13, color: TEXT_MUTED, fontStyle: "italic" }}>
+            What do you want from your money this month? Set an intention below.
+          </div>
+        )}
+        {goals.map(g => (
+          <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "var(--surface)", border: `1px solid ${BORDER}` }}>
+            <button onClick={() => toggle(g.id)}
+              style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${g.completed ? JADE : "var(--border-hi)"}`, background: g.completed ? JADE : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+              {g.completed && <span style={{ color: INK, fontSize: 11, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+            </button>
+            {editId === g.id ? (
+              <input autoFocus value={editText} onChange={e => setEditText(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") { setEditId(null); setEditText(""); } }}
+                onBlur={commitEdit}
+                style={{ flex: 1, background: "transparent", border: "none", borderBottom: `1.5px solid ${JADE}80`, outline: "none", color: TEXT, fontSize: 13, fontFamily: "'Montserrat',sans-serif", padding: "2px 0" }} />
+            ) : (
+              <span onClick={() => { setEditId(g.id); setEditText(g.text); }}
+                style={{ flex: 1, fontSize: 13, color: g.completed ? TEXT_MUTED : TEXT, textDecoration: g.completed ? "line-through" : "none", cursor: "text", lineHeight: 1.4 }}>
+                {g.text}
+              </span>
+            )}
+            <button onClick={() => remove(g.id)} title="Remove"
+              style={{ flexShrink: 0, background: "transparent", border: "none", color: TEXT_MUTED, cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }}
+              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = DANGER}
+              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = TEXT_MUTED}>
+              <Icon name="x" size={13} />
+            </button>
+          </div>
+        ))}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 2 }}>
+          <input value={adding} onChange={e => setAdding(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") addGoal(); }}
+            placeholder="Add a focus for this month…"
+            style={{ flex: 1, background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "7px 11px", color: TEXT, fontSize: 13, fontFamily: "'Montserrat',sans-serif", outline: "none" }}
+            onFocus={e => (e.target.style.borderColor = AMBER + "80")}
+            onBlur={e => (e.target.style.borderColor = BORDER)} />
+          <button onClick={addGoal} disabled={!adding.trim()}
+            style={{ background: adding.trim() ? AMBER : "var(--surface-hi)", border: "none", borderRadius: 8, color: adding.trim() ? BG : TEXT_MUTED, fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 12, padding: "7px 16px", cursor: adding.trim() ? "pointer" : "default" }}>
+            Add
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 // ── Main page (single-page planner) ──────────────────────────────────────────
 
 export default function Finance() {
   const uid = useAuth().uid;
   const [plan, setPlan] = useState<FinancePlan>(DEFAULT_PLAN);
 
-  const quote = useMemo(() => quoteOfDay(), []);
   const isMobile = useIsMobile();
   const today = useMemo(() => new Date(), []);
   const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const year  = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+  const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
   const prevMonth = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
   const pickMonth = (y: number, m: number) => setViewDate(new Date(y, m, 1));
@@ -411,6 +503,44 @@ export default function Finance() {
     setDoc(doc(db, "users", uid, "finance", "plan"), next).catch(console.error);
   }, [uid]);
 
+  // One-time migration: fold the old standalone `subscriptions` collection into the
+  // plan's recurring expenses (as kind="subscription", Wants bucket), then delete it.
+  const migratedSubs = useRef(false);
+  useEffect(() => {
+    if (migratedSubs.current) return;
+    migratedSubs.current = true;
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, "users", uid, "subscriptions"));
+        if (snap.empty) return;
+        const planRef = doc(db, "users", uid, "finance", "plan");
+        const planSnap = await getDoc(planRef);
+        const cur = (planSnap.exists() ? planSnap.data() : DEFAULT_PLAN) as FinancePlan;
+        const existingIds = new Set((cur.fixedExpenses ?? []).map(e => e.id));
+        const migrated: FixedExpense[] = [];
+        snap.forEach(d => {
+          if (existingIds.has(d.id)) return;
+          const s = d.data() as { cost?: number; name?: string; frequency?: string; renewalDate?: string; category?: string; url?: string; active?: boolean };
+          const e: FixedExpense = {
+            id: d.id, name: s.name ?? "Subscription", amount: Number(s.cost) || 0,
+            account: "Other", kind: "subscription", bucket: "wants", active: s.active !== false,
+          };
+          if (s.frequency === "annual") e.frequency = "annual";
+          if (s.renewalDate) e.renewalDate = s.renewalDate;
+          if (s.category) e.category = s.category;
+          if (s.url) e.url = s.url;
+          migrated.push(e);
+        });
+        if (migrated.length) {
+          await setDoc(planRef, { ...cur, fixedExpenses: [...(cur.fixedExpenses ?? []), ...migrated] });
+        }
+        await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+      } catch (err) {
+        console.error("Subscription migration failed:", err);
+      }
+    })();
+  }, [uid]);
+
   // ── Totals ──
   const totalIncome = useMemo(() => {
     let total = 0;
@@ -442,7 +572,9 @@ export default function Finance() {
     return [...fixedAccounts.map(displayName), "Paycheck Deduction", "Other"];
   }, [accounts, mappings.fixedExpenses]);
 
-  const totalNeeds        = plan.fixedExpenses.reduce((s, e) => s + expenseMonthly(e), 0);
+  // Recurring expenses split by bucket: needs-bucket counts toward Needs; wants-bucket
+  // (mostly subscriptions) is "committed" spending carved out of the Wants budget.
+  const { needs: totalNeeds, wantsCommitted } = recurringTotals(plan.fixedExpenses);
   const totalSinkingFunds = (plan.sinkingFunds ?? []).reduce((s, f) => s + f.monthlyAmount, 0);
   const totalEmergency    = emergencyMonthly(plan.savings);
   const totalSavings      = totalEmergency + totalSinkingFunds;
@@ -475,9 +607,9 @@ export default function Finance() {
 
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 64px" }}>
 
-        {/* Stoic / Taoist daily wisdom */}
-        <div style={{ marginBottom: 20 }}>
-          <WisdomCard quote={quote} compact />
+        {/* This month's focus goals */}
+        <div style={{ marginBottom: 16 }}>
+          <MonthlyGoalsCard plan={plan} save={save} monthKey={monthKey} monthLabel={`${MONTH_NAMES[month]} ${year}`} />
         </div>
 
         {/* Quick links — bank accounts that have a URL */}
@@ -532,6 +664,7 @@ export default function Finance() {
               savingsTarget={activeTargets ? Math.round(activeTargets.savings * 100) : undefined}
             />
             <WantsSection totalWants={totalWants} totalIncome={totalIncome} dailySpendingAcctName={acct("dailySpending")}
+              committed={wantsCommitted}
               wantsTarget={activeTargets ? Math.round(activeTargets.wants * 100) : undefined} />
           </div>
         </div>

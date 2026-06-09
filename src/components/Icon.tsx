@@ -5,7 +5,8 @@ export type IconName =
   | "home" | "wallet" | "check" | "chart" | "calendar" | "list"
   | "shield" | "bag" | "flow" | "bank" | "droplet" | "card"
   | "gear" | "chevronDown" | "external" | "plus" | "signout" | "book"
-  | "utensils" | "star" | "clock" | "pencil" | "x";
+  | "utensils" | "star" | "clock" | "pencil" | "x"
+  | "wrench" | "sparkles" | "repeat" | "trash" | "target";
 
 export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.8, style }: {
   name: IconName;
@@ -66,5 +67,15 @@ export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.
       return <svg {...p}><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" /></svg>;
     case "x":
       return <svg {...p}><path d="M18 6 6 18" /><path d="M6 6l12 12" /></svg>;
+    case "wrench":
+      return <svg {...p}><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L4 16.8 7.2 20l5.3-5.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.2-2.2z" /></svg>;
+    case "sparkles":
+      return <svg {...p}><path d="M12 3l1.8 4.7L18.5 9.5 13.8 11.3 12 16l-1.8-4.7L5.5 9.5l4.7-1.8z" /><path d="M18 15l.9 2.1 2.1.9-2.1.9L18 21l-.9-2.1-2.1-.9 2.1-.9z" /></svg>;
+    case "repeat":
+      return <svg {...p}><path d="M17 2l3 3-3 3" /><path d="M4 11V9a4 4 0 0 1 4-4h12" /><path d="M7 22l-3-3 3-3" /><path d="M20 13v2a4 4 0 0 1-4 4H4" /></svg>;
+    case "trash":
+      return <svg {...p}><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13" /><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" /></svg>;
+    case "target":
+      return <svg {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg>;
   }
 }

@@ -5,12 +5,12 @@ import StarField from "./StarField";
 import { AuthContext } from "../auth";
 import { migrateLegacyDataOnce } from "../migrate";
 
-const BG     = "#06091a";
-const TEXT   = "#dedad0";
-const TEXT_DIM = "#7a7890";
+const BG     = "var(--bg)";
+const TEXT   = "var(--text)";
+const TEXT_DIM = "var(--text-dim)";
 const JADE   = "#5db88a";
-const SURFACE = "rgba(255,255,255,0.04)";
-const BORDER  = "rgba(255,255,255,0.08)";
+const SURFACE = "var(--surface)";
+const BORDER  = "var(--border)";
 
 function YinYang({ size }: { size: number }) {
   const YANG = "#5db88a";

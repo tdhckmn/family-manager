@@ -187,6 +187,7 @@ export function computeAccountFlows(plan: FinancePlan, year: number, month: numb
   // ── Fixed expense outflows → per-account ────────────────────────────────
   const expenseMap = new Map<string, number>();
   for (const exp of plan.fixedExpenses) {
+    if (exp.active === false) continue; // paused subscription — no real outflow
     const acct = accounts.find(a => !a.ignored && displayName(a) === exp.account);
     if (!acct) continue;
     expenseMap.set(acct.id, (expenseMap.get(acct.id) ?? 0) + expenseMonthly(exp));

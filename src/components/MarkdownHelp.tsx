@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-const BORDER = "rgba(255,255,255,0.10)";
+const BORDER = "var(--border)";
 const TEXT = "#dedad0";
 const TEXT_DIM = "#7a7890";
 const TEXT_MUTED = "#3d3d52";

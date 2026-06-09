@@ -2,21 +2,27 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Icon } from "./Icon";
 
-const TEXT = "#dedad0";
-const TEXT_DIM = "#7a7890";
-const BORDER = "rgba(255,255,255,0.10)";
+const TEXT = "var(--text)";
+const TEXT_DIM = "var(--text-dim)";
+const BORDER = "var(--border)";
 const JADE = "#5db88a";
 const BLUE = "#5b8fd4";
 const LAV  = "#a78bfa";
 
-export type ToolKey = "finance" | "todos" | "food";
+export type ToolKey = "calendar" | "finance" | "notes" | "chores" | "food" | "maintenance";
 
-const BASE_TOOLS: { key: ToolKey; to: string; label: string; accent: string; icon: string }[] = [
-  { key: "finance", to: "/finance", label: "Finances", accent: JADE,  icon: "wallet" },
-  { key: "todos",   to: "/todos",   label: "Notes",    accent: BLUE,  icon: "check"  },
+const YELLOW = "#e8c84a";
+const ORANGE = "#e07a3c";
+const PINK   = "#e070a8";
+
+const TOOLS: { key: ToolKey; to: string; label: string; accent: string; icon: string }[] = [
+  { key: "calendar",    to: "/calendar",    label: "Today",    accent: YELLOW, icon: "calendar" },
+  { key: "finance",     to: "/finance",     label: "Finances", accent: JADE,   icon: "wallet" },
+  { key: "notes",       to: "/notes",       label: "Notes",    accent: BLUE,   icon: "check"  },
+  { key: "chores",      to: "/chores",      label: "Chores",   accent: PINK,   icon: "sparkles" },
+  { key: "food",        to: "/food",        label: "Meals",    accent: LAV,    icon: "book" },
+  { key: "maintenance", to: "/maintenance", label: "Home",     accent: ORANGE, icon: "wrench" },
 ];
-const FOOD_TOOL: { key: ToolKey; to: string; label: string; accent: string; icon: string } =
-  { key: "food", to: "/food", label: "Meals", accent: LAV, icon: "book" };
 
 function useIsMobile(maxWidth = 640): boolean {
   const query = `(max-width: ${maxWidth}px)`;
@@ -38,7 +44,7 @@ export default function ToolNav({ current }: { current: ToolKey }) {
   const navigate = useNavigate();
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const tools = [...BASE_TOOLS, FOOD_TOOL];
+  const tools = TOOLS;
   const cur = tools.find(t => t.key === current) ?? tools[0];
 
   if (isMobile) {
@@ -54,8 +60,8 @@ export default function ToolNav({ current }: { current: ToolKey }) {
           <div onClick={() => setSheetOpen(false)}
             style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(3,5,15,0.72)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-end" }}>
             <div onClick={e => e.stopPropagation()}
-              style={{ width: "100%", background: "#0b0f22", borderTop: `1px solid ${BORDER}`, borderRadius: "20px 20px 0 0", padding: "10px 0 calc(10px + env(safe-area-inset-bottom))", boxShadow: "0 -12px 48px rgba(0,0,0,0.6)" }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "6px auto 10px" }} />
+              style={{ width: "100%", background: "var(--panel)", borderTop: `1px solid ${BORDER}`, borderRadius: "20px 20px 0 0", padding: "10px 0 calc(10px + env(safe-area-inset-bottom))", boxShadow: "0 -12px 48px rgba(0,0,0,0.6)" }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--border-hi)", margin: "6px auto 10px" }} />
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_DIM, padding: "4px 20px 8px", opacity: 0.6 }}>
                 Switch tool
               </div>
@@ -69,7 +75,7 @@ export default function ToolNav({ current }: { current: ToolKey }) {
                       padding: "14px 20px", background: active ? `${t.accent}14` : "transparent", border: "none",
                       cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
                     }}>
-                    <Icon name={t.icon as "wallet" | "check" | "book"} size={20} color={active ? t.accent : TEXT_DIM} />
+                    <Icon name={t.icon as import("./Icon").IconName} size={20} color={active ? t.accent : TEXT_DIM} />
                     <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: active ? t.accent : TEXT }}>{t.label}</span>
                     {active && <span style={{ fontSize: 12, fontWeight: 700, color: t.accent }}>●</span>}
                   </button>
@@ -83,7 +89,7 @@ export default function ToolNav({ current }: { current: ToolKey }) {
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", rowGap: 6 }}>
       {tools.map(t => {
         const active = t.key === current;
         return (

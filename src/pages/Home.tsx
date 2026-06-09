@@ -4,11 +4,11 @@ import { WisdomCard, quoteOfDay } from "../components/Wisdom";
 import { Icon } from "../components/Icon";
 import StarField from "../components/StarField";
 
-const BG = "#06091a";
-const SURFACE = "rgba(255,255,255,0.04)";
-const BORDER = "rgba(255,255,255,0.07)";
-const TEXT = "#dedad0";
-const TEXT_DIM = "#7a7890";
+const BG = "var(--bg)";
+const SURFACE = "var(--surface)";
+const BORDER = "var(--border)";
+const TEXT = "var(--text)";
+const TEXT_DIM = "var(--text-dim)";
 
 function YinYang({ size }: { size: number }) {
   const YANG = "#5db88a";
@@ -74,9 +74,12 @@ export default function Home() {
 
         {/* Nav grid */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+          <NavCard to="/calendar"   icon={<Icon name="calendar" size={24} />} label="Today"     desc="Your day · Chores · Meals · Due" accent="#e8c84a" isMobile={isMobile} />
           <NavCard to="/finance"    icon={<Icon name="wallet" size={24} />} label="Finances"     desc="Budget · Account plan · Income" accent="#5db88a" isMobile={isMobile} />
-          <NavCard to="/todos"      icon={<Icon name="check"  size={24} />} label="Notes"        desc="Markdown notes · Tasks · Journaling"         accent="#5b8fd4" isMobile={isMobile} />
+          <NavCard to="/notes"      icon={<Icon name="check"  size={24} />} label="Notes"        desc="Markdown notes · Tasks · Journaling"         accent="#5b8fd4" isMobile={isMobile} />
+          <NavCard to="/chores"     icon={<Icon name="sparkles" size={24} />} label="Chores"     desc="Weekly board · Assignments · Tracking" accent="#e070a8" isMobile={isMobile} />
           <NavCard to="/food" icon={<Icon name="book" size={24} />} label="Meal Planner" desc="Weekly meals · Recipes · Shopping" accent="#a78bfa" isMobile={isMobile} />
+          <NavCard to="/maintenance" icon={<Icon name="wrench" size={24} />} label="Home Care" desc="Maintenance · Overdue · Reminders" accent="#e07a3c" isMobile={isMobile} />
         </div>
       </div>
     </div>
@@ -99,7 +102,7 @@ function NavCard({ to, icon, label, desc, accent, isMobile }: {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          background: hovered ? "rgba(255,255,255,0.06)" : SURFACE,
+          background: hovered ? "var(--surface-hi)" : SURFACE,
           border: `1px solid ${hovered ? accent + "55" : BORDER}`,
           borderRadius: 18,
           padding: isMobile ? "18px 20px" : "22px 20px",
@@ -115,7 +118,7 @@ function NavCard({ to, icon, label, desc, accent, isMobile }: {
         <div style={{
           flexShrink: 0, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center",
           width: 40, height: 40, borderRadius: 11,
-          background: hovered ? `${accent}1a` : "rgba(255,255,255,0.04)",
+          background: hovered ? `${accent}1a` : "var(--surface)",
           border: `1px solid ${hovered ? accent + "44" : BORDER}`,
           color: hovered ? accent : TEXT_DIM, transition: "all 0.2s",
         }}>

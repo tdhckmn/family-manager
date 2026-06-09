@@ -5,6 +5,7 @@ import { db } from "../../firebase";
 import StarField from "../../components/StarField";
 import ToolNav from "../../components/ToolNav";
 import { Icon, type IconName } from "../../components/Icon";
+import { useAuth } from "../../auth";
 
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const FOOD_TYPES = ["American","Italian","Mexican","Asian","Mediterranean","Indian","Greek","Breakfast","Soup/Salad","Other"];
@@ -60,18 +61,19 @@ const SEED_MEALS = [
 
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
-const BG = "#06091a";
-const SURFACE = "rgba(255,255,255,0.04)";
-const SURFACE_HOVER = "rgba(255,255,255,0.07)";
+const BG = "var(--bg)";
+const SURFACE = "var(--surface)";
+const SURFACE_HOVER = "var(--surface-hi)";
 const SURFACE_ACCENT = "rgba(167,139,250,0.10)";
-const BORDER = "rgba(255,255,255,0.08)";
+const BORDER = "var(--border)";
 const BORDER_ACCENT = "rgba(167,139,250,0.35)";
 const LAV = "#a78bfa";
 const LAV_DIM = "#7c5cbf";
-const TEXT = "#dedad0";
-const TEXT_DIM = "#7a7890";
-const TEXT_MUTED = "#4a4860";
+const TEXT = "var(--text)";
+const TEXT_DIM = "var(--text-dim)";
+const TEXT_MUTED = "var(--text-muted)";
 const DANGER = "#c0566a";
+const INK = "#08101f"; // fixed dark ink for text/icons on accent fills (both themes)
 
 const TYPE_COLOR: Record<string,string> = {
   "American":"#fb923c","Italian":"#4ade80","Mexican":"#fbbf24","Asian":"#a78bfa",
@@ -88,7 +90,7 @@ const PROTEIN_COLOR: Record<string,string> = {
 interface Meal {
   id: string; name: string; type: string; protein: string; prepTime: string;
   servings: number; ingredients: string; notes: string; source: string;
-  rating: number; ratingNote: string; needsReview: boolean;
+  rating: number; ratingNote: string; needsReview: boolean; mealService: boolean;
 }
 interface PlanEntry {
   id: string;
@@ -99,11 +101,13 @@ interface PlanEntry {
 interface AppData {
   meals: Meal[];
   planEntries: PlanEntry[];
+  groceryExtras: string[];
 }
 
 const SEED_DATA: AppData = {
-  meals: SEED_MEALS.map(m => ({ ...m, rating: 0, ratingNote: "", needsReview: true })),
+  meals: SEED_MEALS.map(m => ({ ...m, rating: 0, ratingNote: "", needsReview: true, mealService: false })),
   planEntries: [],
+  groceryExtras: [],
 };
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
@@ -115,7 +119,7 @@ const pill = (color: string): React.CSSProperties => ({
 });
 
 function btn(bg: string, color?: string, border?: string): React.CSSProperties {
-  const fg = color ?? (bg === "transparent" ? TEXT : BG);
+  const fg = color ?? (bg === "transparent" ? TEXT : INK);
   return {
     background: bg, color: fg, border: border ? `1px solid ${border}` : "none",
     borderRadius: 8, cursor: "pointer", fontFamily: "'Montserrat', sans-serif",
@@ -125,7 +129,7 @@ function btn(bg: string, color?: string, border?: string): React.CSSProperties {
 }
 
 const inputStyle: React.CSSProperties = {
-  background: "rgba(0,0,0,0.3)", border: `1px solid ${BORDER}`,
+  background: "var(--input-bg)", border: `1px solid ${BORDER}`,
   borderRadius: 8, padding: "9px 12px", fontSize: 14, color: TEXT,
   fontFamily: "'Montserrat', sans-serif", width: "100%",
   boxSizing: "border-box", outline: "none",
@@ -231,6 +235,7 @@ export default function FoodPlanner() {
   const [filterRating, setFilterRating] = useState(0);
   const [filterReview, setFilterReview] = useState("all");
 const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({});
+  const [groceryInput, setGroceryInput] = useState("");
   const [ratingModal, setRatingModal] = useState<Meal | null>(null);
   const [searchQ, setSearchQ] = useState("");
   const [showAddEntry, setShowAddEntry] = useState(false);
@@ -243,10 +248,11 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
   const [editEntryLabel, setEditEntryLabel] = useState("");
   const [viewMealId, setViewMealId] = useState<string | null>(null);
   const viewMeal = viewMealId ? (data.meals.find(m => m.id === viewMealId) ?? null) : null;
+  const uid = useAuth().uid;
 
   useEffect(() => {
     try {
-      const ref = doc(db, "config", "foodPlanner");
+      const ref = doc(db, "users", uid, "food", "planner");
       const unsub = onSnapshot(ref, snap => {
         if (snap.exists()) {
           const d = snap.data() as Partial<AppData> & { weekPlan?: unknown };
@@ -255,6 +261,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
             ...d,
             meals: d.meals?.length ? d.meals : SEED_DATA.meals,
             planEntries: d.planEntries ?? [],
+            groceryExtras: d.groceryExtras ?? [],
           });
         } else {
           setDoc(ref, SEED_DATA).catch(() => {});
@@ -262,12 +269,12 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
       }, () => {});
       return unsub;
     } catch { /* Firebase not configured */ }
-  }, []);
+  }, [uid]);
 
   const save = useCallback((d: AppData) => {
     setData(d);
-    setDoc(doc(db, "config", "foodPlanner"), d).catch(err => console.error("Food save failed:", err));
-  }, []);
+    setDoc(doc(db, "users", uid, "food", "planner"), d).catch(err => console.error("Food save failed:", err));
+  }, [uid]);
 
   const filteredMeals = data.meals.filter(m => {
     if (filterType !== "all" && m.type !== filterType) return false;
@@ -285,7 +292,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
   function openMealForm(meal: Meal | null = null) {
     setMealForm(meal ? { ...meal } : {
       id: Date.now().toString(), name: "", type: "Other", protein: "None/Vegetarian",
-      ingredients: "", servings: 4, prepTime: "", notes: "", rating: 0, ratingNote: "", source: "", needsReview: true,
+      ingredients: "", servings: 4, prepTime: "", notes: "", rating: 0, ratingNote: "", source: "", needsReview: true, mealService: false,
     });
   }
   function saveMeal(m: Meal) {
@@ -337,18 +344,32 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
     setEditEntry(null);
   }
   function buildGroceryList() {
-    const items: Record<string, { count: number; meals: string[] }> = {};
+    const items: Record<string, { count: number; meals: string[]; manual: boolean }> = {};
     data.planEntries.forEach(entry => {
       const meal = data.meals.find(m => m.id === entry.mealId);
-      if (!meal?.ingredients) return;
+      if (!meal?.ingredients || meal.mealService) return;
       meal.ingredients.split("\n").forEach(line => {
         const t = line.trim(); if (!t) return;
-        if (!items[t]) items[t] = { count: 0, meals: [] };
+        if (!items[t]) items[t] = { count: 0, meals: [], manual: false };
         items[t].count++;
         if (!items[t].meals.includes(meal.name)) items[t].meals.push(meal.name);
       });
     });
+    (data.groceryExtras ?? []).forEach(t => {
+      if (!items[t]) items[t] = { count: 0, meals: [], manual: true };
+      else items[t].manual = true;
+    });
     return items;
+  }
+  function addGroceryExtra() {
+    const t = groceryInput.trim();
+    if (!t) return;
+    setGroceryInput("");
+    if ((data.groceryExtras ?? []).includes(t)) return;
+    save({ ...data, groceryExtras: [...(data.groceryExtras ?? []), t] });
+  }
+  function removeGroceryExtra(name: string) {
+    save({ ...data, groceryExtras: (data.groceryExtras ?? []).filter(x => x !== name) });
   }
 
   const groceryItems = buildGroceryList();
@@ -398,12 +419,12 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
             ← Home
           </Link>
-          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} />
+          <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
           <ToolNav current="food" />
         </div>
 
         {/* ── SUB-NAV ── */}
-        <div style={{ display: "flex", borderBottom: `1px solid ${BORDER}`, background: "rgba(0,0,0,0.15)", overflowX: "auto" }}>
+        <div style={{ display: "flex", borderBottom: `1px solid ${BORDER}`, background: "var(--surface)", overflowX: "auto" }}>
           {navItems.map(n => (
             <button key={n.id} onClick={() => setView(n.id)} style={{
               padding: "11px 18px", border: "none", cursor: "pointer",
@@ -569,6 +590,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                           <Icon name="clock" size={9} color={TEXT_DIM} />{m.prepTime}
                         </span>
                       )}
+                      {m.mealService && <span style={pill("#22d3ee")}>Meal service</span>}
                     </div>
                     {m.rating > 0 && (
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -589,15 +611,26 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
           {/* ── GROCERY ── */}
           {view === "grocery" && (
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: TEXT }}>Grocery List</div>
                 <button style={{ ...btn("transparent", TEXT_DIM, BORDER), fontSize: 12, padding: "6px 14px" }} onClick={() => setGroceryChecked({})}>Uncheck All</button>
               </div>
+
+              {/* Add an item that isn't part of a meal */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                <input style={{ ...inputStyle, flex: 1 }} value={groceryInput}
+                  onChange={e => setGroceryInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") addGroceryExtra(); }}
+                  placeholder="Add an item (e.g. paper towels, milk)…"
+                  onFocus={e => (e.target.style.borderColor = LAV_DIM)} onBlur={e => (e.target.style.borderColor = BORDER)} />
+                <button style={{ ...btn(LAV), opacity: groceryInput.trim() ? 1 : 0.5 }} onClick={addGroceryExtra} disabled={!groceryInput.trim()}>+ Add</button>
+              </div>
+
               {Object.keys(groceryItems).length === 0 ? (
                 <div style={{ textAlign: "center", padding: 56, color: TEXT_MUTED }}>
                   <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}><Icon name="bag" size={48} color={TEXT_MUTED} /></div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: TEXT_DIM, marginBottom: 6 }}>Plan your week first</div>
-                  <div style={{ fontSize: 14 }}>Your shopping list will appear here once you've added meals.</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: TEXT_DIM, marginBottom: 6 }}>Nothing on the list yet</div>
+                  <div style={{ fontSize: 14 }}>Add meals to your week or add individual items above.</div>
                 </div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(270px,1fr))", gap: 8 }}>
@@ -605,13 +638,21 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                     <div key={item} onClick={() => setGroceryChecked(c => ({ ...c, [item]: !c[item] }))}
                       style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: groceryChecked[item] ? "transparent" : SURFACE, border: `1px solid ${groceryChecked[item] ? BORDER : BORDER_ACCENT}`, borderLeft: `3px solid ${groceryChecked[item] ? TEXT_MUTED : LAV}`, borderRadius: 10, cursor: "pointer", opacity: groceryChecked[item] ? 0.4 : 1, transition: "all 0.15s" }}>
                       <div style={{ width: 20, height: 20, borderRadius: 5, border: `1.5px solid ${groceryChecked[item] ? LAV : BORDER_ACCENT}`, background: groceryChecked[item] ? LAV : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        {groceryChecked[item] && <Icon name="check" size={12} color={BG} />}
+                        {groceryChecked[item] && <Icon name="check" size={12} color={INK} />}
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, textDecoration: groceryChecked[item] ? "line-through" : "none", color: TEXT }}>{item}</div>
-                        <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 1 }}>{info.meals.join(", ")}</div>
+                        <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 1 }}>{info.meals.length ? info.meals.join(", ") : "Added manually"}</div>
                       </div>
                       {info.count > 1 && <span style={{ ...pill(LAV_DIM), fontSize: 9 }}>×{info.count}</span>}
+                      {info.manual && (
+                        <button onClick={e => { e.stopPropagation(); removeGroceryExtra(item); }}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED, padding: 4, display: "flex", alignItems: "center", flexShrink: 0 }}
+                          onMouseEnter={e => (e.currentTarget.style.color = DANGER)}
+                          onMouseLeave={e => (e.currentTarget.style.color = TEXT_MUTED)}>
+                          <Icon name="x" size={14} color="currentColor" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -629,6 +670,10 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
           meal={viewMeal}
           onClose={() => setViewMealId(null)}
           onEdit={() => openMealForm(viewMeal)}
+          onAddToPlan={(day) => {
+            const entry: PlanEntry = { id: Date.now().toString(), mealId: viewMeal.id, day: day || undefined };
+            save({ ...data, planEntries: [...data.planEntries, entry] });
+          }}
         />
       )}
 
@@ -655,6 +700,16 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <label style={{ ...labelStyle, margin: 0 }}>Status:</label>
               <ReviewTag needsReview={mealForm.needsReview} onToggle={() => setMealForm({ ...mealForm, needsReview: !mealForm.needsReview })} />
+            </div>
+            <div onClick={() => setMealForm({ ...mealForm, mealService: !mealForm.mealService })}
+              style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+              <div style={{ width: 20, height: 20, borderRadius: 5, border: `1.5px solid ${mealForm.mealService ? LAV : BORDER_ACCENT}`, background: mealForm.mealService ? LAV : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {mealForm.mealService && <Icon name="check" size={12} color={INK} />}
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Meal service</div>
+                <div style={{ fontSize: 11, color: TEXT_MUTED }}>Ingredients are provided — exclude from grocery list</div>
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 4 }}>
               <div style={{ display: "flex", gap: 8 }}>
@@ -787,8 +842,16 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
 }
 
 // ── Recipe Detail (full-screen overlay) ───────────────────────────────────────
-function RecipeDetail({ meal, onClose, onEdit }: { meal: Meal; onClose: () => void; onEdit: () => void }) {
+function RecipeDetail({ meal, onClose, onEdit, onAddToPlan }: { meal: Meal; onClose: () => void; onEdit: () => void; onAddToPlan: (day?: string) => void }) {
   const ingredients = meal.ingredients.split("\n").filter(l => l.trim());
+  const [planDay, setPlanDay] = useState("");
+  const [added, setAdded] = useState(false);
+
+  function handleAdd() {
+    onAddToPlan(planDay || undefined);
+    setAdded(true);
+    window.setTimeout(() => setAdded(false), 1800);
+  }
 
   const iconBtn = (onClick: () => void, icon: "x" | "pencil", hoverColor: string) => {
     const el = (
@@ -830,6 +893,20 @@ function RecipeDetail({ meal, onClose, onEdit }: { meal: Meal; onClose: () => vo
             )}
             {meal.servings > 0 && <span style={pill(TEXT_DIM)}>{meal.servings} servings</span>}
             <ReviewTag needsReview={meal.needsReview} />
+          </div>
+
+          {/* Add to this week's plan */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 24 }}>
+            <select value={planDay} onChange={e => setPlanDay(e.target.value)}
+              style={{ ...selectStyle, width: "auto", minWidth: 132 }}>
+              <option value="">Any day</option>
+              {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <button onClick={handleAdd}
+              style={{ ...btn(added ? "#4ade80" : LAV), padding: "9px 18px" }}>
+              <Icon name={added ? "check" : "plus"} size={15} color={INK} />
+              {added ? "Added to plan" : "Add to this week"}
+            </button>
           </div>
 
           {/* Rating */}
@@ -886,7 +963,7 @@ function Modal({ children, onClose, title, accentColor, maxWidth = 520 }: {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(3,5,15,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16, backdropFilter: "blur(4px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: "#0b0f22", borderRadius: 16, padding: 24, width: "100%", maxWidth, maxHeight: "88vh", overflowY: "auto", border: `1px solid ${accentColor}55`, boxShadow: `0 0 0 1px ${accentColor}22, 0 24px 48px rgba(0,0,0,0.6)` }}>
+      <div style={{ background: "var(--panel)", borderRadius: 16, padding: 24, width: "100%", maxWidth, maxHeight: "88vh", overflowY: "auto", border: `1px solid ${accentColor}55`, boxShadow: `0 0 0 1px ${accentColor}22, 0 24px 48px rgba(0,0,0,0.6)` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, paddingBottom: 14, borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ fontFamily: "'Montserrat', sans-serif", fontSize: 18, fontWeight: 700, color: TEXT }}>{title}</div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, color: TEXT_MUTED, lineHeight: 1 }}>×</button>

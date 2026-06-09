@@ -41,13 +41,13 @@ function normalizeIds(v: string | string[] | undefined): string[] {
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
-const BG        = "#06091a";
-const SURFACE   = "rgba(255,255,255,0.04)";
-const SURFACE_HI = "rgba(255,255,255,0.07)";
-const BORDER    = "rgba(255,255,255,0.08)";
-const TEXT      = "#dedad0";
-const TEXT_DIM  = "#7a7890";
-const TEXT_MUTED = "#3d3d52";
+const BG        = "var(--bg)";
+const SURFACE   = "var(--surface)";
+const SURFACE_HI = "var(--surface-hi)";
+const BORDER    = "var(--border)";
+const TEXT      = "var(--text)";
+const TEXT_DIM  = "var(--text-dim)";
+const TEXT_MUTED = "var(--text-muted)";
 const JADE      = "#5db88a";
 const PURPLE    = "#9b7fe8";
 const TEAL      = "#46b6ad";
@@ -232,7 +232,7 @@ function AccountModal({ account, mappings, onSave, onDelete, onClose }: {
                     <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: active ? rc.color : TEXT }}>{rc.label}</span>
                     <span style={{
                       width: 20, height: 20, borderRadius: 6, flexShrink: 0,
-                      border: `1.5px solid ${active ? rc.color : "rgba(255,255,255,0.2)"}`,
+                      border: `1.5px solid ${active ? rc.color : "var(--border-hi)"}`,
                       background: active ? rc.color : "transparent",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
@@ -341,7 +341,7 @@ export default function Accounts() {
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
             ← Planner
           </Link>
-          <div style={{ width: 1, height: 14, background: "rgba(255,255,255,0.1)" }} />
+          <div style={{ width: 1, height: 14, background: "var(--border)" }} />
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15, fontWeight: 800, color: TEXT, letterSpacing: -0.3 }}>
             <Icon name="bank" size={17} color={TEXT_DIM} /> Accounts
           </span>

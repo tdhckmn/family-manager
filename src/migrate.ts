@@ -6,11 +6,29 @@ import { db } from "./firebase";
 const OWNER_EMAIL = "thomasdhickman@gmail.com";
 
 /**
- * One-time copy of the original shared data (`finance/plan`, `todos/*`) into the
- * owner's per-user space. Idempotent: skips anything already migrated. Runs only
- * for the owner; everyone else starts with their own empty data.
+ * One-time data migrations, run on sign-in. All steps are idempotent and skip
+ * anything already migrated.
+ *
+ * 1. Notes rename (all users): the "todos" tool was renamed to "Notes", so its
+ *    per-user collection moves from `users/{uid}/todos` → `users/{uid}/notes`.
+ * 2. Legacy shared data (owner only): copies the original shared docs
+ *    (`finance/plan`, `todos/*`, `config/foodPlanner`) into the owner's per-user
+ *    space. Firestore rules allow only the owner to read those legacy paths.
  */
 export async function migrateLegacyDataOnce(uid: string, email: string | null | undefined) {
+  // ── Notes rename: per-user todos → per-user notes (runs for everyone) ──────
+  try {
+    const perNotes = collection(db, "users", uid, "notes");
+    if ((await getDocs(perNotes)).empty) {
+      const perTodos = await getDocs(collection(db, "users", uid, "todos"));
+      if (!perTodos.empty) {
+        await Promise.all(perTodos.docs.map(d => setDoc(doc(db, "users", uid, "notes", d.id), d.data())));
+      }
+    }
+  } catch (e) {
+    console.error("Notes rename migration skipped:", e);
+  }
+
   if ((email ?? "").toLowerCase() !== OWNER_EMAIL) return;
   try {
     // Finance plan
@@ -20,11 +38,18 @@ export async function migrateLegacyDataOnce(uid: string, email: string | null | 
       if (legacy.exists()) await setDoc(perFinance, legacy.data());
     }
 
-    // Todos
-    const perTodos = collection(db, "users", uid, "todos");
-    if ((await getDocs(perTodos)).empty) {
+    // Notes (legacy shared `todos` → per-user `notes`)
+    const perNotes = collection(db, "users", uid, "notes");
+    if ((await getDocs(perNotes)).empty) {
       const legacy = await getDocs(collection(db, "todos"));
-      await Promise.all(legacy.docs.map(d => setDoc(doc(db, "users", uid, "todos", d.id), d.data())));
+      await Promise.all(legacy.docs.map(d => setDoc(doc(db, "users", uid, "notes", d.id), d.data())));
+    }
+
+    // Food planner
+    const perFood = doc(db, "users", uid, "food", "planner");
+    if (!(await getDoc(perFood)).exists()) {
+      const legacy = await getDoc(doc(db, "config", "foodPlanner"));
+      if (legacy.exists()) await setDoc(perFood, legacy.data());
     }
   } catch (e) {
     console.error("Legacy data migration skipped:", e);

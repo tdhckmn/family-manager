@@ -1,19 +1,20 @@
 import { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../firebase";
 import { Icon } from "./Icon";
 import MarkdownHelp from "./MarkdownHelp";
 
-const BG_PANEL  = "rgba(10,13,30,0.96)";
-const BORDER    = "rgba(255,255,255,0.10)";
-const TEXT      = "#dedad0";
-const TEXT_DIM  = "#7a7890";
+const BG_PANEL  = "var(--panel)";
+const BORDER    = "var(--border)";
+const TEXT      = "var(--text)";
+const TEXT_DIM  = "var(--text-dim)";
 const DANGER    = "#c0566a";
 const JADE      = "#5db88a";
 
-// Pages that render their own integrated gear — suppress the global one there
-const PAGES_WITH_OWN_GEAR = ["/finance"];
+// Pages that render their own integrated gear, or are themselves a settings surface —
+// suppress the global gear there.
+const PAGES_WITH_OWN_GEAR = ["/finance", "/settings"];
 
 /** Avatar + Google name/email block, shared across settings menus. */
 export function UserProfile({ user }: { user: User | null }) {
@@ -45,7 +46,7 @@ export default function GlobalHeader() {
   const [mdOpen, setMdOpen] = useState(false);
   const [user, setUser] = useState<User | null>(auth.currentUser);
   const ref = useRef<HTMLDivElement>(null);
-  const onTodos = location.pathname === "/todos";
+  const onNotes = location.pathname === "/notes";
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
@@ -81,8 +82,8 @@ export default function GlobalHeader() {
         onClick={() => setOpen(o => !o)}
         title="Settings"
         style={{
-          background: open ? "rgba(255,255,255,0.08)" : "rgba(10,13,30,0.8)",
-          border: `1px solid ${open ? "rgba(255,255,255,0.18)" : BORDER}`,
+          background: open ? "var(--surface-hi)" : "var(--panel)",
+          border: `1px solid ${open ? "var(--border-hi)" : BORDER}`,
           borderRadius: 8,
           color: open ? TEXT : TEXT_DIM,
           fontSize: 16,
@@ -98,7 +99,7 @@ export default function GlobalHeader() {
         onMouseEnter={e => {
           if (!open) {
             (e.currentTarget as HTMLButtonElement).style.color = TEXT;
-            (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.18)";
+            (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-hi)";
           }
         }}
         onMouseLeave={e => {
@@ -129,7 +130,23 @@ export default function GlobalHeader() {
 
             <div style={{ height: 1, background: BORDER, margin: "4px 0" }} />
 
-            {onTodos && (
+            <Link
+              to="/settings"
+              onClick={() => setOpen(false)}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                width: "100%", textAlign: "left", padding: "10px 16px",
+                background: "transparent", border: "none", textDecoration: "none",
+                color: TEXT, fontSize: 13, fontWeight: 600,
+                cursor: "pointer", fontFamily: "'Montserrat', sans-serif",
+              }}
+              onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = "rgba(125,125,150,0.10)"}
+              onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = "transparent"}
+            >
+              <Icon name="gear" size={15} /> Settings
+            </Link>
+
+            {onNotes && (
               <button
                 onClick={() => { setOpen(false); setMdOpen(true); }}
                 style={{
@@ -139,7 +156,7 @@ export default function GlobalHeader() {
                   color: TEXT, fontSize: 13, fontWeight: 600,
                   cursor: "pointer", fontFamily: "'Montserrat', sans-serif",
                 }}
-                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"}
+                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "var(--surface-hi)"}
                 onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "transparent"}
               >
                 <Icon name="book" size={15} /> Markdown guide
