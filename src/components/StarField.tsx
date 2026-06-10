@@ -1,11 +1,14 @@
 import { useMemo } from "react";
+import { useTheme } from "../theme";
 
 /**
  * Ambient page background: soft corner gradients + twinkling stars.
  * Fixed, non-interactive, and sits behind page content (zIndex 0).
  * Used on every page so the look is consistent app-wide.
+ * Dark-only — the glow/stars are tuned for the dark canvas, so we skip it in light mode.
  */
 export default function StarField({ count = 45 }: { count?: number }) {
+  const [theme] = useTheme();
   const particles = useMemo(() =>
     Array.from({ length: count }, (_, i) => ({
       id: i,
@@ -16,6 +19,8 @@ export default function StarField({ count = 45 }: { count?: number }) {
       duration: 4 + Math.random() * 6,
       op: 0.12 + Math.random() * 0.3,
     })), [count]);
+
+  if (theme === "light") return null;
 
   return (
     <>

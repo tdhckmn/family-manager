@@ -53,7 +53,7 @@ export default function Admin() {
 
   useEffect(() => {
     if (!selected) { setSubDoc(null); return; }
-    return onSnapshot(doc(db, "users", selected.uid, "subscription"), snap => {
+    return onSnapshot(doc(db, "users", selected.uid, "meta", "subscription"), snap => {
       setSubDoc(snap.exists() ? (snap.data() as SubDoc) : null);
     });
   }, [selected?.uid]);
@@ -64,7 +64,7 @@ export default function Admin() {
     if (!selected) return;
     setSaving(true);
     try {
-      await updateDoc(doc(db, "users", selected.uid, "subscription"), {
+      await updateDoc(doc(db, "users", selected.uid, "meta", "subscription"), {
         "override.active": true,
         "override.reason": overrideReason,
         "override.expiresAt": null,
@@ -76,7 +76,7 @@ export default function Admin() {
     if (!selected) return;
     setSaving(true);
     try {
-      await updateDoc(doc(db, "users", selected.uid, "subscription"), {
+      await updateDoc(doc(db, "users", selected.uid, "meta", "subscription"), {
         "override.active": false,
       });
     } finally { setSaving(false); }

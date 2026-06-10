@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import {
   FinancePlan, IncomeSource, FixedExpense, SinkingFund, BankAccount, PaycheckSplit, SplitType,
-  AccountMappings,
+  AccountMappings, BudgetTargets,
   Frequency, IncomeFrequency, ExpenseFrequency, Owner,
   SURFACE, SURFACE_HI, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
   JADE, PURPLE, BLUE, AMBER, DANGER, PINK, TEAL,
   INCOME_FREQ_LABELS, MONTH_NAMES, OWNER_COLOR,
   EXPENSE_FREQ_LABELS, EXPENSE_FREQ_MONTHLY, SAVINGS_FREQ_LABELS, SAVINGS_FREQ_MONTHLY,
   uid, fmt, fmtDec, pct, countPaydays, emergencyMonthly, expenseMonthly, monthsUntil, displayName,
-  normalizeIds,
+  normalizeIds, recurringTotals, isExpenseActive, expenseBucket,
   Card, Pill, InlineInput, SelectInput, useIsMobile,
 } from "./shared";
 import { Nudge, AccountFlow, AccountKind } from "./nudges";
@@ -17,14 +17,14 @@ import { Icon } from "../../components/Icon";
 // ── Section header total (amount/mo + % of income) ──────────────────────────
 
 function SectionTotal({ amount, color, pctVal, target, hasIncome }: {
-  amount: number; color: string; pctVal: number; target: number; hasIncome: boolean;
+  amount: number; color: string; pctVal: number; target?: number; hasIncome: boolean;
 }) {
   return (
     <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
       <span style={{ fontSize: 16, fontWeight: 800, color }}>{fmt(amount)}/mo</span>
       {hasIncome && (
         <span style={{ fontSize: 11, fontWeight: 700, color: TEXT_DIM }}>
-          {pctVal}%<span style={{ color: TEXT_MUTED }}>/{target}%</span>
+          {pctVal}%{target !== undefined && <span style={{ color: TEXT_MUTED }}>/{target}%</span>}
         </span>
       )}
     </div>
@@ -366,9 +366,34 @@ function IncomeForm({ draft, setDraft, bankAccounts, onSave, onCancel, onDelete 
 
 type ExpenseDraft = Omit<FixedExpense, "frequency"> & { frequency: ExpenseFrequency };
 
+const SUB_CATEGORIES = ["Streaming", "Music", "Software", "Gaming", "News", "Fitness", "Cloud", "Utilities", "Other"];
+
+/** Segmented two-option toggle used for Type and Bucket. */
+function Segmented<T extends string>({ label, value, options, onChange }: {
+  label: string; value: T; options: { value: T; label: string; color: string }[]; onChange: (v: T) => void;
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: TEXT_DIM, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
+      <div style={{ display: "flex", gap: 4, background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: 3 }}>
+        {options.map(o => {
+          const active = value === o.value;
+          return (
+            <button key={o.value} onClick={() => onChange(o.value)} type="button"
+              style={{ flex: 1, padding: "6px 0", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "'Montserrat',sans-serif", fontSize: 12, fontWeight: 700,
+                background: active ? o.color : "transparent", color: active ? "#06091a" : TEXT_DIM, transition: "all 0.12s" }}>
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </label>
+  );
+}
+
 function ExpenseForm({ draft, set, accountOptions, onSave, onCancel, onDelete }: {
   draft: ExpenseDraft;
-  set: (k: string, v: string | number) => void;
+  set: (k: string, v: string | number | boolean | undefined) => void;
   accountOptions: string[];
   onSave: () => void;
   onCancel: () => void;
@@ -376,10 +401,31 @@ function ExpenseForm({ draft, set, accountOptions, onSave, onCancel, onDelete }:
 }) {
   const isMonthly = draft.frequency === "monthly";
   const monthly = draft.amount * EXPENSE_FREQ_MONTHLY[draft.frequency];
+  const isSub = draft.kind === "subscription";
+  const bucket = draft.bucket === "wants" ? "wants" : "needs";
+  const paused = draft.active === false;
+
+  function setType(v: "bill" | "subscription") {
+    if (v === "subscription") {
+      set("kind", "subscription");
+      if (!draft.bucket) set("bucket", "wants"); // subscriptions default to Wants
+    } else {
+      set("kind", undefined);
+    }
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <Segmented label="Type" value={isSub ? "subscription" : "bill"}
+          options={[{ value: "bill", label: "Bill", color: PURPLE }, { value: "subscription", label: "Subscription", color: TEAL }]}
+          onChange={setType} />
+        <Segmented label="Counts as" value={bucket}
+          options={[{ value: "needs", label: "Needs", color: PURPLE }, { value: "wants", label: "Wants", color: PINK }]}
+          onChange={v => set("bucket", v)} />
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 100px", gap: 8 }}>
-        <InlineInput label="Name" value={draft.name} onChange={v => set("name", v)} placeholder="e.g. Car insurance" />
+        <InlineInput label="Name" value={draft.name} onChange={v => set("name", v)} placeholder={isSub ? "e.g. Netflix" : "e.g. Car insurance"} />
         <InlineInput label="Amount ($)" value={String(draft.amount || "")} onChange={v => set("amount", v)} type="number" placeholder="0" />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 80px", gap: 8 }}>
@@ -393,11 +439,25 @@ function ExpenseForm({ draft, set, accountOptions, onSave, onCancel, onDelete }:
           ≈ <span style={{ color: BLUE, fontWeight: 700 }}>{fmtDec(monthly)}/mo</span> monthly equivalent
         </div>
       )}
+      {isSub && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <SelectInput label="Category" value={draft.category ?? "Other"} onChange={v => set("category", v)}>
+            {SUB_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </SelectInput>
+          <InlineInput label="Next renewal (opt)" value={draft.renewalDate ?? ""} onChange={v => set("renewalDate", v)} type="date" />
+        </div>
+      )}
       <SelectInput label="Account" value={draft.account} onChange={v => set("account", v)}>
         {accountOptions.map(a => <option key={a}>{a}</option>)}
         {draft.account && !accountOptions.includes(draft.account) && <option value={draft.account}>{draft.account}</option>}
       </SelectInput>
       <InlineInput label="Website URL (optional)" value={draft.url ?? ""} onChange={v => set("url", v)} placeholder="https://…" />
+      {isSub && (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginTop: 2 }}>
+          <input type="checkbox" checked={paused} onChange={e => set("active", !e.target.checked)} style={{ accentColor: AMBER, width: 14, height: 14 }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: paused ? AMBER : TEXT_DIM }}>Paused (kept on the list, excluded from the budget)</span>
+        </label>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onSave} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
@@ -411,8 +471,8 @@ function ExpenseForm({ draft, set, accountOptions, onSave, onCancel, onDelete }:
 
 type ExpenseSortKey = "date" | "name" | "amount";
 
-export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }: {
-  plan: FinancePlan; save: (p: FinancePlan) => void; accountOptions: string[]; totalIncome: number;
+export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, needsTarget }: {
+  plan: FinancePlan; save: (p: FinancePlan) => void; accountOptions: string[]; totalIncome: number; needsTarget?: number;
 }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -439,9 +499,13 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
     }
     return cmp * sortDir;
   });
-  const totalMonthly = plan.fixedExpenses.reduce((s, e) => s + expenseMonthly(e), 0);
+  const { needs: needsTotal, wantsCommitted } = recurringTotals(plan.fixedExpenses);
 
-  function openAdd() { setDraft({ ...blank, id: uid(), account: defaultAcct }); setAdding(true); }
+  function openAdd(kind?: "subscription") {
+    setDraft({ ...blank, id: uid(), account: defaultAcct, kind, bucket: kind === "subscription" ? "wants" : undefined, active: true });
+    setAdding(true);
+    setEditId(null);
+  }
 
   function buildExpense(): FixedExpense {
     const e: FixedExpense = { ...draft, amount: Number(draft.amount) };
@@ -449,6 +513,11 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
     if (!e.dayOfMonth) delete e.dayOfMonth;
     if (e.url) e.url = e.url.trim();
     if (!e.url) delete e.url;
+    // Subscription metadata cleanup — keep the doc lean.
+    if (e.kind !== "subscription") { delete e.kind; delete e.renewalDate; delete e.category; }
+    else { if (!e.renewalDate) delete e.renewalDate; if (!e.category) delete e.category; }
+    if (expenseBucket(e) === "needs") delete e.bucket; // store only the non-default bucket
+    if (e.active !== false) delete e.active;            // store only when paused
     return e;
   }
 
@@ -468,16 +537,25 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
     if (editId === id) setEditId(null);
   }
 
-  const set = (k: string, v: string | number) => setDraft(d => ({ ...d, [k]: v }));
+  const set = (k: string, v: string | number | boolean | undefined) => setDraft(d => ({ ...d, [k]: v }));
 
   return (
     <Card
       icon={<Icon name="list" />}
-      title="Fixed Expenses"
-      action={totalMonthly > 0 ? <SectionTotal amount={totalMonthly} color={PURPLE} pctVal={pct(totalMonthly, totalIncome)} target={50} hasIncome={totalIncome > 0} /> : undefined}
+      title="Recurring Expenses"
+      action={needsTotal > 0 ? <SectionTotal amount={needsTotal} color={PURPLE} pctVal={pct(needsTotal, totalIncome)} target={needsTarget} hasIncome={totalIncome > 0} /> : undefined}
     >
       {sorted.length === 0 && !adding && (
-        <div style={{ color: TEXT_MUTED, fontSize: 13, fontStyle: "italic", textAlign: "center", padding: "16px 0" }}>No fixed expenses yet.</div>
+        <div style={{ color: TEXT_MUTED, fontSize: 13, fontStyle: "italic", textAlign: "center", padding: "16px 0" }}>No recurring expenses yet — add bills and subscriptions.</div>
+      )}
+
+      {wantsCommitted > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, padding: "7px 10px", borderRadius: 8, background: `${PINK}10`, border: `1px solid ${PINK}28` }}>
+          <Icon name="card" size={13} color={PINK} />
+          <span style={{ fontSize: 11.5, color: TEXT_DIM }}>
+            <span style={{ color: PINK, fontWeight: 800 }}>{fmt(wantsCommitted)}/mo</span> in subscriptions counts toward Wants
+          </span>
+        </div>
       )}
 
       {plan.fixedExpenses.length > 1 && (
@@ -514,12 +592,16 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
                 </div>
               ) : (
                 <div onClick={() => { setDraft({ ...exp, frequency: freq }); setEditId(exp.id); setAdding(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 4px", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.1s" }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 4px", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.1s", opacity: isExpenseActive(exp) ? 1 : 0.5 }}
                   onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HI}
                   onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: TEXT_MUTED, width: 22, textAlign: "right", flexShrink: 0 }}>{exp.dayOfMonth ?? ""}</div>
+                  <div style={{ width: 22, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+                    {exp.kind === "subscription"
+                      ? <Icon name="card" size={13} color={TEAL} />
+                      : <span style={{ fontSize: 10, fontWeight: 700, color: TEXT_MUTED }}>{exp.dayOfMonth ?? ""}</span>}
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: TEXT, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ fontSize: 13, color: TEXT, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       {exp.name}
                       {exp.url && (
                         <a href={exp.url} target="_blank" rel="noopener noreferrer" title={`Open ${exp.name} website`}
@@ -530,8 +612,16 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
                           ↗
                         </a>
                       )}
+                      {expenseBucket(exp) === "wants" && <Pill color={PINK}>Wants</Pill>}
+                      {!isExpenseActive(exp) && <Pill color={AMBER}>Paused</Pill>}
                     </div>
-                    {!isMonthly && <div style={{ fontSize: 10, color: TEXT_DIM }}>{EXPENSE_FREQ_LABELS[freq]} · {fmtDec(monthly)}/mo equiv</div>}
+                    {(() => {
+                      const bits: string[] = [];
+                      if (!isMonthly) bits.push(`${EXPENSE_FREQ_LABELS[freq]} · ${fmtDec(monthly)}/mo equiv`);
+                      if (exp.kind === "subscription" && exp.renewalDate)
+                        bits.push(`renews ${new Date(exp.renewalDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`);
+                      return bits.length > 0 ? <div style={{ fontSize: 10, color: TEXT_DIM }}>{bits.join(" · ")}</div> : null;
+                    })()}
                   </div>
                   {!isMonthly && <Pill color={BLUE}>{EXPENSE_FREQ_LABELS[freq]}</Pill>}
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -547,11 +637,16 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome }
 
       {adding && (
         <div style={{ marginTop: 14, padding: 14, background: "rgba(93,184,138,0.05)", border: `1px solid ${JADE}30`, borderRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: JADE, marginBottom: 12 }}>New Expense</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: JADE, marginBottom: 12 }}>{draft.kind === "subscription" ? "New Subscription" : "New Expense"}</div>
           <ExpenseForm draft={draft} set={set} accountOptions={accountOptions} onSave={commitAdd} onCancel={() => setAdding(false)} />
         </div>
       )}
-      {!adding && <button onClick={openAdd} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Expense</button>}
+      {!adding && (
+        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <button onClick={() => openAdd()} style={{ flex: 1, background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Bill</button>
+          <button onClick={() => openAdd("subscription")} style={{ flex: 1, background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: TEAL, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Subscription</button>
+        </div>
+      )}
     </Card>
   );
 }
@@ -600,9 +695,9 @@ function FundForm({ draft, setDraft, draftTarget, setDraftTarget, draftDue, setD
 
 const blankFund: SinkingFund = { id: "", name: "", monthlyAmount: 0 };
 
-export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sinkingAccounts }: {
+export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sinkingAccounts, savingsTarget }: {
   plan: FinancePlan; save: (p: FinancePlan) => void;
-  totalIncome: number; emergencyAcctName: string; sinkingAccounts: BankAccount[];
+  totalIncome: number; emergencyAcctName: string; sinkingAccounts: BankAccount[]; savingsTarget?: number;
 }) {
   const isMobile = useIsMobile();
   const sinkingAcctName = sinkingAccounts.length > 0 ? sinkingAccounts.map(displayName).join(" & ") : "Sinking Funds";
@@ -700,7 +795,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
     <Card
       icon={<Icon name="shield" />}
       title="Savings"
-      action={totalSavings > 0 ? <SectionTotal amount={totalSavings} color={JADE} pctVal={pctVal} target={20} hasIncome={totalIncome > 0} /> : undefined}
+      action={totalSavings > 0 ? <SectionTotal amount={totalSavings} color={JADE} pctVal={pctVal} target={savingsTarget} hasIncome={totalIncome > 0} /> : undefined}
     >
       {/* Emergency savings */}
       {editing ? (
@@ -804,7 +899,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
               </div>
               {fillPct != null && (
                 <div style={{ marginTop: 6 }}>
-                  <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ height: 4, background: "var(--surface-hi)", borderRadius: 2, overflow: "hidden" }}>
                     <div style={{ height: "100%", borderRadius: 2, background: onTrack ? JADE : AMBER, width: `${fillPct}%`, transition: "width 0.5s ease" }} />
                   </div>
                   <div style={{ fontSize: 10, color: onTrack ? JADE : AMBER, marginTop: 3, fontWeight: 700 }}>
@@ -835,7 +930,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
 interface PlanGroup {
   label: "Needs" | "Wants" | "Savings";
   color: string;
-  target: number;   // 0–1
+  target?: number;  // 0–1; absent when user has disabled budget targets
   planned: number;  // dollar total
   flows: AccountFlow[];
 }
@@ -892,13 +987,14 @@ function AccountRow({ flow }: { flow: AccountFlow }) {
 }
 
 export function AccountPlanSection({
-  flows, mappings, totalNeeds, totalWants, totalEmergency, totalSinkingFunds, totalIncome, nudges,
+  flows, mappings, totalNeeds, totalWants, totalEmergency, totalSinkingFunds, totalIncome, nudges, targets,
 }: {
   flows: AccountFlow[];
   mappings: AccountMappings;
   totalNeeds: number; totalWants: number;
   totalEmergency: number; totalSinkingFunds: number; totalIncome: number;
   nudges?: Nudge[];
+  targets?: BudgetTargets | null;
 }) {
   const needsIds   = new Set(normalizeIds(mappings.fixedExpenses));
   const wantsIds   = new Set(normalizeIds(mappings.dailySpending));
@@ -906,9 +1002,9 @@ export function AccountPlanSection({
   const allRoleIds = new Set([...needsIds, ...wantsIds, ...savingsIds]);
 
   const groups: PlanGroup[] = [
-    { label: "Needs",   color: PURPLE, target: 0.5, planned: totalNeeds,                      flows: flows.filter(f => needsIds.has(f.account.id)) },
-    { label: "Wants",   color: PINK,   target: 0.3, planned: totalWants,                      flows: flows.filter(f => wantsIds.has(f.account.id)) },
-    { label: "Savings", color: JADE,   target: 0.2, planned: totalEmergency + totalSinkingFunds, flows: flows.filter(f => savingsIds.has(f.account.id)) },
+    { label: "Needs",   color: PURPLE, target: targets ? targets.needs   : undefined, planned: totalNeeds,                         flows: flows.filter(f => needsIds.has(f.account.id)) },
+    { label: "Wants",   color: PINK,   target: targets ? targets.wants   : undefined, planned: totalWants,                         flows: flows.filter(f => wantsIds.has(f.account.id)) },
+    { label: "Savings", color: JADE,   target: targets ? targets.savings : undefined, planned: totalEmergency + totalSinkingFunds, flows: flows.filter(f => savingsIds.has(f.account.id)) },
   ];
   const unassigned = flows.filter(f => !allRoleIds.has(f.account.id));
 
@@ -928,8 +1024,8 @@ export function AccountPlanSection({
 
       {groups.map((g, gi) => {
         const actualPct = totalIncome > 0 ? pct(g.planned, totalIncome) : 0;
-        const targetPct = Math.round(g.target * 100);
-        const onTrack = Math.abs(actualPct - targetPct) <= 5;
+        const targetPct = g.target !== undefined ? Math.round(g.target * 100) : null;
+        const onTrack = targetPct !== null ? Math.abs(actualPct - targetPct) <= 5 : true;
         const show = g.flows.length > 0 || g.planned > 0;
         if (!show) return null;
 
@@ -938,7 +1034,7 @@ export function AccountPlanSection({
             {/* Group header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", background: `${g.color}0d` }}>
               <span style={{ fontSize: 11, fontWeight: 800, color: g.color, textTransform: "uppercase", letterSpacing: 0.8 }}>
-                {g.label} · {targetPct}% target
+                {g.label}{targetPct !== null ? ` · ${targetPct}% target` : ""}
               </span>
               <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
                 {g.planned > 0 && (
@@ -946,7 +1042,7 @@ export function AccountPlanSection({
                 )}
                 {totalIncome > 0 && g.planned > 0 && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: onTrack ? JADE : AMBER }}>
-                    {actualPct}%<span style={{ color: TEXT_MUTED }}>/{targetPct}%</span>
+                    {actualPct}%{targetPct !== null && <span style={{ color: TEXT_MUTED }}>/{targetPct}%</span>}
                   </span>
                 )}
               </div>
@@ -966,7 +1062,7 @@ export function AccountPlanSection({
 
       {unassigned.length > 0 && (
         <div style={{ borderTop: `1px solid ${BORDER}` }}>
-          <div style={{ display: "flex", alignItems: "center", padding: "10px 20px", background: `${TEXT_MUTED}0d` }}>
+          <div style={{ display: "flex", alignItems: "center", padding: "10px 20px", background: "var(--surface)" }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: TEXT_DIM, textTransform: "uppercase", letterSpacing: 0.8 }}>
               Unassigned
             </span>
@@ -980,11 +1076,15 @@ export function AccountPlanSection({
 
 // ── Wants ─────────────────────────────────────────────────────────────────
 
-export function WantsSection({ totalWants, totalIncome, dailySpendingAcctName }: {
-  totalWants: number; totalIncome: number; dailySpendingAcctName: string;
+export function WantsSection({ totalWants, totalIncome, dailySpendingAcctName, committed = 0, wantsTarget }: {
+  totalWants: number; totalIncome: number; dailySpendingAcctName: string; committed?: number; wantsTarget?: number;
 }) {
   const wantsPct = pct(totalWants, totalIncome);
-  const onTarget = Math.abs(wantsPct - 30) <= 3;
+  const onTarget = wantsTarget !== undefined ? Math.abs(wantsPct - wantsTarget) <= 3 : true;
+  // Subscriptions tagged "wants" are already committed out of the wants budget.
+  const flexible = totalWants - committed;
+  const headline = committed > 0 ? flexible : totalWants;
+  const over = flexible < 0;
 
   return (
     <Card icon={<Icon name="bag" />} title="Safe to Spend">
@@ -993,19 +1093,40 @@ export function WantsSection({ totalWants, totalIncome, dailySpendingAcctName }:
           <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_DIM, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
             → {dailySpendingAcctName}
           </div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: totalWants > 0 ? PINK : TEXT_MUTED }}>
-            {totalWants > 0 ? fmt(totalWants) : "—"}
+          <div style={{ fontSize: 32, fontWeight: 800, color: over ? DANGER : headline > 0 ? PINK : TEXT_MUTED }}>
+            {headline !== 0 || totalWants > 0 ? fmt(headline) : "—"}
           </div>
-          <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 4 }}>per month after needs &amp; savings</div>
+          <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 4 }}>
+            {committed > 0 ? "flexible, after subscriptions" : "per month after needs & savings"}
+          </div>
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: 11, color: TEXT_DIM, fontWeight: 600, marginBottom: 4 }}>of income</div>
           <div style={{ fontSize: 20, fontWeight: 800, color: onTarget ? JADE : DANGER }}>
             {totalIncome > 0 ? `${wantsPct}%` : "—"}
           </div>
-          <div style={{ fontSize: 10, color: TEXT_DIM, marginTop: 2 }}>target 30%</div>
+          {wantsTarget !== undefined && (
+            <div style={{ fontSize: 10, color: TEXT_DIM, marginTop: 2 }}>target {wantsTarget}%</div>
+          )}
         </div>
       </div>
+
+      {committed > 0 && (
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${BORDER}`, display: "flex", flexDirection: "column", gap: 6 }}>
+          <BreakdownRow label="Wants budget" value={fmt(totalWants)} color={TEXT} />
+          <BreakdownRow label="− Subscriptions" value={fmt(committed)} color={PINK} />
+          <BreakdownRow label={over ? "Over budget" : "= Flexible"} value={fmt(flexible)} color={over ? DANGER : JADE} bold />
+        </div>
+      )}
     </Card>
+  );
+}
+
+function BreakdownRow({ label, value, color, bold }: { label: string; value: string; color: string; bold?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+      <span style={{ fontSize: 12, fontWeight: bold ? 800 : 600, color: bold ? color : TEXT_DIM }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 800, color }}>{value}</span>
+    </div>
   );
 }
