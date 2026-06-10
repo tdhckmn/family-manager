@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../firebase";
 import { Icon } from "./Icon";
@@ -145,6 +145,21 @@ export default function GlobalHeader() {
                 <Icon name="book" size={15} /> Markdown guide
               </button>
             )}
+
+            <Link
+              to="/settings/household"
+              onClick={() => setOpen(false)}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                width: "100%", textAlign: "left", padding: "10px 16px",
+                background: "transparent", color: TEXT, fontSize: 13, fontWeight: 600,
+                textDecoration: "none", fontFamily: "'Montserrat', sans-serif",
+              }}
+              onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.06)"}
+              onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = "transparent"}
+            >
+              <Icon name="gear" size={15} /> Household
+            </Link>
 
             <button
               onClick={handleSignOut}

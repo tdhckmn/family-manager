@@ -1,56 +1,103 @@
 import { useEffect, useState } from "react";
+import { Navigate, useLocation } from "react-router-dom";
 import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
-import { auth, googleProvider } from "../firebase";
-import StarField from "./StarField";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { auth, db, googleProvider } from "../firebase";
 import { AuthContext } from "../auth";
+import {
+  HouseholdContext, HouseholdInfo, HouseholdRole, SubStatus, subIsActive,
+} from "../household";
+import StarField from "./StarField";
 import { migrateLegacyDataOnce } from "../migrate";
 
-// Allowlist — everyone who can sign in.
-const ALLOWED_EMAILS = [
-  "thomasdhickman@gmail.com",
-  "tracisz14@gmail.com",
-  "lesterburton17@gmail.com",
-  "theusedfreak2811@gmail.com",
-];
+const OWNER_EMAIL = "thomasdhickman@gmail.com";
 
-// Only this account gets the food planner link.
-export const FOOD_PLANNER_EMAIL = "thomasdhickman@gmail.com";
-
-const isAllowed = (email: string | null | undefined) =>
-  !!email && ALLOWED_EMAILS.includes(email.toLowerCase());
+export const FOOD_PLANNER_EMAIL = OWNER_EMAIL;
 
 const BG = "#06091a";
 const TEXT = "#dedad0";
 const TEXT_DIM = "#7a7890";
 const JADE = "#5db88a";
-const DANGER = "#c0566a";
 const SURFACE = "rgba(255,255,255,0.04)";
 const BORDER = "rgba(255,255,255,0.08)";
 
-export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null | "loading">("loading");
+async function loadOrCreateHousehold(user: User): Promise<HouseholdInfo> {
+  const profileRef = doc(db, "users", user.uid, "profile");
+  const profileSnap = await getDoc(profileRef);
 
-  useEffect(() => {
-    return onAuthStateChanged(auth, setUser);
-  }, []);
+  if (!profileSnap.exists()) {
+    // New user — create household as owner, start 14-day trial
+    const trialEndsAt = new Date(Date.now() + 14 * 86_400_000).toISOString();
+    await setDoc(profileRef, { role: "owner", householdId: user.uid, createdAt: new Date().toISOString() });
+    await setDoc(doc(db, "users", user.uid, "subscription"), {
+      status: "trialing", trialEndsAt, override: null,
+    });
+    await setDoc(doc(db, "users", user.uid, "household"), {
+      members: [user.uid], inviteCode: null, displayToken: null,
+    });
+    // Register for admin panel visibility
+    await setDoc(doc(db, "registrations", user.uid), {
+      email: user.email, createdAt: new Date().toISOString(), subStatus: "trialing",
+    });
+    return {
+      householdId: user.uid, role: "owner",
+      subStatus: "trialing", trialEndsAt, periodEndsAt: null, isOverride: false,
+    };
+  }
 
-  // One-time migration of the owner's legacy shared data into their per-user space.
-  useEffect(() => {
-    if (user && user !== "loading" && isAllowed(user.email)) {
-      migrateLegacyDataOnce(user.uid, user.email);
+  const profile = profileSnap.data() as { role: HouseholdRole; householdId: string };
+  const householdId = profile.householdId ?? user.uid;
+
+  const subSnap = await getDoc(doc(db, "users", householdId, "subscription"));
+  let subStatus: SubStatus = "none";
+  let trialEndsAt: string | null = null;
+  let periodEndsAt: string | null = null;
+  let isOverride = false;
+
+  if (subSnap.exists()) {
+    const sub = subSnap.data();
+    const override = sub.override;
+    if (override?.active) {
+      const exp = override.expiresAt ? new Date(override.expiresAt) : null;
+      if (!exp || exp > new Date()) { subStatus = "active"; isOverride = true; }
     }
-  }, [user]);
-
-  async function handleSignIn() {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      console.error("Sign-in failed:", err);
+    if (!isOverride) {
+      if (sub.status === "trialing" && sub.trialEndsAt && new Date(sub.trialEndsAt) > new Date()) {
+        subStatus = "trialing"; trialEndsAt = sub.trialEndsAt;
+      } else if (sub.status === "trialing") {
+        subStatus = "cancelled";
+      } else {
+        subStatus = (sub.status as SubStatus) ?? "none";
+        periodEndsAt = sub.currentPeriodEnd ?? null;
+      }
     }
   }
 
-  // Still resolving auth state — show nothing to avoid flash
-  if (user === "loading") {
+  return { householdId, role: profile.role, subStatus, trialEndsAt, periodEndsAt, isOverride };
+}
+
+export default function AuthGate({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null | "loading">("loading");
+  const [household, setHousehold] = useState<HouseholdInfo | null>(null);
+  const [householdLoading, setHouseholdLoading] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, async (u) => {
+      if (!u) { setUser(null); setHousehold(null); return; }
+      setUser(u);
+      setHouseholdLoading(true);
+      try {
+        const info = await loadOrCreateHousehold(u);
+        setHousehold(info);
+        migrateLegacyDataOnce(u.uid, u.email);
+      } finally {
+        setHouseholdLoading(false);
+      }
+    });
+  }, []);
+
+  if (user === "loading" || (user && householdLoading)) {
     return (
       <div style={{ background: BG, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ fontSize: 13, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif" }}>Loading…</div>
@@ -58,59 +105,55 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Signed in but not on the beta allowlist
-  if (user && !isAllowed(user.email)) {
-    return (
-      <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "40px 48px", maxWidth: 400, textAlign: "center" }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: TEXT, marginBottom: 8 }}>Access Denied</div>
-          <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 6 }}>
-            Signed in as <strong style={{ color: DANGER }}>{user.email}</strong>
-          </div>
-          <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 28 }}>
-            This app is private. Only the authorized account may sign in.
-          </div>
-          <button
-            onClick={() => signOut(auth)}
-            style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 10, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13, padding: "9px 24px", cursor: "pointer" }}
-          >
-            Sign out
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Not signed in
   if (!user) {
-    return (
-      <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <StarField />
-        <div style={{ position: "relative", background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "48px 56px", maxWidth: 380, textAlign: "center" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: JADE, opacity: 0.8, marginBottom: 10 }}>Stoic · Taoist</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: TEXT, marginBottom: 6, letterSpacing: -0.3 }}>Equanimity</div>
-          <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 32 }}>Finances &amp; focus for a steady mind</div>
-          <button
-            onClick={handleSignIn}
-            style={{
-              display: "flex", alignItems: "center", gap: 10, margin: "0 auto",
-              background: "#fff", border: "none", borderRadius: 10,
-              color: "#1f1f1f", fontFamily: "'Montserrat',sans-serif", fontWeight: 700,
-              fontSize: 14, padding: "11px 24px", cursor: "pointer",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
-            }}
-          >
-            <GoogleIcon />
-            Sign in with Google
-          </button>
-          <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 20, opacity: 0.6 }}>Private — authorized users only</div>
-        </div>
-      </div>
-    );
+    return <SignInScreen />;
   }
 
-  // Authorized
-  return <AuthContext.Provider value={user}>{children}</AuthContext.Provider>;
+  if (!household) return null;
+
+  const isFounder = user.email?.toLowerCase() === OWNER_EMAIL;
+  const onSubscribePage = location.pathname === "/subscribe";
+
+  if (!isFounder && !subIsActive(household.subStatus) && !onSubscribePage) {
+    return <Navigate to="/subscribe" replace />;
+  }
+
+  return (
+    <AuthContext.Provider value={user}>
+      <HouseholdContext.Provider value={household}>
+        {children}
+      </HouseholdContext.Provider>
+    </AuthContext.Provider>
+  );
+}
+
+function SignInScreen() {
+  async function handleSignIn() {
+    try { await signInWithPopup(auth, googleProvider); }
+    catch (err) { console.error("Sign-in failed:", err); }
+  }
+
+  return (
+    <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <StarField />
+      <div style={{ position: "relative", background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "48px 56px", maxWidth: 380, textAlign: "center" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: JADE, opacity: 0.8, marginBottom: 10 }}>Stoic · Taoist</div>
+        <div style={{ fontSize: 24, fontWeight: 800, color: TEXT, marginBottom: 6, letterSpacing: -0.3 }}>Equanimity</div>
+        <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 32 }}>Finances &amp; focus for a steady mind</div>
+        <button
+          onClick={handleSignIn}
+          style={{ display: "flex", alignItems: "center", gap: 10, margin: "0 auto", background: "#fff", border: "none", borderRadius: 10, color: "#1f1f1f", fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 14, padding: "11px 24px", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.35)" }}
+        >
+          <GoogleIcon />
+          Sign in with Google
+        </button>
+        <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 20, opacity: 0.6 }}>14-day free trial · No credit card required</div>
+        <button onClick={() => signOut(auth)} style={{ marginTop: 16, background: "transparent", border: "none", color: TEXT_DIM, fontSize: 11, cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function GoogleIcon() {

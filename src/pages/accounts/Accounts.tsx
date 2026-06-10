@@ -4,7 +4,7 @@ import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import StarField from "../../components/StarField";
 import { Icon, IconName } from "../../components/Icon";
-import { useAuth } from "../../auth";
+import { useHouseholdUid } from "../../household";
 
 // ── Types (mirrors finance/shared.tsx) ─────────────────────────────────────
 
@@ -276,7 +276,7 @@ function AccountModal({ account, mappings, onSave, onDelete, onClose }: {
 // ── Main page ─────────────────────────────────────────────────────────────
 
 export default function Accounts() {
-  const uid = useAuth().uid;
+  const uid = useHouseholdUid();
   const [plan, setPlan] = useState<FinancePlan>({ bankAccounts: [], accountMappings: {} });
   // modal === null → closed; { account: null } → adding; { account } → editing
   const [modal, setModal] = useState<{ account: BankAccount | null } | null>(null);

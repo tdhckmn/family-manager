@@ -15,7 +15,7 @@ import { computePlanNudges, computeAccountFlows, computeAccountNudges, Nudge } f
 import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
 import ToolNav from "../../components/ToolNav";
 import { Icon } from "../../components/Icon";
-import { useAuth } from "../../auth";
+import { useHouseholdUid } from "../../household";
 import StarField from "../../components/StarField";
 import { UserProfile } from "../../components/GlobalHeader";
 import {
@@ -216,7 +216,7 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
 // ── Main page (single-page planner) ──────────────────────────────────────────
 
 export default function Finance() {
-  const uid = useAuth().uid;
+  const uid = useHouseholdUid();
   const [plan, setPlan] = useState<FinancePlan>(DEFAULT_PLAN);
 
   const quote = useMemo(() => quoteOfDay(), []);

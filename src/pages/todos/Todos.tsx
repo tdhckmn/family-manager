@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import ToolNav from "../../components/ToolNav";
-import { useAuth } from "../../auth";
+import { useHouseholdUid } from "../../household";
 import ReactMarkdown from "react-markdown";
 import {
   collection, onSnapshot, addDoc, updateDoc, deleteDoc,
@@ -51,7 +51,7 @@ function useIsMobile(breakpoint = 640) {
 // ── Component ─────────────────────────────────────────────────────────────
 
 export default function Todos() {
-  const uid = useAuth().uid;
+  const uid = useHouseholdUid();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
