@@ -2,35 +2,64 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Beta allowlist ───────────────────────────────────────────────────────
-    // Keep this list in sync with ALLOWED_EMAILS in src/components/AuthGate.tsx.
-    function allowedEmails() {
-      return [
-        'thomasdhickman@gmail.com'
-      ];
+    function isAuth() {
+      return request.auth != null && request.auth.token.email_verified == true;
     }
-    function isAllowed() {
-      return request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email in allowedEmails();
-    }
-    function isOwner() {
-      return request.auth != null
-        && request.auth.token.email == 'thomasdhickman@gmail.com';
+    function isOwnerEmail() {
+      return isAuth() && request.auth.token.email == 'thomasdhickman@gmail.com';
     }
 
-    // ── Per-user private data ────────────────────────────────────────────────
-    // Each user can only ever touch their own subtree, and only if allowlisted.
+    // ── Per-user profile, subscription, and household config ────────────────
+    // Only the owner of that uid can read/write these sensitive docs.
+    match /users/{uid}/profile {
+      allow read, write: if isAuth() && request.auth.uid == uid;
+    }
+    match /users/{uid}/subscription {
+      allow read, write: if isAuth() && request.auth.uid == uid;
+      // Admin override: founder can update any subscription
+      allow write: if isOwnerEmail();
+    }
+    match /users/{uid}/household {
+      allow read, write: if isAuth() && request.auth.uid == uid;
+      // Members can read the household doc to verify membership (for join flow)
+      allow read: if isAuth() && isMemberOf(uid);
+    }
+
+    // ── All other user data (todos, finance, chores, etc.) ──────────────────
+    // Accessible by the owner OR any household member.
     match /users/{uid}/{document=**} {
-      allow read, write: if isAllowed() && request.auth.uid == uid;
+      allow read, write: if isAuth() && (request.auth.uid == uid || isMemberOf(uid));
+    }
+
+    // ── Household membership helper ─────────────────────────────────────────
+    function isMemberOf(ownerUid) {
+      return exists(/databases/$(database)/documents/users/$(ownerUid)/household)
+        && request.auth.uid in get(/databases/$(database)/documents/users/$(ownerUid)/household).data.members;
+    }
+
+    // ── Invite codes ────────────────────────────────────────────────────────
+    // Any verified user can read (to validate a code) and create their own.
+    // Only the invite's ownerUid can update/delete.
+    match /invites/{code} {
+      allow read: if isAuth();
+      allow create: if isAuth() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isAuth()
+        && (request.auth.uid == resource.data.ownerUid
+            || request.auth.uid == request.resource.data.usedBy);
+      allow delete: if isAuth() && request.auth.uid == resource.data.ownerUid;
+    }
+
+    // ── User registrations (for admin panel) ────────────────────────────────
+    // Each user can write their own entry; only founder can read all.
+    match /registrations/{uid} {
+      allow create, update: if isAuth() && request.auth.uid == uid;
+      allow read: if isOwnerEmail();
     }
 
     // ── Legacy shared data (pre-isolation) ───────────────────────────────────
-    // Only the owner may read/delete these — used once to migrate into their
-    // per-user space, then safe to remove. No one else can access them.
-    match /finance/{doc} { allow read, delete: if isOwner(); }
-    match /todos/{doc}   { allow read, delete: if isOwner(); }
-    match /config/{doc}  { allow read, delete: if isOwner(); }
+    match /finance/{doc} { allow read, delete: if isOwnerEmail(); }
+    match /todos/{doc}   { allow read, delete: if isOwnerEmail(); }
+    match /config/{doc}  { allow read, write: if isAuth(); }
 
     // Everything else is denied by default.
   }
