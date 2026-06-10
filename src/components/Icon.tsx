@@ -6,7 +6,8 @@ export type IconName =
   | "shield" | "bag" | "flow" | "bank" | "droplet" | "card"
   | "gear" | "chevronDown" | "external" | "plus" | "signout" | "book"
   | "utensils" | "star" | "clock" | "pencil" | "x"
-  | "wrench" | "sparkles" | "repeat" | "trash" | "target";
+  | "wrench" | "sparkles" | "repeat" | "trash" | "target"
+  | "sun" | "moon" | "cloud" | "cloudSun" | "cloudRain" | "cloudSnow" | "cloudLightning" | "cloudFog";
 
 export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.8, style }: {
   name: IconName;
@@ -77,5 +78,21 @@ export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.
       return <svg {...p}><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13" /><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" /></svg>;
     case "target":
       return <svg {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg>;
+    case "sun":
+      return <svg {...p}><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="M4.9 4.9l1.4 1.4" /><path d="M17.7 17.7l1.4 1.4" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="M4.9 19.1l1.4-1.4" /><path d="M17.7 6.3l1.4-1.4" /></svg>;
+    case "moon":
+      return <svg {...p}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>;
+    case "cloud":
+      return <svg {...p}><path d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 18z" /></svg>;
+    case "cloudSun":
+      return <svg {...p}><path d="M12 3v1.5" /><path d="M5.6 5.6l1 1" /><path d="M3 12h1.5" /><path d="M18.4 5.6l-1 1" /><path d="M8.2 8.2a4 4 0 1 1 5.6 5.6" /><path d="M7 20a3.5 3.5 0 0 1-.4-6.98 4.5 4.5 0 0 1 8.7.98A3 3 0 0 1 16 20z" /></svg>;
+    case "cloudRain":
+      return <svg {...p}><path d="M7 15a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 15z" /><path d="M8 19l-1 2" /><path d="M12 19l-1 2" /><path d="M16 19l-1 2" /></svg>;
+    case "cloudSnow":
+      return <svg {...p}><path d="M7 15a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 15z" /><path d="M8 19h.01" /><path d="M12 19h.01" /><path d="M16 19h.01" /><path d="M10 21h.01" /><path d="M14 21h.01" /></svg>;
+    case "cloudLightning":
+      return <svg {...p}><path d="M7 15a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 15z" /><path d="M12 13l-2 4h3l-2 4" /></svg>;
+    case "cloudFog":
+      return <svg {...p}><path d="M7 13a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 13z" /><path d="M6 17h12" /><path d="M8 21h10" /></svg>;
   }
 }

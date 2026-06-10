@@ -6,21 +6,34 @@ import { Icon } from "../../components/Icon";
 import { UserProfile } from "../../components/GlobalHeader";
 import StarField from "../../components/StarField";
 import { useTheme, type Theme } from "../../theme";
+import { useSubscription, isSubActive, isOwnerEmail, trialDaysLeft } from "../../subscription";
 import {
   Panel, BG, SURFACE, BORDER, BORDER_HI, TEXT, TEXT_DIM, TEXT_MUTED,
-  JADE, DANGER, INK, FONT,
+  JADE, DANGER, YELLOW, INK, FONT,
 } from "../shared/kit";
 
 export default function Settings() {
   const [user, setUser] = useState<User | null>(auth.currentUser);
   const [theme, setTheme] = useTheme();
+  const [copied, setCopied] = useState(false);
   useEffect(() => onAuthStateChanged(auth, setUser), []);
+
+  const { sub } = useSubscription(user?.uid ?? "");
+  const active = isSubActive(sub);
+  const daysLeft = trialDaysLeft(sub);
+  const kioskUrl = `${window.location.origin}/calendar?kiosk=true`;
+
+  function copyKioskUrl() {
+    navigator.clipboard.writeText(kioskUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   return (
     <div style={{ background: BG, minHeight: "100vh", fontFamily: FONT, color: TEXT, position: "relative" }}>
       <StarField />
       <div style={{ position: "relative", zIndex: 1 }}>
-        {/* Header */}
         <div style={{ padding: "14px 20px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
           <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0 }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
@@ -47,6 +60,24 @@ export default function Settings() {
             </button>
           </Panel>
 
+          {/* Subscription */}
+          {!isOwnerEmail(user?.email) && (
+            <Panel title="Subscription" icon={<Icon name="card" size={15} />} accent={active ? JADE : YELLOW}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: "var(--surface)", border: `1px solid ${BORDER}`, borderRadius: 10 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: active ? JADE : YELLOW }}>
+                    {sub?.override ? "Access granted" : sub?.status === "active" ? "Active" : sub?.status === "trialing" ? `Trial — ${daysLeft}d left` : sub?.status === "canceled" ? "Canceled" : "No subscription"}
+                  </div>
+                  {sub?.plan && <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>{sub.plan} plan{sub.currentPeriodEnd ? ` · renews ${sub.currentPeriodEnd}` : ""}</div>}
+                </div>
+                <Link to="/subscribe"
+                  style={{ fontSize: 12, fontWeight: 700, color: INK, background: active ? JADE : YELLOW, textDecoration: "none", padding: "7px 14px", borderRadius: 8 }}>
+                  {active ? "Manage" : "Subscribe"}
+                </Link>
+              </div>
+            </Panel>
+          )}
+
           {/* Theme */}
           <Panel title="Theme" icon={<Icon name="sparkles" size={15} />} accent={JADE}>
             <div style={{ fontSize: 12, color: TEXT_DIM, marginBottom: 12 }}>
@@ -59,6 +90,29 @@ export default function Settings() {
                 swatchBg="#f2f0e8" swatchSurface="rgba(20,22,45,0.10)" swatchText="#23222e" />
             </div>
           </Panel>
+
+          {/* Kiosk / display mode */}
+          <Panel title="Kiosk Mode" icon={<Icon name="calendar" size={15} />} accent={YELLOW}>
+            <p style={{ fontSize: 13, color: TEXT_DIM, lineHeight: 1.65, margin: "0 0 12px" }}>
+              Open this URL on a wall-mounted display or tablet to show a full-screen clock and Today view. The device must be signed in to your account.
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+              <div style={{ flex: 1, background: "var(--input-bg)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "9px 12px", fontSize: 12, color: TEXT_MUTED, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {kioskUrl}
+              </div>
+              <button onClick={copyKioskUrl}
+                style={{ padding: "9px 16px", borderRadius: 8, border: "none", background: copied ? JADE : "var(--surface-hi)", color: copied ? INK : TEXT, fontFamily: FONT, fontWeight: 700, fontSize: 13, cursor: "pointer", transition: "all 0.15s", flexShrink: 0 }}>
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <div style={{ marginTop: 10 }}>
+              <a href={kioskUrl} target="_blank" rel="noreferrer"
+                style={{ fontSize: 12, color: YELLOW, textDecoration: "none", fontWeight: 600 }}>
+                Open kiosk view ↗
+              </a>
+            </div>
+          </Panel>
+
         </div>
       </div>
     </div>
@@ -75,7 +129,6 @@ function ThemeOption({ label, value, current, onPick, swatchBg, swatchSurface, s
       style={{ textAlign: "left", padding: 10, borderRadius: 14, cursor: "pointer", fontFamily: FONT,
         background: active ? "var(--surface-hi)" : "transparent",
         border: `1.5px solid ${active ? JADE : BORDER}`, transition: "all 0.15s" }}>
-      {/* Mini preview */}
       <div style={{ height: 64, borderRadius: 9, background: swatchBg, border: `1px solid ${BORDER_HI}`, padding: 8, display: "flex", flexDirection: "column", gap: 5, overflow: "hidden" }}>
         <div style={{ height: 8, width: "60%", borderRadius: 3, background: swatchText, opacity: 0.85 }} />
         <div style={{ height: 6, width: "85%", borderRadius: 3, background: swatchSurface }} />

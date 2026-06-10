@@ -109,13 +109,12 @@ export default function Notes() {
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const selected = notes.find(t => t.id === selectedId) ?? null;
-  // Open notes: dated ones first (soonest/overdue at top), then undated in created order.
-  const open = notes.filter(t => !t.completed).sort((a, b) => {
-    if (a.dueDate && b.dueDate) return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0;
-    if (a.dueDate) return -1;
-    if (b.dueDate) return 1;
-    return 0;
-  });
+  const todos = notes
+    .filter(t => !t.completed && !!t.dueDate)
+    .sort((a, b) => (a.dueDate! < b.dueDate! ? -1 : a.dueDate! > b.dueDate! ? 1 : 0));
+  const plainNotes = notes
+    .filter(t => !t.completed && !t.dueDate)
+    .sort((a, b) => b.createdAt - a.createdAt);
   const done = notes.filter(t => t.completed);
 
   useEffect(() => {
@@ -225,8 +224,8 @@ export default function Notes() {
 
         <div style={{ position: "relative", zIndex: 1 }}>
 
-          {/* Header bar */}
-          <div style={{ padding: "14px 16px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
+          {/* Header bar — right padding reserves room for the fixed global gear (top-right) */}
+          <div style={{ padding: "14px 62px 14px 16px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
             <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
               onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
               onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
@@ -234,15 +233,20 @@ export default function Notes() {
             </Link>
             <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
             <ToolNav current="notes" />
+            <div style={{ flex: 1 }} />
+            <button onClick={() => setShowAdd(true)}
+              style={{ ...btnStyle(JADE), fontSize: 13, padding: "8px 16px", display: "flex", alignItems: "center", gap: 6 }}>
+              + New Note
+            </button>
           </div>
 
           {/* ── LIST VIEW ── */}
           {!mobileShowDetail && (
-            <div style={{ padding: "16px 16px 100px" }}>
+            <div style={{ padding: "16px 16px 32px" }}>
 
               {/* Inline add input */}
               {showAdd && (
-                <div style={{ background: SURFACE, border: `1px solid ${BORDER_ACCENT}`, borderRadius: 14, padding: "12px 14px", marginTop: 16, display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ background: SURFACE, border: `1px solid ${BORDER_ACCENT}`, borderRadius: 14, padding: "12px 14px", marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
                   <input
                     ref={addInputRef}
                     value={addingTitle}
@@ -257,14 +261,31 @@ export default function Notes() {
                 </div>
               )}
 
-              {/* Note list */}
-              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 6 }}>
-                {open.map(note => (
-                  <MobileNoteItem key={note.id} note={note} onSelect={() => selectNote(note.id)} onToggle={() => toggleComplete(note)} />
-                ))}
-                {open.length === 0 && !showAdd && (
-                  <div style={{ color: TEXT_MUTED, fontSize: 13, padding: "12px 4px", fontStyle: "italic" }}>All clear ✓</div>
+              {/* TODO section — dated notes */}
+              {todos.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 8 }}>TODO</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {todos.map(note => (
+                      <MobileNoteItem key={note.id} note={note} onSelect={() => selectNote(note.id)} onToggle={() => toggleComplete(note)} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes section — undated */}
+              <div>
+                {(todos.length > 0 || done.length > 0) && (
+                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 8 }}>Notes</div>
                 )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {plainNotes.map(note => (
+                    <MobileNoteItem key={note.id} note={note} onSelect={() => selectNote(note.id)} />
+                  ))}
+                  {plainNotes.length === 0 && todos.length === 0 && !showAdd && (
+                    <div style={{ color: TEXT_MUTED, fontSize: 13, padding: "12px 4px", fontStyle: "italic" }}>No notes yet.</div>
+                  )}
+                </div>
               </div>
 
               {done.length > 0 && (
@@ -272,7 +293,7 @@ export default function Notes() {
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 8 }}>Done</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {done.map(note => (
-                      <MobileNoteItem key={note.id} note={note} onSelect={() => selectNote(note.id)} onToggle={() => toggleComplete(note)} />
+                      <MobileNoteItem key={note.id} note={note} onSelect={() => selectNote(note.id)} />
                     ))}
                   </div>
                 </div>
@@ -367,23 +388,6 @@ export default function Notes() {
             </div>
           )}
 
-          {/* Floating Add button (list view only) */}
-          {!mobileShowDetail && !showAdd && (
-            <button
-              onClick={() => setShowAdd(true)}
-              style={{
-                position: "fixed", bottom: 28, right: 20, zIndex: 10,
-                width: 56, height: 56, borderRadius: "50%",
-                background: JADE, border: "none",
-                color: "#06091a", fontSize: 28, fontWeight: 700,
-                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 4px 20px rgba(93,184,138,0.4)",
-                fontFamily: "'Montserrat', sans-serif",
-              }}
-            >
-              +
-            </button>
-          )}
         </div>
       </div>
     );
@@ -398,8 +402,8 @@ export default function Notes() {
 
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-        {/* Header bar */}
-        <div style={{ padding: "14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
+        {/* Header bar — right padding reserves room for the fixed global gear (top-right) */}
+        <div style={{ padding: "14px 62px 14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
           <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
@@ -407,6 +411,11 @@ export default function Notes() {
           </Link>
           <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
           <ToolNav current="notes" />
+          <div style={{ flex: 1 }} />
+          <button onClick={() => setShowAdd(true)}
+            style={{ ...btnStyle(JADE), fontSize: 13, padding: "8px 16px", display: "flex", alignItems: "center", gap: 6 }}>
+            + New Note
+          </button>
         </div>
 
         <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%", padding: "24px 20px", display: "flex", flexDirection: "column", flex: 1 }}>
@@ -415,8 +424,8 @@ export default function Notes() {
 
           {/* Sidebar */}
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {showAdd ? (
-              <div style={{ background: SURFACE, border: `1px solid ${BORDER_ACCENT}`, borderRadius: 12, padding: "10px 14px", marginBottom: 8, display: "flex", gap: 8, alignItems: "center" }}>
+            {showAdd && (
+              <div style={{ background: SURFACE, border: `1px solid ${BORDER_ACCENT}`, borderRadius: 12, padding: "10px 14px", marginBottom: 12, display: "flex", gap: 8, alignItems: "center" }}>
                 <input
                   ref={addInputRef}
                   value={addingTitle}
@@ -428,23 +437,33 @@ export default function Notes() {
                 <button onClick={addNote} style={{ ...btnStyle(JADE), padding: "4px 12px", fontSize: 12 }}>Add</button>
                 <button onClick={() => { setShowAdd(false); setAddingTitle(""); }} style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "4px 8px", fontSize: 12 }}>✕</button>
               </div>
-            ) : (
-              <button
-                onClick={() => setShowAdd(true)}
-                style={{ ...btnStyle("transparent"), border: `1px dashed ${BORDER}`, borderRadius: 12, padding: "10px 14px", marginBottom: 8, textAlign: "left", color: TEXT_DIM, fontSize: 13, display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; (e.currentTarget as HTMLButtonElement).style.color = JADE; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; }}>
-                <span style={{ fontSize: 16, lineHeight: 1 }}>+</span> New note
-              </button>
             )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {open.map(note => (
-                <NoteItem key={note.id} note={note} selected={selectedId === note.id} onSelect={() => selectNote(note.id)} onToggle={() => toggleComplete(note)} />
-              ))}
-              {open.length === 0 && !showAdd && (
-                <div style={{ color: TEXT_MUTED, fontSize: 12, padding: "8px 4px", fontStyle: "italic" }}>All clear.</div>
+            {/* TODO section — dated notes */}
+            {todos.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 6 }}>TODO</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {todos.map(note => (
+                    <NoteItem key={note.id} note={note} selected={selectedId === note.id} onSelect={() => selectNote(note.id)} onToggle={() => toggleComplete(note)} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Notes section — undated */}
+            <div>
+              {(todos.length > 0 || done.length > 0) && (
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 6 }}>Notes</div>
               )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {plainNotes.map(note => (
+                  <NoteItem key={note.id} note={note} selected={selectedId === note.id} onSelect={() => selectNote(note.id)} />
+                ))}
+                {plainNotes.length === 0 && todos.length === 0 && !showAdd && (
+                  <div style={{ color: TEXT_MUTED, fontSize: 12, padding: "8px 4px", fontStyle: "italic" }}>No notes yet.</div>
+                )}
+              </div>
             </div>
 
             {done.length > 0 && (
@@ -452,7 +471,7 @@ export default function Notes() {
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 6 }}>Done</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {done.map(note => (
-                    <NoteItem key={note.id} note={note} selected={selectedId === note.id} onSelect={() => selectNote(note.id)} onToggle={() => toggleComplete(note)} />
+                    <NoteItem key={note.id} note={note} selected={selectedId === note.id} onSelect={() => selectNote(note.id)} />
                   ))}
                 </div>
               </div>
@@ -501,11 +520,12 @@ function NoteItem({ note, selected, onSelect, onToggle }: {
   note: Note;
   selected: boolean;
   onSelect: () => void;
-  onToggle: () => void;
+  onToggle?: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const bg = selected ? SURFACE_SELECTED : hovered ? SURFACE_HOVER : SURFACE;
   const border = selected ? BORDER_ACCENT : "transparent";
+  const showCheckbox = !!note.dueDate || note.completed;
 
   return (
     <div
@@ -513,11 +533,13 @@ function NoteItem({ note, selected, onSelect, onToggle }: {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", borderRadius: 10, background: bg, border: `1px solid ${border}`, cursor: "pointer", transition: "all 0.15s" }}>
-      <button
-        onClick={e => { e.stopPropagation(); onToggle(); }}
-        style={{ flexShrink: 0, width: 18, height: 18, marginTop: 1, borderRadius: 5, border: `1.5px solid ${note.completed ? JADE : "var(--border-hi)"}`, background: note.completed ? JADE : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", padding: 0 }}>
-        {note.completed && <span style={{ color: "#06091a", fontSize: 11, lineHeight: 1, fontWeight: 700 }}>✓</span>}
-      </button>
+      {showCheckbox && (
+        <button
+          onClick={e => { e.stopPropagation(); onToggle?.(); }}
+          style={{ flexShrink: 0, width: 18, height: 18, marginTop: 1, borderRadius: 5, border: `1.5px solid ${note.completed ? JADE : "var(--border-hi)"}`, background: note.completed ? JADE : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", padding: 0 }}>
+          {note.completed && <span style={{ color: "#06091a", fontSize: 11, lineHeight: 1, fontWeight: 700 }}>✓</span>}
+        </button>
+      )}
       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
         <span style={{ fontSize: 13, color: note.completed ? TEXT_MUTED : TEXT, textDecoration: note.completed ? "line-through" : "none", lineHeight: 1.45, wordBreak: "break-word" }}>
           {note.title}
@@ -532,19 +554,22 @@ function NoteItem({ note, selected, onSelect, onToggle }: {
 function MobileNoteItem({ note, onSelect, onToggle }: {
   note: Note;
   onSelect: () => void;
-  onToggle: () => void;
+  onToggle?: () => void;
 }) {
+  const showCheckbox = !!note.dueDate || note.completed;
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", borderRadius: 14, background: SURFACE, border: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.15s" }}
       onTouchStart={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HOVER}
       onTouchEnd={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE}
     >
-      {/* Checkbox — large touch target via padding */}
-      <button
-        onClick={e => { e.stopPropagation(); onToggle(); }}
-        style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 7, border: `2px solid ${note.completed ? JADE : "var(--border-hi)"}`, background: note.completed ? JADE : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
-        {note.completed && <span style={{ color: "#06091a", fontSize: 14, lineHeight: 1, fontWeight: 700 }}>✓</span>}
-      </button>
+      {showCheckbox && (
+        <button
+          onClick={e => { e.stopPropagation(); onToggle?.(); }}
+          style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 7, border: `2px solid ${note.completed ? JADE : "var(--border-hi)"}`, background: note.completed ? JADE : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+          {note.completed && <span style={{ color: "#06091a", fontSize: 14, lineHeight: 1, fontWeight: 700 }}>✓</span>}
+        </button>
+      )}
 
       {/* Title — tapping opens detail */}
       <div onClick={onSelect} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>

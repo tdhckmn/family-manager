@@ -12,54 +12,6 @@ const FOOD_TYPES = ["American","Italian","Mexican","Asian","Mediterranean","Indi
 const PROTEINS = ["None/Vegetarian","Chicken","Fish/Seafood","Beef","Pork","Turkey","Eggs","Beans/Legumes","Tofu","Other"];
 const LABEL_SUGGESTIONS = ["Breakfast","Lunch","Dinner","Snack","Dessert","Baked goods","Side dish","Drinks"];
 
-const SEED_MEALS = [
-  { id:"s1",  name:"Coney dogs",              type:"American",       protein:"Beef",            prepTime:"20 min", servings:4, ingredients:"Hot dogs\nConey sauce (ground beef, onion, chili powder, cumin, tomato paste)\nHot dog buns\nYellow mustard\nDiced white onion", notes:"Brown ground beef with onions and spices to make the sauce. Simmer 15 min. Grill or steam dogs, load into buns, top with sauce, mustard, and onion.", source:"AI Generated" },
-  { id:"s2",  name:"Alfredo",                 type:"Italian",        protein:"None/Vegetarian", prepTime:"25 min", servings:4, ingredients:"Fettuccine\nButter\nHeavy cream\nParmesan cheese\nGarlic\nSalt and pepper\nParsley", notes:"Cook pasta. Melt butter, add garlic, pour in cream and simmer. Stir in parmesan until smooth. Toss with pasta. Add chicken or shrimp if desired.", source:"AI Generated" },
-  { id:"s3",  name:"Dumpling soup",           type:"Asian",          protein:"Chicken",         prepTime:"30 min", servings:4, ingredients:"Frozen dumplings or potstickers\nChicken broth\nBok choy or spinach\nGreen onions\nSoy sauce\nSesame oil\nGinger\nGarlic", notes:"Bring broth to a boil with garlic and ginger. Add dumplings and cook per package directions. Add greens last 2 min. Finish with soy sauce and sesame oil.", source:"AI Generated" },
-  { id:"s4",  name:"Breakfast sandwiches",    type:"Breakfast",      protein:"Eggs",            prepTime:"20 min", servings:4, ingredients:"English muffins or sandwich rolls\nEggs\nAmerican cheese slices\nBreakfast sausage or bacon\nButter\nSalt and pepper", notes:"Cook sausage or bacon. Fry or scramble eggs. Toast muffins, layer with egg, cheese, and meat. Wrap in foil for a minute to melt everything together.", source:"AI Generated" },
-  { id:"s5",  name:"Fried rice",              type:"Asian",          protein:"Eggs",            prepTime:"25 min", servings:4, ingredients:"Cooked rice (day-old preferred)\nEggs\nFrozen peas and carrots\nSoy sauce\nSesame oil\nGarlic\nGreen onions\nVegetable oil", notes:"Scramble eggs and set aside. Stir-fry garlic, add rice and press into pan. Add veggies, soy sauce, sesame oil. Fold in eggs and green onions.", source:"AI Generated" },
-  { id:"s6",  name:"Poutine",                 type:"American",       protein:"None/Vegetarian", prepTime:"40 min", servings:4, ingredients:"Frozen fries or fresh potatoes\nCheese curds\nBrown gravy (store-bought or homemade)\nSalt and pepper", notes:"Bake or fry fries until crispy. Heat gravy. Top fries with cheese curds, pour hot gravy over so curds slightly melt. Serve immediately.", source:"AI Generated" },
-  { id:"s7",  name:"Chopped cheese",          type:"American",       protein:"Beef",            prepTime:"20 min", servings:4, ingredients:"Ground beef\nAmerican cheese\nHoagie rolls\nLettuce\nTomato\nOnion\nKetchup and mayo\nSalt and pepper", notes:"Cook and chop ground beef on a griddle or pan, season well. Lay cheese on top to melt. Load into roll with lettuce, tomato, onion, and condiments.", source:"AI Generated" },
-  { id:"s8",  name:"Pad thai",                type:"Asian",          protein:"Tofu",            prepTime:"30 min", servings:4, ingredients:"Rice noodles\nFirm tofu or chicken\nEggs\nBean sprouts\nGreen onions\nPad thai sauce (fish sauce, tamarind, brown sugar)\nPeanuts\nLime\nVegetable oil", notes:"Soak noodles. Fry tofu until golden, push aside and scramble eggs. Add noodles and sauce, toss everything together. Top with sprouts, peanuts, and lime.", source:"AI Generated" },
-  { id:"s9",  name:"Botana",                  type:"Mexican",        protein:"Beans/Legumes",   prepTime:"30 min", servings:6, ingredients:"Tortilla chips\nRefried beans\nShredded cheese\nJalapeños\nSour cream\nGuacamole\nPico de gallo\nOptional: chorizo or ground beef", notes:"Spread chips on a large platter. Layer warm beans, cheese, and jalapeños. Broil briefly to melt cheese. Top with sour cream, guac, and pico. Serve family style.", source:"AI Generated" },
-  { id:"s10", name:"Cheeseburgers",           type:"American",       protein:"Beef",            prepTime:"25 min", servings:4, ingredients:"Ground beef (80/20)\nAmerican or cheddar cheese\nHamburger buns\nLettuce, tomato, onion\nPickles\nKetchup and mustard", notes:"Form patties, season with salt and pepper. Grill or pan-fry 4 min per side. Add cheese last minute. Toast buns, build burgers with desired toppings.", source:"AI Generated" },
-  { id:"s11", name:"Caesar salad",            type:"American",       protein:"None/Vegetarian", prepTime:"15 min", servings:4, ingredients:"Romaine lettuce\nParmesan cheese\nCroutons\nCaesar dressing (store-bought or homemade)\nLemon\nBlack pepper", notes:"Chop romaine and toss with dressing. Add croutons and parmesan. Squeeze lemon over top. Add grilled chicken or shrimp to make it a meal.", source:"AI Generated" },
-  { id:"s12", name:"Grilled chicken pita",    type:"Mediterranean",  protein:"Chicken",         prepTime:"30 min", servings:4, ingredients:"Chicken breast\nPita bread\nTzatziki\nTomato\nCucumber\nRed onion\nLettuce\nOlive oil\nOregano, garlic, lemon", notes:"Marinate chicken in olive oil, lemon, oregano, garlic. Grill until cooked through. Slice and stuff into pita with veggies and a generous spoon of tzatziki.", source:"AI Generated" },
-  { id:"s13", name:"BLT w guac",              type:"American",       protein:"Pork",            prepTime:"20 min", servings:4, ingredients:"Bacon\nLettuce\nTomato\nAvocados\nLime\nGarlic\nSourdough or sandwich bread\nMayo\nSalt and pepper", notes:"Cook bacon crispy. Mash avocado with lime, garlic, and salt. Toast bread, spread guac and mayo, layer with lettuce, tomato, and bacon.", source:"AI Generated" },
-  { id:"s14", name:"Falafel bowls",           type:"Mediterranean",  protein:"Beans/Legumes",   prepTime:"35 min", servings:4, ingredients:"Canned chickpeas\nGarlic\nCumin, coriander, parsley\nFlour\nCooked rice or greens\nTomato, cucumber, red onion\nTahini dressing\nOlive oil", notes:"Blend chickpeas with spices and herbs. Form into balls and pan-fry in oil. Serve over rice or greens with veggies and a drizzle of tahini.", source:"AI Generated" },
-  { id:"s15", name:"Tacos y burritos",        type:"Mexican",        protein:"Chicken",         prepTime:"30 min", servings:4, ingredients:"Chicken breast or thighs\nTaco seasoning\nFlour and corn tortillas\nShredded cheese\nSour cream\nSalsa\nLettuce, tomato\nRice and beans (for burritos)", notes:"Season and cook chicken, shred or slice. Warm tortillas. For tacos, load with chicken and toppings. For burritos, add rice and beans and wrap tight.", source:"AI Generated" },
-  { id:"s16", name:"Ramen",                   type:"Asian",          protein:"Chicken",         prepTime:"35 min", servings:4, ingredients:"Ramen noodles\nChicken or vegetable broth\nSoy sauce\nMiso paste\nSoft-boiled eggs\nGreen onions\nNori\nCorn\nChicken breast or tofu\nSesame oil", notes:"Simmer broth with soy sauce and miso. Cook noodles separately. Slice chicken or prep tofu. Assemble bowls and top with egg, corn, nori, and green onions.", source:"AI Generated" },
-  { id:"s17", name:"Enchiladas",              type:"Mexican",        protein:"Chicken",         prepTime:"45 min", servings:6, ingredients:"Corn tortillas\nShredded chicken\nEnchilada sauce (store-bought)\nShredded Mexican cheese\nSour cream\nOnion\nCumin, garlic", notes:"Sauté onion and garlic, mix with chicken and cumin. Fill tortillas, roll and place seam-down in baking dish. Cover with sauce and cheese. Bake at 375F for 20 min.", source:"AI Generated" },
-  { id:"s18", name:"Pierogi and sauerkraut",  type:"American",       protein:"None/Vegetarian", prepTime:"25 min", servings:4, ingredients:"Frozen potato and cheese pierogies\nSauerkraut\nOnion\nButter\nSour cream\nBlack pepper", notes:"Boil pierogies per package. Caramelize onion in butter, add sauerkraut and warm through. Pan-fry boiled pierogies in butter until golden. Serve with sour cream.", source:"AI Generated" },
-  { id:"s19", name:"Chicken paprikash",       type:"American",       protein:"Chicken",         prepTime:"45 min", servings:4, ingredients:"Chicken thighs\nOnion\nSweet paprika\nChicken broth\nSour cream\nFlour\nEgg noodles or dumplings\nButter\nSalt and pepper", notes:"Brown chicken and onion in butter. Stir in paprika, add broth and simmer 25 min. Mix sour cream with flour, stir into sauce. Serve over egg noodles.", source:"AI Generated" },
-  { id:"s20", name:"Aloo gobi",               type:"Indian",         protein:"None/Vegetarian", prepTime:"35 min", servings:4, ingredients:"Potatoes\nCauliflower\nOnion\nTomatoes\nGarlic and ginger\nCumin, turmeric, coriander, garam masala\nOil\nCilantro\nNaan or rice", notes:"Sauté onion, garlic, ginger and spices. Add tomatoes and cook down. Add potatoes and cauliflower, cover and cook until tender. Garnish with cilantro.", source:"AI Generated" },
-  { id:"s21", name:"Swedish meatballs",       type:"American",       protein:"Beef",            prepTime:"40 min", servings:4, ingredients:"Ground beef and pork\nBreadcrumbs\nEgg\nOnion\nNutmeg, allspice\nButter\nFlour\nBeef broth\nSour cream\nEgg noodles", notes:"Mix and roll meatballs, brown in butter. Make gravy with drippings, flour, and broth. Add sour cream, return meatballs to sauce. Serve over egg noodles.", source:"AI Generated" },
-  { id:"s22", name:"Broccoli cheddar soup",   type:"Soup/Salad",     protein:"None/Vegetarian", prepTime:"30 min", servings:4, ingredients:"Broccoli\nCarrots\nOnion\nGarlic\nCheddar cheese\nHeavy cream or milk\nChicken or vegetable broth\nButter\nFlour", notes:"Sauté onion and garlic in butter. Add flour, then broth and cream. Add broccoli and carrots, simmer until tender. Blend partially, stir in cheddar until melted.", source:"AI Generated" },
-  { id:"s23", name:"Spaghetti w meatballs",   type:"Italian",        protein:"Beef",            prepTime:"45 min", servings:6, ingredients:"Spaghetti\nGround beef\nBreadcrumbs\nEgg\nGarlic\nMarinara sauce (jar is fine)\nParmesan\nFresh or dried basil\nOlive oil", notes:"Mix and bake meatballs at 400F for 18 min. Heat marinara, add meatballs and simmer. Cook spaghetti al dente. Serve with sauce, meatballs, and parmesan.", source:"AI Generated" },
-  { id:"s24", name:"Chicken parmesan",        type:"Italian",        protein:"Chicken",         prepTime:"40 min", servings:4, ingredients:"Chicken breasts\nBreadcrumbs\nParmesan\nEgg\nMarinara sauce\nMozzarella cheese\nOlive oil\nItalian seasoning\nPasta or salad for serving", notes:"Pound chicken thin. Dip in egg then breadcrumb-parmesan mix. Pan-fry until golden. Top with marinara and mozzarella, broil 2-3 min. Serve over pasta.", source:"AI Generated" },
-  { id:"s25", name:"English breakfast",       type:"Breakfast",      protein:"Eggs",            prepTime:"30 min", servings:2, ingredients:"Eggs\nBacon or sausage links\nBaked beans\nGrilled tomatoes\nMushrooms\nToast\nButter\nSalt and pepper", notes:"Cook bacon and sausage in a skillet. Grill tomatoes and mushrooms alongside. Fry or poach eggs. Heat beans in a small pot. Plate everything together.", source:"AI Generated" },
-  { id:"s26", name:"Pancakes",                type:"Breakfast",      protein:"Eggs",            prepTime:"20 min", servings:4, ingredients:"Flour\nBaking powder\nSugar\nSalt\nMilk\nEggs\nButter\nVanilla extract\nMaple syrup and toppings", notes:"Mix dry ingredients, then wet. Combine gently — lumps are fine. Cook on a buttered griddle over medium heat, flip when bubbles form. Serve with syrup and fruit.", source:"AI Generated" },
-  { id:"s27", name:"Quesadillas",             type:"Mexican",        protein:"None/Vegetarian", prepTime:"15 min", servings:4, ingredients:"Flour tortillas\nShredded cheese\nOnion and bell pepper\nBlack beans\nSour cream\nSalsa\nGuacamole\nOil", notes:"Sauté veggies and beans. Layer cheese and filling on half a tortilla, fold. Cook in a lightly oiled pan 2-3 min per side until golden and melted. Serve with dips.", source:"AI Generated" },
-  { id:"s28", name:"Soul food platter",       type:"American",       protein:"Chicken",         prepTime:"60 min", servings:6, ingredients:"Fried chicken pieces\nMac and cheese\nCollard greens\nCornbread\nBlack-eyed peas\nHot sauce\nButter", notes:"Season and fry chicken. Bake mac and cheese. Slow-cook collard greens with butter and seasoning. Make cornbread from mix. Plate together family style.", source:"AI Generated" },
-  { id:"s29", name:"Chili",                   type:"American",       protein:"Beef",            prepTime:"45 min", servings:6, ingredients:"Ground beef or turkey\nKidney beans\nDiced tomatoes\nTomato paste\nOnion\nGarlic\nChili powder, cumin, oregano\nBeef broth\nSalt and pepper", notes:"Brown meat and onions. Add garlic and spices, cook 1 min. Add tomatoes, paste, beans, and broth. Simmer at least 30 min. Serve with cornbread, cheese, or sour cream.", source:"AI Generated" },
-  { id:"s30", name:"Stuffed peppers",         type:"American",       protein:"Beef",            prepTime:"50 min", servings:4, ingredients:"Bell peppers\nGround beef or turkey\nCooked rice\nDiced tomatoes\nTomato sauce\nOnion\nGarlic\nItalian seasoning\nShredded cheese", notes:"Cut tops off peppers, remove seeds. Brown meat with onion, garlic, and seasoning. Mix with rice and tomatoes. Fill peppers, top with sauce and cheese. Bake 375F 35 min.", source:"AI Generated" },
-  { id:"s31", name:"Stuffed cabbage",         type:"American",       protein:"Beef",            prepTime:"75 min", servings:6, ingredients:"Cabbage leaves\nGround beef\nCooked rice\nDiced tomatoes\nTomato juice or V8\nOnion\nGarlic\nWorcestershire sauce\nSalt and pepper", notes:"Blanch cabbage leaves. Mix beef, rice, onion, garlic, and seasoning. Roll filling into leaves. Pack into pot, pour tomato juice over, simmer covered 60 min.", source:"AI Generated" },
-  { id:"s32", name:"Omelette",                type:"Breakfast",      protein:"Eggs",            prepTime:"15 min", servings:2, ingredients:"Eggs\nMilk or cream\nButter\nShredded cheese\nBell pepper, onion, mushroom\nSpinach\nSalt and pepper", notes:"Whisk eggs with a splash of milk. Sauté veggies in butter, set aside. Pour eggs into pan, let set, add veggies and cheese to one half. Fold and serve.", source:"AI Generated" },
-  { id:"s33", name:"Lasagna",                 type:"Italian",        protein:"Beef",            prepTime:"75 min", servings:8, ingredients:"Lasagna noodles\nGround beef\nRicotta cheese\nMozzarella\nParmesan\nMarinara sauce\nEgg\nGarlic\nItalian seasoning", notes:"Brown beef and mix into marinara. Mix ricotta with egg and parmesan. Layer: sauce, noodles, ricotta, meat sauce, mozzarella. Repeat 3x. Bake covered 45 min at 375F, uncover 15 min.", source:"AI Generated" },
-  { id:"s34", name:"Fruit smoothie w granola",type:"Breakfast",      protein:"None/Vegetarian", prepTime:"10 min", servings:2, ingredients:"Frozen berries or banana\nGreek yogurt\nMilk or oat milk\nHoney\nGranola\nFresh fruit for topping\nSpinach (optional)", notes:"Blend fruit, yogurt, milk, and honey until smooth. Pour into bowls or glasses. Top with granola and fresh fruit. Add spinach for extra nutrition without changing the taste much.", source:"AI Generated" },
-  { id:"s35", name:"Chicken wings",           type:"American",       protein:"Chicken",         prepTime:"50 min", servings:4, ingredients:"Chicken wings\nBaking powder\nSalt\nButter\nHot sauce\nGarlic powder\nRanch or blue cheese dressing\nCarrots and celery", notes:"Toss wings in baking powder and salt. Bake on a rack at 425F for 45 min, flipping halfway. Toss in melted butter and hot sauce. Serve with ranch and veggies.", source:"AI Generated" },
-  { id:"s36", name:"Sushi",                   type:"Asian",          protein:"Fish/Seafood",    prepTime:"60 min", servings:4, ingredients:"Sushi rice\nRice vinegar\nNori sheets\nCucumber, avocado, carrot\nImitation crab or smoked salmon\nSoy sauce\nPickled ginger\nWasabi", notes:"Season cooked rice with vinegar mixture. Lay nori on a mat, spread rice, add fillings, and roll tightly. Slice with a wet knife. Serve with soy sauce, ginger, and wasabi.", source:"AI Generated" },
-  { id:"s37", name:"Pasties",                 type:"American",       protein:"Beef",            prepTime:"75 min", servings:6, ingredients:"Pie crust dough\nGround beef or diced beef\nPotatoes\nRutabaga or turnip\nOnion\nSalt and pepper\nButter", notes:"Dice veggies and meat small. Season well. Roll dough into circles, fill one half with meat and veg mixture plus a pat of butter. Fold, crimp edges. Bake 400F 55 min.", source:"AI Generated" },
-  { id:"s38", name:"Pot pie",                 type:"American",       protein:"Chicken",         prepTime:"60 min", servings:6, ingredients:"Chicken breast\nFrozen peas and carrots\nPotatoes\nOnion\nChicken broth\nMilk\nFlour\nButter\nPie crust (store-bought)\nThyme, salt, pepper", notes:"Make a roux with butter and flour, add broth and milk to make a thick gravy. Add cooked chicken and veggies. Pour into pie dish, top with crust. Bake 400F 35 min.", source:"AI Generated" },
-  { id:"s39", name:"Minute chicken",          type:"American",       protein:"Chicken",         prepTime:"15 min", servings:4, ingredients:"Thin-sliced chicken breast\nOlive oil\nGarlic\nLemon\nItalian seasoning\nSalt and pepper\nOptional: capers or cherry tomatoes", notes:"Pound chicken thin if needed. Season both sides. Cook in hot olive oil 2-3 min per side. Deglaze with lemon juice and garlic. Done fast — great over salad or with rice.", source:"AI Generated" },
-  { id:"s40", name:"Turkey Reuben",           type:"American",       protein:"Turkey",          prepTime:"15 min", servings:2, ingredients:"Rye bread\nDeli turkey\nSwiss cheese\nSauerkraut\nThousand island or Russian dressing\nButter", notes:"Butter outside of bread. Layer turkey, Swiss, and drained sauerkraut inside. Spread dressing on the inside of the other slice. Griddle over medium heat until golden and cheese melts.", source:"AI Generated" },
-  { id:"s41", name:"Pizza",                   type:"Italian",        protein:"None/Vegetarian", prepTime:"30 min", servings:4, ingredients:"Pizza dough (store-bought)\nPizza sauce\nMozzarella cheese\nToppings: bell pepper, mushroom, olives, onion\nOlive oil\nItalian seasoning", notes:"Roll out dough on a floured surface. Spread sauce, add cheese and toppings. Bake at 475F on a preheated sheet or stone for 12-15 min until crust is golden.", source:"AI Generated" },
-  { id:"s42", name:"General Tso tofu/chicken",type:"Asian",          protein:"Tofu",            prepTime:"35 min", servings:4, ingredients:"Firm tofu or chicken thighs\nCornstarch\nSoy sauce\nHoisin sauce\nRice vinegar\nSesame oil\nGarlic, ginger\nDried chili flakes\nGreen onions\nSteamed rice", notes:"Cube and press tofu or cut chicken. Toss in cornstarch, pan-fry until crispy. Make sauce with soy, hoisin, vinegar, garlic, ginger. Toss with protein and serve over rice.", source:"AI Generated" },
-  { id:"s43", name:"Lo mein",                 type:"Asian",          protein:"None/Vegetarian", prepTime:"25 min", servings:4, ingredients:"Lo mein or spaghetti noodles\nCabbage, carrots, bell pepper\nGarlic, ginger\nSoy sauce\nOyster sauce\nSesame oil\nGreen onions\nVegetable oil\nOptional: chicken, shrimp, or tofu", notes:"Cook noodles. Stir-fry veggies in oil with garlic and ginger. Add noodles and sauce, toss over high heat. Finish with sesame oil and green onions.", source:"AI Generated" },
-  { id:"s44", name:"Tamale pie",              type:"Mexican",        protein:"Beef",            prepTime:"50 min", servings:6, ingredients:"Ground beef\nCanned corn\nBlack beans\nDiced tomatoes\nTaco seasoning\nCornbread mix\nShredded cheddar\nOnion\nGarlic\nSour cream for serving", notes:"Brown beef with onion and taco seasoning. Add beans, corn, tomatoes and simmer. Pour into baking dish, top with cornbread batter and cheese. Bake 400F 25 min.", source:"AI Generated" },
-];
-
-
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const BG = "var(--bg)";
 const SURFACE = "var(--surface)";
@@ -89,8 +41,8 @@ const PROTEIN_COLOR: Record<string,string> = {
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Meal {
   id: string; name: string; type: string; protein: string; prepTime: string;
-  servings: number; ingredients: string; notes: string; source: string;
-  rating: number; ratingNote: string; needsReview: boolean; mealService: boolean;
+  servings: number; ingredients: string; notes: string;
+  rating: number; ratingNote: string; mealService: boolean;
 }
 interface PlanEntry {
   id: string;
@@ -105,7 +57,7 @@ interface AppData {
 }
 
 const SEED_DATA: AppData = {
-  meals: SEED_MEALS.map(m => ({ ...m, rating: 0, ratingNote: "", needsReview: true, mealService: false })),
+  meals: [],
   planEntries: [],
   groceryExtras: [],
 };
@@ -162,11 +114,6 @@ function StarRating({ value, onChange, size = 18 }: { value: number; onChange?: 
   );
 }
 
-function ReviewTag({ needsReview, onToggle }: { needsReview: boolean; onToggle?: () => void }) {
-  return needsReview
-    ? <span onClick={onToggle} style={{ ...pill("#fbbf24"), cursor: onToggle ? "pointer" : "default", display: "inline-flex", alignItems: "center", gap: 4 }}>review</span>
-    : <span onClick={onToggle} style={{ ...pill("#4ade80"), cursor: onToggle ? "pointer" : "default", display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="check" size={10} color="#4ade80" /> approved</span>;
-}
 
 function SectionDivider({ label, accent }: { label: string; accent: string }) {
   return (
@@ -233,7 +180,6 @@ export default function FoodPlanner() {
   const [filterType, setFilterType] = useState("all");
   const [filterProtein, setFilterProtein] = useState("all");
   const [filterRating, setFilterRating] = useState(0);
-  const [filterReview, setFilterReview] = useState("all");
 const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({});
   const [groceryInput, setGroceryInput] = useState("");
   const [ratingModal, setRatingModal] = useState<Meal | null>(null);
@@ -248,6 +194,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
   const [editEntryLabel, setEditEntryLabel] = useState("");
   const [viewMealId, setViewMealId] = useState<string | null>(null);
   const viewMeal = viewMealId ? (data.meals.find(m => m.id === viewMealId) ?? null) : null;
+  const [loaded, setLoaded] = useState(false);
   const uid = useAuth().uid;
 
   useEffect(() => {
@@ -266,7 +213,8 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
         } else {
           setDoc(ref, SEED_DATA).catch(() => {});
         }
-      }, () => {});
+        setLoaded(true);
+      }, () => { setLoaded(true); });
       return unsub;
     } catch { /* Firebase not configured */ }
   }, [uid]);
@@ -280,19 +228,14 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
     if (filterType !== "all" && m.type !== filterType) return false;
     if (filterProtein !== "all" && m.protein !== filterProtein) return false;
     if (filterRating > 0 && (m.rating || 0) < filterRating) return false;
-    if (filterReview === "review" && !m.needsReview) return false;
-    if (filterReview === "approved" && m.needsReview) return false;
     if (searchQ && !m.name.toLowerCase().includes(searchQ.toLowerCase())) return false;
     return true;
   });
 
-  function toggleReview(id: string) {
-    save({ ...data, meals: data.meals.map(m => m.id === id ? { ...m, needsReview: !m.needsReview } : m) });
-  }
   function openMealForm(meal: Meal | null = null) {
     setMealForm(meal ? { ...meal } : {
       id: Date.now().toString(), name: "", type: "Other", protein: "None/Vegetarian",
-      ingredients: "", servings: 4, prepTime: "", notes: "", rating: 0, ratingNote: "", source: "", needsReview: true, mealService: false,
+      ingredients: "", servings: 4, prepTime: "", notes: "", rating: 0, ratingNote: "", mealService: false,
     });
   }
   function saveMeal(m: Meal) {
@@ -325,6 +268,9 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
   }
   function removePlanEntry(id: string) {
     save({ ...data, planEntries: data.planEntries.filter(e => e.id !== id) });
+  }
+  function updatePlanEntryDay(entryId: string, day: string | undefined) {
+    save({ ...data, planEntries: data.planEntries.map(e => e.id === entryId ? { ...e, day } : e) });
   }
   function openEditEntry(entry: PlanEntry) {
     setEditEntry(entry);
@@ -457,7 +403,11 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                 </div>
               </div>
 
-              {plannedCount === 0 ? (
+              {!loaded ? (
+                <div style={{ textAlign: "center", padding: "60px 20px", color: TEXT_MUTED }}>
+                  <div style={{ fontSize: 14, color: TEXT_DIM }}>Loading…</div>
+                </div>
+              ) : plannedCount === 0 ? (
                 <div style={{ textAlign: "center", padding: "60px 20px", color: TEXT_MUTED }}>
                   <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}><Icon name="utensils" size={48} color={TEXT_MUTED} /></div>
                   <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: TEXT_DIM }}>Nothing planned yet</div>
@@ -518,20 +468,10 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
               </div>
 
               <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                  <div>
-                    <label style={labelStyle}>Search</label>
-                    <input style={inputStyle} value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search recipes…"
-                      onFocus={e => (e.target.style.borderColor = LAV_DIM)} onBlur={e => (e.target.style.borderColor = BORDER)} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Review Status</label>
-                    <select style={selectStyle} value={filterReview} onChange={e => setFilterReview(e.target.value)}>
-                      <option value="all">All Recipes</option>
-                      <option value="review">Needs Review</option>
-                      <option value="approved">Approved</option>
-                    </select>
-                  </div>
+                <div style={{ marginBottom: 10 }}>
+                  <label style={labelStyle}>Search</label>
+                  <input style={inputStyle} value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search recipes…"
+                    onFocus={e => (e.target.style.borderColor = LAV_DIM)} onBlur={e => (e.target.style.borderColor = BORDER)} />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                   <div>
@@ -572,15 +512,12 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 12 }}>
                 {filteredMeals.map(m => (
                   <div key={m.id} onClick={() => setViewMealId(m.id)}
-                    style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: `2px solid ${m.needsReview ? "#fbbf24" : "#4ade80"}`, borderRadius: 12, padding: "14px 16px", transition: "transform 0.15s, box-shadow 0.15s", cursor: "pointer" }}
+                    style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: `2px solid ${TYPE_COLOR[m.type] || BORDER}`, borderRadius: 12, padding: "14px 16px", transition: "transform 0.15s, box-shadow 0.15s", cursor: "pointer" }}
                     onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.3)"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
                       <div style={{ fontWeight: 800, fontSize: 15, color: TEXT, lineHeight: 1.3, flex: 1, marginRight: 8 }}>{m.name}</div>
                       <Icon name="utensils" size={18} color={TYPE_COLOR[m.type] || TEXT_DIM} />
-                    </div>
-                    <div style={{ marginBottom: 8 }} onClick={e => e.stopPropagation()}>
-                      <ReviewTag needsReview={m.needsReview} onToggle={() => toggleReview(m.id)} />
                     </div>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
                       <span style={pill(TYPE_COLOR[m.type] || "#9ca3af")}>{m.type}</span>
@@ -668,12 +605,15 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
       {viewMeal && (
         <RecipeDetail
           meal={viewMeal}
+          planEntries={data.planEntries}
           onClose={() => setViewMealId(null)}
           onEdit={() => openMealForm(viewMeal)}
-          onAddToPlan={(day) => {
-            const entry: PlanEntry = { id: Date.now().toString(), mealId: viewMeal.id, day: day || undefined };
+          onAddToPlan={() => {
+            const entry: PlanEntry = { id: Date.now().toString(), mealId: viewMeal.id };
             save({ ...data, planEntries: [...data.planEntries, entry] });
           }}
+          onRemoveFromPlan={(entryId) => removePlanEntry(entryId)}
+          onUpdatePlanDay={(entryId, day) => updatePlanEntryDay(entryId, day)}
         />
       )}
 
@@ -696,11 +636,6 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
             </div>
             <div><label style={labelStyle}>Ingredients (one per line)</label><textarea style={{ ...inputStyle, resize: "vertical" }} rows={5} value={mealForm.ingredients} onChange={e => setMealForm({ ...mealForm, ingredients: e.target.value })} /></div>
             <div><label style={labelStyle}>Notes / Instructions</label><textarea style={{ ...inputStyle, resize: "vertical" }} rows={3} value={mealForm.notes} onChange={e => setMealForm({ ...mealForm, notes: e.target.value })} /></div>
-            <div><label style={labelStyle}>Source</label><input style={inputStyle} value={mealForm.source || ""} onChange={e => setMealForm({ ...mealForm, source: e.target.value })} /></div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <label style={{ ...labelStyle, margin: 0 }}>Status:</label>
-              <ReviewTag needsReview={mealForm.needsReview} onToggle={() => setMealForm({ ...mealForm, needsReview: !mealForm.needsReview })} />
-            </div>
             <div onClick={() => setMealForm({ ...mealForm, mealService: !mealForm.mealService })}
               style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
               <div style={{ width: 20, height: 20, borderRadius: 5, border: `1.5px solid ${mealForm.mealService ? LAV : BORDER_ACCENT}`, background: mealForm.mealService ? LAV : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -842,28 +777,37 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
 }
 
 // ── Recipe Detail (full-screen overlay) ───────────────────────────────────────
-function RecipeDetail({ meal, onClose, onEdit, onAddToPlan }: { meal: Meal; onClose: () => void; onEdit: () => void; onAddToPlan: (day?: string) => void }) {
+function RecipeDetail({ meal, planEntries, onClose, onEdit, onAddToPlan, onRemoveFromPlan, onUpdatePlanDay }: {
+  meal: Meal;
+  planEntries: PlanEntry[];
+  onClose: () => void;
+  onEdit: () => void;
+  onAddToPlan: () => void;
+  onRemoveFromPlan: (entryId: string) => void;
+  onUpdatePlanDay: (entryId: string, day: string | undefined) => void;
+}) {
   const ingredients = meal.ingredients.split("\n").filter(l => l.trim());
-  const [planDay, setPlanDay] = useState("");
-  const [added, setAdded] = useState(false);
+  const existingEntry = planEntries.find(e => e.mealId === meal.id);
+  const isInPlan = !!existingEntry;
+  const [planDay, setPlanDay] = useState(existingEntry?.day ?? "");
 
-  function handleAdd() {
-    onAddToPlan(planDay || undefined);
-    setAdded(true);
-    window.setTimeout(() => setAdded(false), 1800);
+  useEffect(() => {
+    setPlanDay(existingEntry?.day ?? "");
+  }, [existingEntry?.id]);
+
+  function handleDayChange(newDay: string) {
+    setPlanDay(newDay);
+    if (existingEntry) onUpdatePlanDay(existingEntry.id, newDay || undefined);
   }
 
-  const iconBtn = (onClick: () => void, icon: "x" | "pencil", hoverColor: string) => {
-    const el = (
-      <button onClick={onClick}
-        style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, cursor: "pointer", color: TEXT_DIM, padding: "6px 10px", display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0 }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = hoverColor; (e.currentTarget as HTMLButtonElement).style.borderColor = hoverColor + "60"; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
-        <Icon name={icon} size={16} color="currentColor" />
-      </button>
-    );
-    return el;
-  };
+  const iconBtn = (onClick: () => void, icon: "x" | "pencil", hoverColor: string) => (
+    <button onClick={onClick}
+      style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, cursor: "pointer", color: TEXT_DIM, padding: "6px 10px", display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0 }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = hoverColor; (e.currentTarget as HTMLButtonElement).style.borderColor = hoverColor + "60"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
+      <Icon name={icon} size={16} color="currentColor" />
+    </button>
+  );
 
   return (
     <div style={{ position: "fixed", inset: 0, background: BG, zIndex: 50, overflowY: "auto", fontFamily: "'Montserrat', sans-serif", color: TEXT }}>
@@ -892,21 +836,29 @@ function RecipeDetail({ meal, onClose, onEdit, onAddToPlan }: { meal: Meal; onCl
               </span>
             )}
             {meal.servings > 0 && <span style={pill(TEXT_DIM)}>{meal.servings} servings</span>}
-            <ReviewTag needsReview={meal.needsReview} />
           </div>
 
-          {/* Add to this week's plan */}
+          {/* Plan toggle: Add / In-plan + day picker */}
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 24 }}>
-            <select value={planDay} onChange={e => setPlanDay(e.target.value)}
-              style={{ ...selectStyle, width: "auto", minWidth: 132 }}>
-              <option value="">Any day</option>
-              {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <button onClick={handleAdd}
-              style={{ ...btn(added ? "#4ade80" : LAV), padding: "9px 18px" }}>
-              <Icon name={added ? "check" : "plus"} size={15} color={INK} />
-              {added ? "Added to plan" : "Add to this week"}
-            </button>
+            {isInPlan ? (
+              <>
+                <select value={planDay} onChange={e => handleDayChange(e.target.value)}
+                  style={{ ...selectStyle, width: "auto", minWidth: 132, colorScheme: "dark" }}>
+                  <option value="">Any day</option>
+                  {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <button onClick={() => onRemoveFromPlan(existingEntry!.id)}
+                  style={{ ...btn("transparent", DANGER, DANGER + "55"), padding: "9px 18px" }}>
+                  Remove from this week
+                </button>
+              </>
+            ) : (
+              <button onClick={onAddToPlan}
+                style={{ ...btn(LAV), padding: "9px 18px" }}>
+                <Icon name="plus" size={15} color={INK} />
+                Add to this week
+              </button>
+            )}
           </div>
 
           {/* Rating */}
@@ -942,10 +894,7 @@ function RecipeDetail({ meal, onClose, onEdit, onAddToPlan }: { meal: Meal; onCl
             </div>
           )}
 
-          {/* Source */}
-          {meal.source && (
-            <div style={{ fontSize: 12, color: TEXT_MUTED, fontStyle: "italic" }}>Source: {meal.source}</div>
-          )}
+
         </div>
       </div>
     </div>

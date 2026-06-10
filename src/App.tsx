@@ -8,6 +8,8 @@ import Calendar from "./pages/calendar/Calendar";
 import Chores from "./pages/chores/Chores";
 import Maintenance from "./pages/maintenance/Maintenance";
 import Settings from "./pages/settings/Settings";
+import Admin from "./pages/admin/Admin";
+import Subscribe from "./pages/Subscribe";
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
       <Route path="/chores" element={<Chores />} />
       <Route path="/maintenance" element={<Maintenance />} />
       <Route path="/settings" element={<Settings />} />
+      <Route path="/admin" element={<Admin />} />
+      <Route path="/subscribe" element={<Subscribe />} />
     </Routes>
   );
 }

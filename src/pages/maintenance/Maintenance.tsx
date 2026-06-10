@@ -87,7 +87,7 @@ export default function Maintenance() {
   const [tasks, setTasks] = useState<MaintTask[]>([]);
   const [editorId, setEditorId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Omit<MaintTask, "id">>(EMPTY);
-  const [showSug, setShowSug] = useState(true);
+  const [showSug, setShowSug] = useState(() => localStorage.getItem("maint-show-sug") !== "0");
 
   useEffect(() => {
     const q = query(collection(db, "users", uidAuth, "maintenance"), orderBy("task"));
@@ -167,7 +167,11 @@ export default function Maintenance() {
         <div style={{ marginBottom: 20 }}>
           <Panel title="Suggested tasks" icon={<Icon name="sparkles" size={15} />} accent={ORANGE}
             action={
-              <button onClick={() => setShowSug(s => !s)} style={{ background: "transparent", border: "none", color: TEXT_DIM, cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: FONT }}>
+              <button onClick={() => {
+                  const next = !showSug;
+                  setShowSug(next);
+                  localStorage.setItem("maint-show-sug", next ? "1" : "0");
+                }} style={{ background: "transparent", border: "none", color: TEXT_DIM, cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: FONT }}>
                 {showSug ? "Hide" : "Show"}
               </button>
             }>

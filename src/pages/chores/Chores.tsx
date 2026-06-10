@@ -37,6 +37,14 @@ function assigneeColor(name: string): string {
 
 const EMPTY: Omit<Chore, "id"> = { name: "", assignedTo: "", daysOfWeek: [], category: "", notes: "" };
 
+function formatDays(daysOfWeek: number[]): string {
+  const s = [...daysOfWeek].sort((a, b) => a - b);
+  if (s.length === 7) return "Every day";
+  if (s.join() === "1,2,3,4,5") return "Weekdays";
+  if (s.join() === "0,6") return "Weekends";
+  return s.map(d => ["Su","Mo","Tu","We","Th","Fr","Sa"][d]).join(" · ");
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────
 export default function Chores() {
   const uidAuth = useAuth().uid;
@@ -45,6 +53,7 @@ export default function Chores() {
   const [log, setLog] = useState<WeekLog>({ done: {} });
   const [editorId, setEditorId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Omit<Chore, "id">>(EMPTY);
+  const [choreDetailId, setChoreDetailId] = useState<string | null>(null);
 
   // Sunday of the currently-viewed week.
   const [weekStart, setWeekStart] = useState(() => {
@@ -262,26 +271,40 @@ export default function Chores() {
             <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 10 }}>All chores</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {chores.map(c => (
-                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 13px", borderRadius: 10, background: SURFACE, border: `1px solid ${BORDER}` }}>
+                <div key={c.id} onClick={() => setChoreDetailId(c.id)}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 13px", borderRadius: 10, background: SURFACE, border: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.12s" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = SURFACE_HI)}
+                  onMouseLeave={e => (e.currentTarget.style.background = SURFACE)}>
                   <span style={{ width: 9, height: 9, borderRadius: "50%", background: assigneeColor(c.assignedTo), flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{c.name}</span>
                     {c.assignedTo && <span style={{ fontSize: 12, color: TEXT_DIM }}> · {c.assignedTo}</span>}
                   </div>
-                  <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-                    {c.daysOfWeek.map(d => <Pill key={d} color={PINK}>{DAY_ABBR[d]}</Pill>)}
-                  </div>
-                  <button onClick={() => openEdit(c)} title="Edit" style={{ flexShrink: 0, background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 7, color: TEXT_DIM, padding: "5px 7px", cursor: "pointer", display: "flex" }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER_HI; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
-                    <Icon name="pencil" size={13} />
-                  </button>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: TEXT_MUTED, flexShrink: 0 }}>{formatDays(c.daysOfWeek)}</span>
+                  <Icon name="chevronDown" size={13} color={TEXT_MUTED} style={{ transform: "rotate(-90deg)", opacity: 0.5, flexShrink: 0 }} />
                 </div>
               ))}
             </div>
           </div>
         </>
       )}
+
+      {/* Chore detail overlay */}
+      {choreDetailId && (() => {
+        const c = chores.find(x => x.id === choreDetailId);
+        if (!c) return null;
+        return (
+          <ChoreDetail
+            chore={c}
+            log={log.done}
+            weekStart={weekStart}
+            todayIdx={todayIdx}
+            onClose={() => setChoreDetailId(null)}
+            onEdit={() => { setChoreDetailId(null); openEdit(c); }}
+            onToggle={(dayIdx) => toggle(c.id, dayIdx)}
+          />
+        );
+      })()}
     </PageShell>
   );
 }
@@ -291,3 +314,94 @@ const navBtn: React.CSSProperties = {
   fontSize: 16, width: 30, height: 30, cursor: "pointer", display: "flex", alignItems: "center",
   justifyContent: "center", fontFamily: FONT,
 };
+
+// ── Chore detail overlay ─────────────────────────────────────────────────────
+function ChoreDetail({ chore, log, weekStart, todayIdx, onClose, onEdit, onToggle }: {
+  chore: Chore;
+  log: Record<string, boolean>;
+  weekStart: Date;
+  todayIdx: number;
+  onClose: () => void;
+  onEdit: () => void;
+  onToggle: (dayIdx: number) => void;
+}) {
+  const sortedDays = [...chore.daysOfWeek].sort((a, b) => a - b);
+  const doneCount = sortedDays.filter(d => log[`${chore.id}:${d}`]).length;
+  const color = assigneeColor(chore.assignedTo);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: BG, zIndex: 50, overflowY: "auto", fontFamily: FONT, color: TEXT }}>
+      {/* Header */}
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 20px", minHeight: 60, gap: 12, boxSizing: "border-box" }}>
+        <button onClick={onClose}
+          style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, cursor: "pointer", color: TEXT_DIM, padding: "6px 10px", display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0 }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER_HI; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
+          <Icon name="x" size={16} color="currentColor" />
+        </button>
+        <div style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: 16, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          Chore
+        </div>
+        <button onClick={onEdit}
+          style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, cursor: "pointer", color: TEXT_DIM, padding: "6px 10px", display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0 }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = PINK; (e.currentTarget as HTMLButtonElement).style.borderColor = PINK + "60"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
+          <Icon name="pencil" size={16} color="currentColor" />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: "32px 24px 80px", maxWidth: 600, margin: "0 auto" }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: TEXT, margin: "0 0 12px", lineHeight: 1.2 }}>{chore.name}</h1>
+
+        {/* Meta */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 20 }}>
+          {chore.assignedTo && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color }}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0 }} />
+              {chore.assignedTo}
+            </span>
+          )}
+          <span style={{ fontSize: 13, color: TEXT_DIM, fontWeight: 600 }}>{formatDays(chore.daysOfWeek)}</span>
+          <span style={{ fontSize: 12, color: TEXT_MUTED }}>{sortedDays.length} day{sortedDays.length !== 1 ? "s" : ""}/week</span>
+        </div>
+
+        {chore.notes && (
+          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "12px 14px", fontSize: 13, color: TEXT_DIM, marginBottom: 20, fontStyle: "italic" }}>
+            {chore.notes}
+          </div>
+        )}
+
+        {/* This week's progress */}
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            This week
+            <span style={{ fontSize: 12, fontWeight: 800, color: doneCount === sortedDays.length && sortedDays.length > 0 ? JADE : TEXT_DIM }}>
+              {doneCount}/{sortedDays.length}
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {sortedDays.map(dayIdx => {
+              const date = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + dayIdx);
+              const checked = !!log[`${chore.id}:${dayIdx}`];
+              const isToday = dayIdx === todayIdx;
+              return (
+                <button key={dayIdx} onClick={() => onToggle(dayIdx)}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, cursor: "pointer", fontFamily: FONT, background: checked ? "rgba(93,184,138,0.08)" : SURFACE, border: `1px solid ${checked ? JADE + "40" : isToday ? JADE + "44" : BORDER}`, transition: "all 0.12s", textAlign: "left" }}>
+                  <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, border: `2px solid ${checked ? JADE : "var(--border-hi)"}`, background: checked ? JADE : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {checked && <span style={{ color: BG, fontSize: 12, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                  </span>
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>
+                    {DAY_NAMES[dayIdx]}
+                  </span>
+                  <span style={{ fontSize: 12, color: TEXT_MUTED }}>{date.getDate()}</span>
+                  {isToday && <span style={{ fontSize: 11, fontWeight: 700, color: JADE, background: JADE + "22", borderRadius: 6, padding: "2px 8px" }}>Today</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

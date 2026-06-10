@@ -4,6 +4,7 @@ import { signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../firebase";
 import { Icon } from "./Icon";
 import MarkdownHelp from "./MarkdownHelp";
+import { isOwnerEmail } from "../subscription";
 
 const BG_PANEL  = "var(--panel)";
 const BORDER    = "var(--border)";
@@ -145,6 +146,24 @@ export default function GlobalHeader() {
             >
               <Icon name="gear" size={15} /> Settings
             </Link>
+
+            {isOwnerEmail(user?.email) && (
+              <Link
+                to="/admin"
+                onClick={() => setOpen(false)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  width: "100%", textAlign: "left", padding: "10px 16px",
+                  background: "transparent", border: "none", textDecoration: "none",
+                  color: JADE, fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "'Montserrat', sans-serif",
+                }}
+                onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = `${JADE}12`}
+                onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = "transparent"}
+              >
+                <Icon name="shield" size={15} /> Admin
+              </Link>
+            )}
 
             {onNotes && (
               <button

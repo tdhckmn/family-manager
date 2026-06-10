@@ -25,6 +25,27 @@ service cloud.firestore {
       allow read, write: if isAllowed() && request.auth.uid == uid;
     }
 
+    // Owner can read/write any user's subscription doc (for admin overrides).
+    match /users/{uid}/sub/{doc} {
+      allow read, write: if isOwner();
+    }
+
+    // ── User registry ────────────────────────────────────────────────────────
+    // Each user writes their own profile (uid, email, displayName, lastSeen).
+    // Owner can read all entries for the admin panel.
+    match /registry/{uid} {
+      allow write: if request.auth != null && request.auth.uid == uid;
+      allow read: if isOwner() || (request.auth != null && request.auth.uid == uid);
+    }
+
+    // ── Coupon codes ─────────────────────────────────────────────────────────
+    // Owner manages coupons. Authenticated users can read a specific coupon
+    // to redeem it (getDoc only — no list access for non-owners).
+    match /coupons/{code} {
+      allow read, write: if isOwner();
+      allow get: if isAllowed();
+    }
+
     // ── Legacy shared data (pre-isolation) ───────────────────────────────────
     // Only the owner may read/delete these — used once to migrate into their
     // per-user space, then safe to remove. No one else can access them.

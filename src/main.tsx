@@ -11,11 +11,11 @@ initTheme();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AuthGate>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthGate>
         <GlobalHeader />
         <App />
-      </BrowserRouter>
-    </AuthGate>
+      </AuthGate>
+    </BrowserRouter>
   </React.StrictMode>
 );
