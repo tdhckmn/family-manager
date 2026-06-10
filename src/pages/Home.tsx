@@ -1,33 +1,65 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { WisdomCard, quoteOfDay } from "../components/Wisdom";
 import { Icon } from "../components/Icon";
 import StarField from "../components/StarField";
-import { useAuth } from "../auth";
-import { FOOD_PLANNER_EMAIL } from "../components/AuthGate";
 
-const BG = "#06091a";
-const SURFACE = "rgba(255,255,255,0.04)";
-const BORDER = "rgba(255,255,255,0.07)";
-const TEXT = "#dedad0";
-const TEXT_DIM = "#7a7890";
+const BG = "var(--bg)";
+const SURFACE = "var(--surface)";
+const BORDER = "var(--border)";
+const TEXT = "var(--text)";
+const TEXT_DIM = "var(--text-dim)";
+
+function YinYang({ size }: { size: number }) {
+  const YANG = "#5db88a";
+  const YIN  = "#1a5c3e";
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} style={{ display: "block", opacity: 0.72 }}>
+      <circle cx="50" cy="50" r="45" fill={YIN} />
+      <path d="M50,5 A45,45,0,0,1,50,95 Z" fill={YANG} />
+      <circle cx="50" cy="27.5" r="22.5" fill={YANG} />
+      <circle cx="50" cy="72.5" r="22.5" fill={YIN} />
+      <circle cx="50" cy="27.5" r="7.5" fill={YIN} />
+      <circle cx="50" cy="72.5" r="7.5" fill={YANG} />
+      <circle cx="50" cy="50" r="45" fill="none" stroke={YANG} strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
 
 export default function Home() {
   const quote = useMemo(() => quoteOfDay(), []);
-  const user = useAuth();
-  const hasFoodPlanner = user.email?.toLowerCase() === FOOD_PLANNER_EMAIL;
+  const isMobile = useIsMobile();
 
   return (
     <div style={{ background: BG, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", position: "relative", overflow: "hidden", fontFamily: "'Montserrat', sans-serif" }}>
 
       <StarField />
 
-      {/* Content */}
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 620, width: "100%", textAlign: "center" }}>
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 620, width: "100%" }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: "clamp(32px, 7vw, 52px)", fontWeight: 800, color: TEXT, letterSpacing: -0.5, margin: 0, lineHeight: 1.1 }}>
+        <div style={{ marginBottom: 32, textAlign: "center" }}>
+          {/* Yin yang */}
+          <div style={{
+            marginBottom: 12,
+            display: "flex",
+            justifyContent: "center",
+            filter: "drop-shadow(0 0 20px rgba(93,184,138,0.22))",
+            userSelect: "none",
+          }}>
+            <YinYang size={isMobile ? 52 : 62} />
+          </div>
+          <h1 style={{ fontSize: "clamp(28px, 7vw, 52px)", fontWeight: 800, color: TEXT, letterSpacing: -0.5, margin: 0, lineHeight: 1.1 }}>
             Equanimity
           </h1>
           <p style={{ fontSize: 15, color: TEXT_DIM, marginTop: 12, marginBottom: 0, fontWeight: 500 }}>
@@ -36,30 +68,31 @@ export default function Home() {
         </div>
 
         {/* Daily wisdom */}
-        <div style={{ marginBottom: 28, textAlign: "left" }}>
+        <div style={{ marginBottom: 28 }}>
           <WisdomCard quote={quote} compact />
         </div>
 
         {/* Nav grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <NavCard to="/finance"    icon={<Icon name="wallet" size={28} />} label="Finances"      desc="50/30/20 budget · Account plan · Income tracker" accent="#5db88a" delay={0} />
-          <NavCard to="/todos"      icon={<Icon name="check" size={28} />}  label="Todos"         desc="Task tracker · Markdown notes" accent="#5b8fd4" delay={60} />
-          {hasFoodPlanner && (
-            <NavCard to="/food" icon={<Icon name="book" size={28} />} label="Meal Planner" desc="Weekly meals · Recipes · Shopping list" accent="#e07a35" delay={120} />
-          )}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
+          <NavCard to="/calendar"   icon={<Icon name="calendar" size={24} />} label="Today"     desc="Your day · Chores · Meals · Due" accent="#e8c84a" isMobile={isMobile} />
+          <NavCard to="/finance"    icon={<Icon name="wallet" size={24} />} label="Finances"     desc="Budget · Account plan · Income" accent="#5db88a" isMobile={isMobile} />
+          <NavCard to="/notes"      icon={<Icon name="check"  size={24} />} label="Notes"        desc="Markdown notes · Tasks · Journaling"         accent="#5b8fd4" isMobile={isMobile} />
+          <NavCard to="/chores"     icon={<Icon name="sparkles" size={24} />} label="Chores"     desc="Weekly board · Assignments · Tracking" accent="#e070a8" isMobile={isMobile} />
+          <NavCard to="/food" icon={<Icon name="book" size={24} />} label="Meal Planner" desc="Weekly meals · Recipes · Shopping" accent="#a78bfa" isMobile={isMobile} />
+          <NavCard to="/maintenance" icon={<Icon name="wrench" size={24} />} label="Home Care" desc="Maintenance · Overdue · Reminders" accent="#e07a3c" isMobile={isMobile} />
         </div>
       </div>
     </div>
   );
 }
 
-function NavCard({ to, icon, label, desc, accent, delay }: {
+function NavCard({ to, icon, label, desc, accent, isMobile }: {
   to: string;
   icon: ReactNode;
   label: string;
   desc: string;
   accent: string;
-  delay: number;
+  isMobile: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -69,29 +102,33 @@ function NavCard({ to, icon, label, desc, accent, delay }: {
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          background: hovered ? "rgba(255,255,255,0.06)" : SURFACE,
+          background: hovered ? "var(--surface-hi)" : SURFACE,
           border: `1px solid ${hovered ? accent + "55" : BORDER}`,
-          borderRadius: 20,
-          padding: "26px 22px",
-          textAlign: "left",
+          borderRadius: 18,
+          padding: isMobile ? "18px 20px" : "22px 20px",
           cursor: "pointer",
           transition: "all 0.2s ease",
           boxShadow: hovered ? `0 8px 32px ${accent}15` : "none",
-          transform: hovered ? "translateY(-3px)" : "none",
+          transform: hovered ? "translateY(-2px)" : "none",
           display: "flex",
           alignItems: "center",
-          gap: 18,
-          animationDelay: `${delay}ms`,
+          gap: 16,
         }}
       >
-        <div style={{ flexShrink: 0, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, borderRadius: 12, background: hovered ? `${accent}1a` : "rgba(255,255,255,0.04)", border: `1px solid ${hovered ? accent + "44" : BORDER}`, color: hovered ? accent : TEXT_DIM, transition: "all 0.2s" }}>
+        <div style={{
+          flexShrink: 0, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center",
+          width: 40, height: 40, borderRadius: 11,
+          background: hovered ? `${accent}1a` : "var(--surface)",
+          border: `1px solid ${hovered ? accent + "44" : BORDER}`,
+          color: hovered ? accent : TEXT_DIM, transition: "all 0.2s",
+        }}>
           {icon}
         </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: hovered ? accent : TEXT, transition: "color 0.2s", marginBottom: 5 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: hovered ? accent : TEXT, transition: "color 0.2s", marginBottom: 3 }}>
             {label}
           </div>
-          <div style={{ fontSize: 12, color: TEXT_DIM, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: TEXT_DIM, lineHeight: 1.4, whiteSpace: isMobile ? "nowrap" : "normal", overflow: "hidden", textOverflow: "ellipsis" }}>
             {desc.split(" · ").map((item, i, arr) => (
               <span key={i}>{item}{i < arr.length - 1 && <span style={{ opacity: 0.4 }}> · </span>}</span>
             ))}

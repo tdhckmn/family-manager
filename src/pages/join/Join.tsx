@@ -59,7 +59,7 @@ export default function Join() {
       const ownerUid = invite.ownerUid;
 
       // Check if already in a household
-      const profileRef = doc(db, "users", user.uid, "profile");
+      const profileRef = doc(db, "users", user.uid, "meta", "profile");
       const profileSnap = await getDoc(profileRef);
       if (profileSnap.exists()) {
         const p = profileSnap.data();
@@ -70,7 +70,7 @@ export default function Join() {
 
       // Join the household
       await setDoc(profileRef, { role: "member", householdId: ownerUid, joinedAt: new Date().toISOString() });
-      await updateDoc(doc(db, "users", ownerUid, "household"), { members: arrayUnion(user.uid) });
+      await updateDoc(doc(db, "users", ownerUid, "meta", "household"), { members: arrayUnion(user.uid) });
       await updateDoc(inviteRef, { usedBy: user.uid });
 
       setStatus("success");

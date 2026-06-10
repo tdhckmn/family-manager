@@ -5,17 +5,19 @@ import { auth } from "./firebase";
 
 import Landing from "./pages/Landing";
 import Join from "./pages/join/Join";
-import Display from "./pages/display/Display";
 import AuthGate from "./components/AuthGate";
 import GlobalHeader from "./components/GlobalHeader";
 import Home from "./pages/Home";
-import Todos from "./pages/todos/Todos";
+import Calendar from "./pages/calendar/Calendar";
+import Notes from "./pages/notes/Notes";
 import Finance from "./pages/finance/Finance";
 import Accounts from "./pages/accounts/Accounts";
 import FoodPlanner from "./pages/food/FoodPlanner";
+import Chores from "./pages/chores/Chores";
+import Maintenance from "./pages/maintenance/Maintenance";
+import Settings from "./pages/settings/Settings";
 import Subscribe from "./pages/Subscribe";
 import Admin from "./pages/admin/Admin";
-import HouseholdSettings from "./pages/settings/Household";
 
 function LandingRoute() {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
@@ -38,17 +40,19 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingRoute />} />
-      <Route path="/display" element={<Display />} />
       <Route path="/join" element={<Join />} />
       <Route element={<PrivateLayout />}>
         <Route path="/home" element={<Home />} />
-        <Route path="/todos" element={<Todos />} />
+        <Route path="/calendar" element={<Calendar />} />
+        <Route path="/notes" element={<Notes />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/accounts" element={<Accounts />} />
         <Route path="/food" element={<FoodPlanner />} />
+        <Route path="/chores" element={<Chores />} />
+        <Route path="/maintenance" element={<Maintenance />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/subscribe" element={<Subscribe />} />
         <Route path="/admin" element={<Admin />} />
-        <Route path="/settings/household" element={<HouseholdSettings />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Route>
     </Routes>

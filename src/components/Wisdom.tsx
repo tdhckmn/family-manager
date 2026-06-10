@@ -1,9 +1,9 @@
-// Shared Stoic / Taoist daily-wisdom module — used on both the Todos and Finance pages.
+// Shared Stoic / Taoist daily-wisdom module — used on both the Notes and Finance pages.
 
 const JADE = "#5db88a";
 const JADE_DIM = "#3d8a62";
-const BORDER = "rgba(255,255,255,0.08)";
-const TEXT_DIM = "#7a7890";
+const BORDER = "var(--border)";
+const TEXT_DIM = "var(--text-dim)";
 
 export interface Quote { text: string; author: string; tradition: "Stoic" | "Taoist" }
 
@@ -58,7 +58,7 @@ export function quoteOfDay(): Quote {
 
 export function WisdomCard({ quote, compact = false }: { quote: Quote; compact?: boolean }) {
   return (
-    <div style={{ background: "rgba(255,255,255,0.025)", border: `1px solid ${BORDER}`, borderRadius: 16, padding: compact ? "14px 18px" : "22px 28px", position: "relative", overflow: "hidden" }}>
+    <div style={{ background: "var(--surface)", border: `1px solid ${BORDER}`, borderRadius: 16, padding: compact ? "14px 18px" : "22px 28px", position: "relative", overflow: "hidden" }}>
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(93,184,138,0.04) 0%, transparent 70%)", pointerEvents: "none" }} />
       <div style={{ position: "relative" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: compact ? 8 : 12 }}>

@@ -4,7 +4,10 @@
 export type IconName =
   | "home" | "wallet" | "check" | "chart" | "calendar" | "list"
   | "shield" | "bag" | "flow" | "bank" | "droplet" | "card"
-  | "gear" | "chevronDown" | "external" | "plus" | "signout" | "book";
+  | "gear" | "chevronDown" | "external" | "plus" | "signout" | "book"
+  | "utensils" | "star" | "clock" | "pencil" | "x"
+  | "wrench" | "sparkles" | "repeat" | "trash" | "target"
+  | "sun" | "moon" | "cloud" | "cloudSun" | "cloudRain" | "cloudSnow" | "cloudLightning" | "cloudFog";
 
 export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.8, style }: {
   name: IconName;
@@ -55,5 +58,41 @@ export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.
       return <svg {...p}><path d="M15 4h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3" /><path d="M10 17l5-5-5-5" /><path d="M15 12H3" /></svg>;
     case "book":
       return <svg {...p}><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M4 5v14" /></svg>;
+    case "utensils":
+      return <svg {...p}><path d="M8 3v5a2 2 0 0 0 2 2H8v7" /><path d="M6 3v16" /><path d="M10 3v16" /><path d="M17 3v16" /><path d="M15 3a2 2 0 0 1 2 2v4h-4V5a2 2 0 0 1 2-2z" /></svg>;
+    case "star":
+      return <svg {...p}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" /></svg>;
+    case "clock":
+      return <svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>;
+    case "pencil":
+      return <svg {...p}><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z" /></svg>;
+    case "x":
+      return <svg {...p}><path d="M18 6 6 18" /><path d="M6 6l12 12" /></svg>;
+    case "wrench":
+      return <svg {...p}><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L4 16.8 7.2 20l5.3-5.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.2-2.2z" /></svg>;
+    case "sparkles":
+      return <svg {...p}><path d="M12 3l1.8 4.7L18.5 9.5 13.8 11.3 12 16l-1.8-4.7L5.5 9.5l4.7-1.8z" /><path d="M18 15l.9 2.1 2.1.9-2.1.9L18 21l-.9-2.1-2.1-.9 2.1-.9z" /></svg>;
+    case "repeat":
+      return <svg {...p}><path d="M17 2l3 3-3 3" /><path d="M4 11V9a4 4 0 0 1 4-4h12" /><path d="M7 22l-3-3 3-3" /><path d="M20 13v2a4 4 0 0 1-4 4H4" /></svg>;
+    case "trash":
+      return <svg {...p}><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13" /><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" /></svg>;
+    case "target":
+      return <svg {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg>;
+    case "sun":
+      return <svg {...p}><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="M4.9 4.9l1.4 1.4" /><path d="M17.7 17.7l1.4 1.4" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="M4.9 19.1l1.4-1.4" /><path d="M17.7 6.3l1.4-1.4" /></svg>;
+    case "moon":
+      return <svg {...p}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>;
+    case "cloud":
+      return <svg {...p}><path d="M7 18a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 18z" /></svg>;
+    case "cloudSun":
+      return <svg {...p}><path d="M12 3v1.5" /><path d="M5.6 5.6l1 1" /><path d="M3 12h1.5" /><path d="M18.4 5.6l-1 1" /><path d="M8.2 8.2a4 4 0 1 1 5.6 5.6" /><path d="M7 20a3.5 3.5 0 0 1-.4-6.98 4.5 4.5 0 0 1 8.7.98A3 3 0 0 1 16 20z" /></svg>;
+    case "cloudRain":
+      return <svg {...p}><path d="M7 15a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 15z" /><path d="M8 19l-1 2" /><path d="M12 19l-1 2" /><path d="M16 19l-1 2" /></svg>;
+    case "cloudSnow":
+      return <svg {...p}><path d="M7 15a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 15z" /><path d="M8 19h.01" /><path d="M12 19h.01" /><path d="M16 19h.01" /><path d="M10 21h.01" /><path d="M14 21h.01" /></svg>;
+    case "cloudLightning":
+      return <svg {...p}><path d="M7 15a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 15z" /><path d="M12 13l-2 4h3l-2 4" /></svg>;
+    case "cloudFog":
+      return <svg {...p}><path d="M7 13a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 13z" /><path d="M6 17h12" /><path d="M8 21h10" /></svg>;
   }
 }

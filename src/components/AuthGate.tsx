@@ -22,17 +22,17 @@ const SURFACE = "rgba(255,255,255,0.04)";
 const BORDER = "rgba(255,255,255,0.08)";
 
 async function loadOrCreateHousehold(user: User): Promise<HouseholdInfo> {
-  const profileRef = doc(db, "users", user.uid, "profile");
+  const profileRef = doc(db, "users", user.uid, "meta", "profile");
   const profileSnap = await getDoc(profileRef);
 
   if (!profileSnap.exists()) {
     // New user — create household as owner, start 14-day trial
     const trialEndsAt = new Date(Date.now() + 14 * 86_400_000).toISOString();
     await setDoc(profileRef, { role: "owner", householdId: user.uid, createdAt: new Date().toISOString() });
-    await setDoc(doc(db, "users", user.uid, "subscription"), {
+    await setDoc(doc(db, "users", user.uid, "meta", "subscription"), {
       status: "trialing", trialEndsAt, override: null,
     });
-    await setDoc(doc(db, "users", user.uid, "household"), {
+    await setDoc(doc(db, "users", user.uid, "meta", "household"), {
       members: [user.uid], inviteCode: null, displayToken: null,
     });
     // Register for admin panel visibility
@@ -48,7 +48,7 @@ async function loadOrCreateHousehold(user: User): Promise<HouseholdInfo> {
   const profile = profileSnap.data() as { role: HouseholdRole; householdId: string };
   const householdId = profile.householdId ?? user.uid;
 
-  const subSnap = await getDoc(doc(db, "users", householdId, "subscription"));
+  const subSnap = await getDoc(doc(db, "users", householdId, "meta", "subscription"));
   let subStatus: SubStatus = "none";
   let trialEndsAt: string | null = null;
   let periodEndsAt: string | null = null;
