@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
@@ -13,6 +13,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+// Auto-detect long-polling so real-time onSnapshot updates keep working behind
+// proxies/networks that block Firestore's streaming WebChannel (otherwise the
+// first fetch succeeds but live updates silently stop until a full reload).
+export const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true, ignoreUndefinedProperties: true });
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();

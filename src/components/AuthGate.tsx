@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "../firebase";
 import { AuthContext } from "../auth";
 import {
-  HouseholdContext, HouseholdInfo, HouseholdRole, SubStatus, subIsActive,
+  HouseholdContext, HouseholdInfo, HouseholdPerson, HouseholdRole, SubStatus, subIsActive,
 } from "../household";
 import StarField from "./StarField";
 import { migrateLegacyDataOnce } from "../migrate";
@@ -21,7 +21,9 @@ const JADE = "#5db88a";
 const SURFACE = "rgba(255,255,255,0.04)";
 const BORDER = "rgba(255,255,255,0.08)";
 
-async function loadOrCreateHousehold(user: User): Promise<HouseholdInfo> {
+async function loadOrCreateHousehold(
+  user: User
+): Promise<{ info: HouseholdInfo; people: HouseholdPerson[] }> {
   const profileRef = doc(db, "users", user.uid, "meta", "profile");
   const profileSnap = await getDoc(profileRef);
 
@@ -33,22 +35,25 @@ async function loadOrCreateHousehold(user: User): Promise<HouseholdInfo> {
       status: "trialing", trialEndsAt, override: null,
     });
     await setDoc(doc(db, "users", user.uid, "meta", "household"), {
-      members: [user.uid], inviteCode: null, displayToken: null,
+      members: [user.uid], people: [], inviteCode: null, displayToken: null,
     });
-    // Register for admin panel visibility
     await setDoc(doc(db, "registrations", user.uid), {
       email: user.email, createdAt: new Date().toISOString(), subStatus: "trialing",
     });
     return {
-      householdId: user.uid, role: "owner",
-      subStatus: "trialing", trialEndsAt, periodEndsAt: null, isOverride: false,
+      info: { householdId: user.uid, role: "owner", subStatus: "trialing", trialEndsAt, periodEndsAt: null, isOverride: false },
+      people: [],
     };
   }
 
-  const profile = profileSnap.data() as { role: HouseholdRole; householdId: string };
+  const profile = profileSnap.data() as { role: HouseholdRole; householdId: string; householdPersonId?: string };
   const householdId = profile.householdId ?? user.uid;
 
-  const subSnap = await getDoc(doc(db, "users", householdId, "meta", "subscription"));
+  const [subSnap, hhSnap] = await Promise.all([
+    getDoc(doc(db, "users", householdId, "meta", "subscription")),
+    getDoc(doc(db, "users", householdId, "meta", "household")),
+  ]);
+
   let subStatus: SubStatus = "none";
   let trialEndsAt: string | null = null;
   let periodEndsAt: string | null = null;
@@ -73,29 +78,61 @@ async function loadOrCreateHousehold(user: User): Promise<HouseholdInfo> {
     }
   }
 
-  return { householdId, role: profile.role, subStatus, trialEndsAt, periodEndsAt, isOverride };
+  const people: HouseholdPerson[] = hhSnap.data()?.people ?? [];
+  const personId = profile.householdPersonId;
+  const person = people.find(p => p.id === personId);
+
+  return {
+    info: { householdId, role: profile.role, subStatus, trialEndsAt, periodEndsAt, isOverride, personId, personName: person?.name },
+    people,
+  };
 }
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null | "loading">("loading");
   const [household, setHousehold] = useState<HouseholdInfo | null>(null);
   const [householdLoading, setHouseholdLoading] = useState(false);
+  const [people, setPeople] = useState<HouseholdPerson[]>([]);
+  const [showPersonPicker, setShowPersonPicker] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
-      if (!u) { setUser(null); setHousehold(null); return; }
+      if (!u) { setUser(null); setHousehold(null); setPeople([]); setShowPersonPicker(false); return; }
       setUser(u);
       setHouseholdLoading(true);
       try {
-        const info = await loadOrCreateHousehold(u);
+        const { info, people: loadedPeople } = await loadOrCreateHousehold(u);
         setHousehold(info);
+        setPeople(loadedPeople);
+        if (loadedPeople.length > 0 && !info.personId) setShowPersonPicker(true);
         migrateLegacyDataOnce(u.uid, u.email);
       } finally {
         setHouseholdLoading(false);
       }
     });
   }, []);
+
+  async function handlePersonPick(person: HouseholdPerson | null, currentUser: User, currentHousehold: HouseholdInfo) {
+    setShowPersonPicker(false);
+    if (!person) return;
+
+    // Write personId to profile
+    await updateDoc(doc(db, "users", currentUser.uid, "meta", "profile"), {
+      householdPersonId: person.id,
+    });
+
+    // Write linkedUid onto the person in the household doc (full array rewrite)
+    const hhRef = doc(db, "users", currentHousehold.householdId, "meta", "household");
+    const hhSnap = await getDoc(hhRef);
+    const currentPeople: HouseholdPerson[] = hhSnap.data()?.people ?? [];
+    const updatedPeople = currentPeople.map(p =>
+      p.id === person.id ? { ...p, linkedUid: currentUser.uid } : p
+    );
+    await updateDoc(hhRef, { people: updatedPeople });
+
+    setHousehold(h => h ? { ...h, personId: person.id, personName: person.name } : h);
+  }
 
   if (user === "loading" || (user && householdLoading)) {
     return (
@@ -112,10 +149,19 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   if (!household) return null;
 
   const isFounder = user.email?.toLowerCase() === OWNER_EMAIL;
-  const onSubscribePage = location.pathname === "/subscribe";
+  const onSubscribePage = location.pathname === "/app/subscribe";
 
   if (!isFounder && !subIsActive(household.subStatus) && !onSubscribePage) {
-    return <Navigate to="/subscribe" replace />;
+    return <Navigate to="/app/subscribe" replace />;
+  }
+
+  if (showPersonPicker && people.length > 0) {
+    return (
+      <PersonPickerScreen
+        people={people}
+        onPick={(p) => handlePersonPick(p, user, household)}
+      />
+    );
   }
 
   return (
@@ -124,6 +170,37 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         {children}
       </HouseholdContext.Provider>
     </AuthContext.Provider>
+  );
+}
+
+function PersonPickerScreen({ people, onPick }: { people: HouseholdPerson[]; onPick: (p: HouseholdPerson | null) => void }) {
+  return (
+    <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <StarField />
+      <div style={{ position: "relative", background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "40px 48px", maxWidth: 360, width: "90%", textAlign: "center" }}>
+        <div style={{ fontSize: 24, marginBottom: 6 }}>☯</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: TEXT, marginBottom: 6 }}>Who are you?</div>
+        <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 28, lineHeight: 1.5 }}>Select your name so the app knows who's using it.</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {people.map(p => (
+            <button
+              key={p.id}
+              onClick={() => onPick(p)}
+              style={{ width: "100%", padding: "13px 20px", borderRadius: 12, border: `1px solid ${BORDER}`, background: SURFACE, color: TEXT, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 15, cursor: "pointer", transition: "all 0.15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = JADE; (e.currentTarget as HTMLButtonElement).style.color = JADE; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; (e.currentTarget as HTMLButtonElement).style.color = TEXT; }}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => onPick(null)}
+          style={{ marginTop: 20, background: "transparent", border: "none", color: TEXT_DIM, fontSize: 12, cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>
+          Skip for now
+        </button>
+      </div>
+    </div>
   );
 }
 

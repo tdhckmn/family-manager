@@ -24,7 +24,7 @@ export type Frequency = "weekly" | "biweekly" | "semimonthly" | "monthly";
 /** Income can also be a single one-time check tied to a specific month. */
 export type IncomeFrequency = Frequency | "onetime";
 export type ExpenseFrequency = "weekly" | "biweekly" | "semimonthly" | "monthly" | "bimonthly" | "quarterly" | "semiannual" | "annual";
-export type Owner = "Self" | "Partner" | "Business";
+export type Owner = string; // household person name, or legacy "Self" / "Partner" / "Business"
 export type AccountRole = "fixedExpenses" | "dailySpending" | "emergencySavings" | "sinkingFunds";
 
 export interface BankAccount {
@@ -165,7 +165,8 @@ export const INCOME_FREQ_LABELS: Record<IncomeFrequency, string> = {
 export const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 export const MONTH_ABBR  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-export const OWNER_COLOR: Record<Owner, string> = { Self: BLUE, Partner: ROSE, Business: AMBER };
+const LEGACY_OWNER_COLOR: Record<string, string> = { Self: BLUE, Partner: ROSE, Business: AMBER };
+export const OWNER_COLOR: Record<string, string> = LEGACY_OWNER_COLOR;
 
 export const EXPENSE_FREQ_LABELS: Record<ExpenseFrequency, string> = {
   weekly:       "Weekly",

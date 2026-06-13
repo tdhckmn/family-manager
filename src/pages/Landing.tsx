@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { signInWithPopup } from "firebase/auth";
+import { useState, useEffect } from "react";
+import { signInWithPopup, onAuthStateChanged } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
 import { auth, googleProvider } from "../firebase";
 import StarField from "../components/StarField";
 
@@ -27,10 +28,15 @@ const FEATURES = [
 
 export default function Landing() {
   const [signingIn, setSigningIn] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const navigate = useNavigate();
+  useEffect(() => onAuthStateChanged(auth, u => setLoggedIn(!!u)), []);
 
+  // Already signed in → straight into the app. Otherwise sign in, then enter.
   async function handleSignIn() {
+    if (loggedIn) { navigate("/app"); return; }
     setSigningIn(true);
-    try { await signInWithPopup(auth, googleProvider); }
+    try { await signInWithPopup(auth, googleProvider); navigate("/app"); }
     catch (err) { console.error("Sign-in failed:", err); setSigningIn(false); }
   }
 
@@ -46,7 +52,7 @@ export default function Landing() {
           disabled={signingIn}
           style={{ background: JADE, border: "none", borderRadius: 10, color: "#0a1a12", fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 13, padding: "9px 22px", cursor: "pointer", opacity: signingIn ? 0.7 : 1, transition: "opacity 0.15s" }}
         >
-          {signingIn ? "Signing in…" : "Sign in"}
+          {signingIn ? "Signing in…" : loggedIn ? "Open app" : "Sign in"}
         </button>
       </nav>
 
@@ -70,7 +76,7 @@ export default function Landing() {
             style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "none", borderRadius: 12, color: "#1f1f1f", fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 16, padding: "14px 32px", cursor: "pointer", boxShadow: "0 4px 20px rgba(0,0,0,0.4)", opacity: signingIn ? 0.7 : 1, transition: "opacity 0.15s" }}
           >
             <GoogleIcon />
-            {signingIn ? "Signing in…" : "Start free trial"}
+            {signingIn ? "Signing in…" : loggedIn ? "Open app" : "Start free trial"}
           </button>
           <div style={{ fontSize: 12, color: TEXT_DIM, opacity: 0.7 }}>14 days free · $4/month after · Cancel anytime</div>
         </div>
@@ -113,7 +119,7 @@ export default function Landing() {
             disabled={signingIn}
             style={{ width: "100%", background: JADE, border: "none", borderRadius: 12, color: "#0a1a12", fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 15, padding: "14px", cursor: "pointer", opacity: signingIn ? 0.7 : 1, transition: "opacity 0.15s" }}
           >
-            {signingIn ? "Signing in…" : "Start 14-day free trial"}
+            {signingIn ? "Signing in…" : loggedIn ? "Open app" : "Start 14-day free trial"}
           </button>
           <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 12, opacity: 0.6 }}>No credit card required to start</div>
         </div>

@@ -1,16 +1,39 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import StarField from "../../components/StarField";
 import ToolNav from "../../components/ToolNav";
 import { Icon, type IconName } from "../../components/Icon";
 import { useHouseholdUid } from "../../household";
+import { useOverlay } from "../../overlay";
+import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import { usePrefs } from "../../prefs";
 
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const FOOD_TYPES = ["American","Italian","Mexican","Asian","Mediterranean","Indian","Greek","Breakfast","Soup/Salad","Other"];
 const PROTEINS = ["None/Vegetarian","Chicken","Fish/Seafood","Beef","Pork","Turkey","Eggs","Beans/Legumes","Tofu","Other"];
 const LABEL_SUGGESTIONS = ["Breakfast","Lunch","Dinner","Snack","Dessert","Baked goods","Side dish","Drinks"];
+
+// Meal-time ordering for sorting entries within a day (breakfast → lunch → dinner → …).
+const MEAL_ORDER = ["Breakfast","Lunch","Dinner","Snack","Dessert"];
+function labelRank(label?: string): number {
+  const i = MEAL_ORDER.indexOf(label ?? "");
+  return i === -1 ? MEAL_ORDER.length : i;
+}
+function byLabel(a: PlanEntry, b: PlanEntry): number {
+  return labelRank(a.label) - labelRank(b.label);
+}
+
+function useIsMobile(breakpoint = 760): boolean {
+  const [m, setM] = useState(() => typeof window !== "undefined" && window.innerWidth < breakpoint);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth < breakpoint);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, [breakpoint]);
+  return m;
+}
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const BG = "var(--bg)";
@@ -174,8 +197,13 @@ function PlanEntryRow({ meal, label, onView, onEdit, onRemove }: { meal: Meal; l
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function FoodPlanner() {
+  const { prefs } = usePrefs();
   const [data, setData] = useState<AppData>(SEED_DATA);
   const [view, setView] = useState("planner");
+  const [plannerView, setPlannerView] = useState<"list" | "calendar">("calendar");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+  const isMobile = useIsMobile();
   const [mealForm, setMealForm] = useState<Meal | null>(null);
   const [filterType, setFilterType] = useState("all");
   const [filterProtein, setFilterProtein] = useState("all");
@@ -193,9 +221,11 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
   const [editEntryDay, setEditEntryDay] = useState("");
   const [editEntryLabel, setEditEntryLabel] = useState("");
   const [viewMealId, setViewMealId] = useState<string | null>(null);
+  const [viewMealEditing, setViewMealEditing] = useState(false);
   const viewMeal = viewMealId ? (data.meals.find(m => m.id === viewMealId) ?? null) : null;
   const [loaded, setLoaded] = useState(false);
   const uid = useHouseholdUid();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     try {
@@ -218,6 +248,11 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
       return unsub;
     } catch { /* Firebase not configured */ }
   }, [uid]);
+
+  useEffect(() => {
+    const mealParam = searchParams.get("meal");
+    if (mealParam && loaded) setViewMealId(mealParam);
+  }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = useCallback((d: AppData) => {
     setData(d);
@@ -332,6 +367,9 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
       noDay.push(entry);
     }
   });
+  // Sort each day's meals breakfast → lunch → dinner → … (used by both views).
+  Object.values(entriesByDay).forEach(list => list.sort(byLabel));
+  noDay.sort(byLabel);
   const daysWithEntries = DAYS.filter(d => entriesByDay[d]?.length > 0);
 
   // Group no-day entries by label
@@ -353,6 +391,36 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
     { id: "grocery", label: `Grocery${plannedCount ? ` (${plannedCount})` : ""}`, icon: "bag" },
   ];
 
+  // Compact draggable meal card used in the calendar grid + unscheduled tray.
+  const planCard = (entry: PlanEntry) => {
+    const meal = data.meals.find(m => m.id === entry.mealId);
+    if (!meal) return null;
+    return (
+      <div key={entry.id}
+        draggable={!isMobile}
+        onDragStart={e => { setDragId(entry.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", entry.id); }}
+        onDragEnd={() => { setDragId(null); setDragOverDay(null); }}
+        onClick={() => setViewMealId(meal.id)}
+        style={{
+          display: "flex", alignItems: "center", gap: 6, padding: "7px 8px", borderRadius: 9,
+          background: SURFACE_HOVER, border: `1px solid ${BORDER}`,
+          borderLeft: `3px solid ${TYPE_COLOR[meal.type] || LAV}`,
+          cursor: isMobile ? "pointer" : "grab", opacity: dragId === entry.id ? 0.4 : 1,
+        }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {entry.label && <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: LAV_DIM }}>{entry.label}</div>}
+          <div style={{ fontSize: 12, fontWeight: 600, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meal.name}</div>
+        </div>
+        <button onClick={e => { e.stopPropagation(); removePlanEntry(entry.id); }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED, padding: 2, display: "flex", flexShrink: 0 }}
+          onMouseEnter={e => (e.currentTarget.style.color = DANGER)}
+          onMouseLeave={e => (e.currentTarget.style.color = TEXT_MUTED)}>
+          <Icon name="x" size={12} color="currentColor" />
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat', sans-serif", color: TEXT, position: "relative" }}>
       <StarField />
@@ -360,7 +428,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
       <div style={{ position: "relative", zIndex: 1 }}>
         {/* ── HEADER ── */}
         <div style={{ padding: "14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-          <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
             ← Home
@@ -389,13 +457,28 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
 
         {/* ── BODY ── */}
         <div style={{ padding: "28px 24px 60px", maxWidth: 1100, margin: "0 auto" }}>
+          {prefs.wisdomPages.includes("food") && (
+            <div style={{ marginBottom: 20 }}>
+              <WisdomCard quote={quoteOfDay(prefs.wisdomTraditions)} compact />
+            </div>
+          )}
 
           {/* ── PLANNER ── */}
           {view === "planner" && (
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28, gap: 12, flexWrap: "wrap" }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: TEXT }}>This Week</div>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {/* List / Week toggle */}
+                  <div style={{ display: "flex", gap: 4, background: SURFACE, borderRadius: 9, padding: 3 }}>
+                    {([["calendar", "Week"], ["list", "List"]] as const).map(([v, lbl]) => (
+                      <button key={v} onClick={() => setPlannerView(v)}
+                        style={{ padding: "5px 14px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: 12, fontWeight: 700,
+                          background: plannerView === v ? LAV : "transparent", color: plannerView === v ? INK : TEXT_DIM }}>
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
                   <button style={btn(LAV)} onClick={openAddEntry}>+ Add meal</button>
                   {plannedCount > 0 && (
                     <button style={btn("transparent", DANGER, BORDER)} onClick={() => save({ ...data, planEntries: [] })}>Clear</button>
@@ -406,6 +489,51 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
               {!loaded ? (
                 <div style={{ textAlign: "center", padding: "60px 20px", color: TEXT_MUTED }}>
                   <div style={{ fontSize: 14, color: TEXT_DIM }}>Loading…</div>
+                </div>
+              ) : plannerView === "calendar" ? (
+                <div>
+                  {!isMobile && (
+                    <div style={{ fontSize: 11, color: TEXT_MUTED, marginBottom: 10 }}>Drag meals between days to reschedule.</div>
+                  )}
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(7, 1fr)", gap: 8 }}>
+                    {DAYS.map(day => {
+                      const dayEntries = entriesByDay[day] ?? [];
+                      const over = dragOverDay === day;
+                      return (
+                        <div key={day}
+                          onDragOver={e => { if (dragId) { e.preventDefault(); if (dragOverDay !== day) setDragOverDay(day); } }}
+                          onDragLeave={() => setDragOverDay(d => (d === day ? null : d))}
+                          onDrop={e => { e.preventDefault(); if (dragId) { updatePlanEntryDay(dragId, day); setDragId(null); setDragOverDay(null); } }}
+                          style={{ background: over ? SURFACE_ACCENT : SURFACE, border: `1px solid ${over ? BORDER_ACCENT : BORDER}`, borderRadius: 12, minHeight: isMobile ? "auto" : 160, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                          <div style={{ padding: "8px 10px", borderBottom: `1px solid ${BORDER}`, fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: LAV }}>
+                            {isMobile ? day : day.slice(0, 3)}
+                          </div>
+                          <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                            {dayEntries.map(e => planCard(e))}
+                            {dayEntries.length === 0 && (
+                              <div style={{ fontSize: 11, color: TEXT_MUTED, fontStyle: "italic", textAlign: "center", padding: "10px 0" }}>
+                                {!isMobile && dragId ? "Drop here" : "—"}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Unscheduled tray — drop a meal here to clear its day */}
+                  {(noDay.length > 0 || dragId) && (
+                    <div style={{ marginTop: 20 }}
+                      onDragOver={e => { if (dragId) { e.preventDefault(); setDragOverDay("__unscheduled__"); } }}
+                      onDrop={e => { e.preventDefault(); if (dragId) { updatePlanEntryDay(dragId, undefined); setDragId(null); setDragOverDay(null); } }}>
+                      <SectionDivider label="Unscheduled" accent={TEXT_MUTED} />
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, minHeight: 44, background: dragOverDay === "__unscheduled__" ? SURFACE_ACCENT : "transparent", border: `1px dashed ${dragOverDay === "__unscheduled__" ? BORDER_ACCENT : BORDER}`, borderRadius: 10, padding: 8 }}>
+                        {noDay.length === 0
+                          ? <div style={{ fontSize: 11, color: TEXT_MUTED, fontStyle: "italic" }}>Drop a meal here to unschedule it.</div>
+                          : noDay.map(e => <div key={e.id} style={{ minWidth: 170 }}>{planCard(e)}</div>)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : plannedCount === 0 ? (
                 <div style={{ textAlign: "center", padding: "60px 20px", color: TEXT_MUTED }}>
@@ -536,7 +664,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                       </div>
                     )}
                     <div style={{ display: "flex", gap: 6, marginTop: 10 }} onClick={e => e.stopPropagation()}>
-                      <button style={{ ...btn("transparent", TEXT_DIM, BORDER), fontSize: 11, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5 }} onClick={() => openMealForm(m)}><Icon name="pencil" size={11} color={TEXT_DIM} /> Edit</button>
+                      <button style={{ ...btn("transparent", TEXT_DIM, BORDER), fontSize: 11, padding: "5px 12px", display: "flex", alignItems: "center", gap: 5 }} onClick={() => { setViewMealEditing(true); setViewMealId(m.id); }}><Icon name="pencil" size={11} color={TEXT_DIM} /> Edit</button>
                       <button style={{ ...btn(SURFACE_ACCENT, LAV), fontSize: 11, padding: "5px 12px", border: `1px solid ${BORDER_ACCENT}`, display: "flex", alignItems: "center", gap: 5 }} onClick={() => setRatingModal({ ...m })}><Icon name="star" size={11} color={LAV} /> Rate</button>
                     </div>
                   </div>
@@ -606,8 +734,10 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
         <RecipeDetail
           meal={viewMeal}
           planEntries={data.planEntries}
-          onClose={() => setViewMealId(null)}
-          onEdit={() => openMealForm(viewMeal)}
+          initialEditing={viewMealEditing}
+          onClose={() => { setViewMealId(null); setViewMealEditing(false); }}
+          onSave={(m) => saveMeal(m)}
+          onDelete={() => { deleteMeal(viewMeal.id); setViewMealId(null); setViewMealEditing(false); }}
           onAddToPlan={() => {
             const entry: PlanEntry = { id: Date.now().toString(), mealId: viewMeal.id };
             save({ ...data, planEntries: [...data.planEntries, entry] });
@@ -777,15 +907,20 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
 }
 
 // ── Recipe Detail (full-screen overlay) ───────────────────────────────────────
-function RecipeDetail({ meal, planEntries, onClose, onEdit, onAddToPlan, onRemoveFromPlan, onUpdatePlanDay }: {
+function RecipeDetail({ meal, planEntries, initialEditing = false, onClose, onSave, onDelete, onAddToPlan, onRemoveFromPlan, onUpdatePlanDay }: {
   meal: Meal;
   planEntries: PlanEntry[];
+  initialEditing?: boolean;
   onClose: () => void;
-  onEdit: () => void;
+  onSave: (m: Meal) => void;
+  onDelete: () => void;
   onAddToPlan: () => void;
   onRemoveFromPlan: (entryId: string) => void;
   onUpdatePlanDay: (entryId: string, day: string | undefined) => void;
 }) {
+  useOverlay();
+  const [editing, setEditing] = useState(initialEditing);
+  const [draft, setDraft] = useState<Meal>(meal);
   const ingredients = meal.ingredients.split("\n").filter(l => l.trim());
   const existingEntry = planEntries.find(e => e.mealId === meal.id);
   const isInPlan = !!existingEntry;
@@ -799,6 +934,8 @@ function RecipeDetail({ meal, planEntries, onClose, onEdit, onAddToPlan, onRemov
     setPlanDay(newDay);
     if (existingEntry) onUpdatePlanDay(existingEntry.id, newDay || undefined);
   }
+  function startEdit() { setDraft({ ...meal }); setEditing(true); }
+  function save() { if (!draft.name.trim()) return; onSave(draft); setEditing(false); }
 
   const iconBtn = (onClick: () => void, icon: "x" | "pencil", hoverColor: string) => (
     <button onClick={onClick}
@@ -816,14 +953,55 @@ function RecipeDetail({ meal, planEntries, onClose, onEdit, onAddToPlan, onRemov
 
         {/* Header */}
         <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 20px", minHeight: 60, gap: 12, boxSizing: "border-box" }}>
-          {iconBtn(onClose, "x", TEXT)}
+          {iconBtn(editing ? () => setEditing(false) : onClose, "x", TEXT)}
           <div style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: 16, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: -0.2 }}>
-            {meal.name}
+            {editing ? "Edit Recipe" : meal.name}
           </div>
-          {iconBtn(onEdit, "pencil", LAV)}
+          {editing
+            ? <button onClick={save} disabled={!draft.name.trim()} style={{ ...btn(LAV), opacity: draft.name.trim() ? 1 : 0.5 }}>Save</button>
+            : iconBtn(startEdit, "pencil", LAV)}
         </div>
 
-        {/* Body */}
+        {editing ? (
+          /* ── Inline editor ── */
+          <div style={{ padding: "28px 24px 80px", maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Recipe Name</label>
+              <input style={inputStyle} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="What's cooking?"
+                onFocus={e => (e.target.style.borderColor = LAV_DIM)} onBlur={e => (e.target.style.borderColor = BORDER)} />
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div><label style={labelStyle}>Cuisine Type</label><select style={selectStyle} value={draft.type} onChange={e => setDraft({ ...draft, type: e.target.value })}>{FOOD_TYPES.map(t => <option key={t}>{t}</option>)}</select></div>
+              <div><label style={labelStyle}>Protein</label><select style={selectStyle} value={draft.protein} onChange={e => setDraft({ ...draft, protein: e.target.value })}>{PROTEINS.map(p => <option key={p}>{p}</option>)}</select></div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div><label style={labelStyle}>Prep Time</label><input style={inputStyle} value={draft.prepTime} onChange={e => setDraft({ ...draft, prepTime: e.target.value })} placeholder="e.g. 30 min" /></div>
+              <div><label style={labelStyle}>Servings</label><input type="number" style={inputStyle} value={draft.servings} onChange={e => setDraft({ ...draft, servings: Number(e.target.value) })} min={1} /></div>
+            </div>
+            <div><label style={labelStyle}>Ingredients (one per line)</label><textarea style={{ ...inputStyle, resize: "vertical" }} rows={6} value={draft.ingredients} onChange={e => setDraft({ ...draft, ingredients: e.target.value })} /></div>
+            <div><label style={labelStyle}>Notes / Instructions</label><textarea style={{ ...inputStyle, resize: "vertical" }} rows={4} value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} /></div>
+            <div onClick={() => setDraft({ ...draft, mealService: !draft.mealService })}
+              style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+              <div style={{ width: 20, height: 20, borderRadius: 5, border: `1.5px solid ${draft.mealService ? LAV : BORDER_ACCENT}`, background: draft.mealService ? LAV : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {draft.mealService && <Icon name="check" size={12} color={INK} />}
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Meal service</div>
+                <div style={{ fontSize: 11, color: TEXT_MUTED }}>Ingredients are provided — exclude from grocery list</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+              <button style={btn(LAV)} onClick={save} disabled={!draft.name.trim()}>Save</button>
+              <button style={btn("transparent", TEXT_DIM, BORDER)} onClick={() => setEditing(false)}>Cancel</button>
+              <button onClick={onDelete}
+                style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontSize: 12, color: DANGER, fontWeight: 700, fontFamily: "'Montserrat', sans-serif", display: "flex", alignItems: "center", gap: 5 }}>
+                <Icon name="trash" size={14} color={DANGER} /> Delete
+              </button>
+            </div>
+          </div>
+        ) : (
+
+        /* ── Body (view) ── */
         <div style={{ padding: "28px 24px 80px", maxWidth: 720, margin: "0 auto" }}>
 
           {/* Meta pills */}
@@ -896,6 +1074,7 @@ function RecipeDetail({ meal, planEntries, onClose, onEdit, onAddToPlan, onRemov
 
 
         </div>
+        )}
       </div>
     </div>
   );

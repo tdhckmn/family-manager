@@ -9,6 +9,8 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import StarField from "../../components/StarField";
+import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import { usePrefs } from "../../prefs";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -65,11 +67,11 @@ function DueBadge({ iso }: { iso: string }) {
 const BG = "var(--bg)";
 const SURFACE = "var(--surface)";
 const SURFACE_HOVER = "var(--surface-hi)";
-const SURFACE_SELECTED = "rgba(93,184,138,0.10)";
+const SURFACE_SELECTED = "rgba(var(--accent-rgb),0.10)";
 const BORDER = "var(--border)";
-const BORDER_ACCENT = "rgba(93,184,138,0.35)";
-const JADE = "#5db88a";
-const JADE_DIM = "#3d8a62";
+const BORDER_ACCENT = "rgba(var(--accent-rgb),0.35)";
+const JADE = "var(--accent)";
+const JADE_DIM = "var(--accent)";
 const TEXT = "var(--text)";
 const TEXT_DIM = "var(--text-dim)";
 const TEXT_MUTED = "var(--text-muted)";
@@ -104,6 +106,9 @@ export default function Notes() {
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
 
   const isMobile = useIsMobile();
+  const { prefs } = usePrefs();
+  const showWisdom = prefs.wisdomPages.includes("notes");
+  const todayQuote = quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes);
 
   const addInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -226,7 +231,7 @@ export default function Notes() {
 
           {/* Header bar — right padding reserves room for the fixed global gear (top-right) */}
           <div style={{ padding: "14px 62px 14px 16px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-            <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+            <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
               onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
               onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
               ← Home
@@ -243,6 +248,12 @@ export default function Notes() {
           {/* ── LIST VIEW ── */}
           {!mobileShowDetail && (
             <div style={{ padding: "16px 16px 32px" }}>
+
+              {showWisdom && (
+                <div style={{ marginBottom: 20 }}>
+                  <WisdomCard quote={todayQuote} compact />
+                </div>
+              )}
 
               {/* Inline add input */}
               {showAdd && (
@@ -357,26 +368,12 @@ export default function Notes() {
 
               {/* Notes */}
               {editing ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>
-                    Notes · Markdown
-                  </div>
-                  <textarea
-                    value={draftNotes}
-                    onChange={e => setDraftNotes(e.target.value)}
-                    onKeyDown={handleEditKey}
-                    placeholder={"# Heading\n\nWrite **markdown** here…\n\n- List item\n- Another item"}
-                    style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "14px 16px", color: TEXT, fontSize: 14, fontFamily: "ui-monospace, 'SF Mono', 'Fira Mono', monospace", lineHeight: 1.7, resize: "none", outline: "none", minHeight: 280, width: "100%", boxSizing: "border-box" }}
-                    onFocus={e => (e.target.style.borderColor = JADE_DIM)}
-                    onBlur={e => (e.target.style.borderColor = BORDER)}
-                  />
-                  <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>⌘↩ to save · Esc to cancel</div>
-                </div>
+                <MobileEditArea draftNotes={draftNotes} onDraftNotes={setDraftNotes} onEditKey={handleEditKey} />
               ) : (
                 <div style={{ flex: 1, overflow: "auto" }}>
                   {selected.notes.trim() ? (
                     <div className="md-view">
-                      <ReactMarkdown>{selected.notes}</ReactMarkdown>
+                      <ReactMarkdown components={MD_COMPONENTS}>{selected.notes}</ReactMarkdown>
                     </div>
                   ) : (
                     <div style={{ color: TEXT_MUTED, fontSize: 14, fontStyle: "italic" }}>
@@ -404,7 +401,7 @@ export default function Notes() {
 
         {/* Header bar — right padding reserves room for the fixed global gear (top-right) */}
         <div style={{ padding: "14px 62px 14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-          <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
             ← Home
@@ -420,7 +417,13 @@ export default function Notes() {
 
         <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%", padding: "24px 20px", display: "flex", flexDirection: "column", flex: 1 }}>
 
-        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, flex: 1, marginTop: 24 }}>
+        {showWisdom && (
+          <div style={{ marginBottom: 20 }}>
+            <WisdomCard quote={todayQuote} compact />
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 20, flex: 1 }}>
 
           {/* Sidebar */}
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -663,25 +666,12 @@ function DetailPanel({
       <div style={{ height: 1, background: BORDER, marginBottom: 20 }} />
 
       {editing ? (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>
-            Notes · Markdown <span style={{ marginLeft: 8, opacity: 0.6, fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>⌘↩ to save · Esc to cancel</span>
-          </div>
-          <textarea
-            value={draftNotes}
-            onChange={e => onDraftNotes(e.target.value)}
-            onKeyDown={onEditKey}
-            placeholder={"# Heading\n\nWrite **markdown** here…\n\n- List item\n- Another item"}
-            style={{ flex: 1, background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "14px 16px", color: TEXT, fontSize: 13, fontFamily: "ui-monospace, 'SF Mono', 'Fira Mono', monospace", lineHeight: 1.7, resize: "none", outline: "none", minHeight: 320, transition: "border-color 0.15s" }}
-            onFocus={e => (e.target.style.borderColor = JADE_DIM)}
-            onBlur={e => (e.target.style.borderColor = BORDER)}
-          />
-        </div>
+        <DesktopEditArea draftNotes={draftNotes} onDraftNotes={onDraftNotes} onEditKey={onEditKey} />
       ) : (
         <div style={{ flex: 1, overflow: "auto" }}>
           {note.notes.trim() ? (
             <div className="md-view">
-              <ReactMarkdown>{note.notes}</ReactMarkdown>
+              <ReactMarkdown components={MD_COMPONENTS}>{note.notes}</ReactMarkdown>
             </div>
           ) : (
             <div style={{ color: TEXT_MUTED, fontSize: 13, fontStyle: "italic" }}>
@@ -690,6 +680,61 @@ function DetailPanel({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function MobileEditArea({ draftNotes, onDraftNotes, onEditKey }: {
+  draftNotes: string;
+  onDraftNotes: (v: string) => void;
+  onEditKey: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+}) {
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+        <div style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>Notes · Markdown</div>
+        <MarkdownToolbar textareaRef={taRef} onValue={onDraftNotes} />
+      </div>
+      <textarea
+        ref={taRef}
+        value={draftNotes}
+        onChange={e => onDraftNotes(e.target.value)}
+        onKeyDown={onEditKey}
+        placeholder={"# Heading\n\nWrite **markdown** here…\n\n- List item\n- Another item"}
+        style={{ background: "var(--input-bg)", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "14px 16px", color: TEXT, fontSize: 14, fontFamily: "ui-monospace, 'SF Mono', 'Fira Mono', monospace", lineHeight: 1.7, resize: "none", outline: "none", minHeight: 280, width: "100%", boxSizing: "border-box" }}
+        onFocus={e => (e.target.style.borderColor = JADE_DIM)}
+        onBlur={e => (e.target.style.borderColor = BORDER)}
+      />
+      <div style={{ fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>⌘↩ to save · Esc to cancel</div>
+    </div>
+  );
+}
+
+function DesktopEditArea({ draftNotes, onDraftNotes, onEditKey }: {
+  draftNotes: string;
+  onDraftNotes: (v: string) => void;
+  onEditKey: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+}) {
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6 }}>
+        <div style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>
+          Notes · Markdown <span style={{ marginLeft: 8, opacity: 0.6, fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>⌘↩ to save · Esc to cancel</span>
+        </div>
+        <MarkdownToolbar textareaRef={taRef} onValue={onDraftNotes} />
+      </div>
+      <textarea
+        ref={taRef}
+        value={draftNotes}
+        onChange={e => onDraftNotes(e.target.value)}
+        onKeyDown={onEditKey}
+        placeholder={"# Heading\n\nWrite **markdown** here…\n\n- List item\n- Another item"}
+        style={{ flex: 1, background: "var(--input-bg)", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "14px 16px", color: TEXT, fontSize: 13, fontFamily: "ui-monospace, 'SF Mono', 'Fira Mono', monospace", lineHeight: 1.7, resize: "none", outline: "none", minHeight: 320, transition: "border-color 0.15s" }}
+        onFocus={e => (e.target.style.borderColor = JADE_DIM)}
+        onBlur={e => (e.target.style.borderColor = BORDER)}
+      />
     </div>
   );
 }
@@ -705,7 +750,7 @@ function DueDateEditor({ value, onChange, style }: { value: string; onChange: (v
         type="date"
         value={value}
         onChange={e => onChange(e.target.value)}
-        style={{ background: "rgba(0,0,0,0.25)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 10px", color: TEXT, fontSize: 13, fontFamily: "'Montserrat', sans-serif", outline: "none", colorScheme: "dark" }}
+        style={{ background: "var(--input-bg)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "6px 10px", color: TEXT, fontSize: 13, fontFamily: "'Montserrat', sans-serif", outline: "none" }}
         onFocus={e => (e.target.style.borderColor = JADE_DIM)}
         onBlur={e => (e.target.style.borderColor = BORDER)}
       />
@@ -718,4 +763,70 @@ function DueDateEditor({ value, onChange, style }: { value: string; onChange: (v
 
 function btnStyle(bg: string): React.CSSProperties {
   return { background: bg, border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontWeight: 700, color: bg === "transparent" ? TEXT : "#06091a" };
+}
+
+const MD_COMPONENTS = {
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+  ),
+};
+
+function MarkdownToolbar({ textareaRef, onValue }: { textareaRef: React.RefObject<HTMLTextAreaElement | null>; onValue: (v: string) => void }) {
+  function wrap(before: string, after: string, placeholder: string) {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const sel = ta.value.slice(s, e) || placeholder;
+    const next = ta.value.slice(0, s) + before + sel + after + ta.value.slice(e);
+    onValue(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(s + before.length, s + before.length + sel.length);
+    });
+  }
+
+  function insertLink() {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const sel = ta.value.slice(s, e) || "text";
+    const next = ta.value.slice(0, s) + `[${sel}](url)` + ta.value.slice(e);
+    onValue(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      const urlStart = s + 1 + sel.length + 2;
+      ta.setSelectionRange(urlStart, urlStart + 3);
+    });
+  }
+
+  const tbBtn: React.CSSProperties = {
+    background: "var(--surface)", border: `1px solid ${BORDER}`, borderRadius: 6,
+    color: TEXT_DIM, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 700,
+    padding: "3px 9px", lineHeight: 1.5, transition: "border-color 0.15s, color 0.15s",
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+      <button type="button" style={{ ...tbBtn, fontWeight: 900 }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}
+        onClick={() => wrap("**", "**", "bold")}>B</button>
+      <button type="button" style={{ ...tbBtn, fontStyle: "italic" }}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}
+        onClick={() => wrap("*", "*", "italic")}>I</button>
+      <button type="button" style={tbBtn}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}
+        onClick={() => wrap("# ", "", "Heading")}>H</button>
+      <button type="button" style={tbBtn}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}
+        onClick={() => wrap("- ", "", "item")}>• List</button>
+      <button type="button" style={tbBtn}
+        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}
+        onClick={insertLink}>Link</button>
+    </div>
+  );
 }

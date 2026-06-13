@@ -74,7 +74,7 @@ export default function Join() {
       await updateDoc(inviteRef, { usedBy: user.uid });
 
       setStatus("success");
-      setTimeout(() => navigate("/home"), 1500);
+      setTimeout(() => navigate("/app"), 1500);
     } catch (err) {
       console.error(err);
       setStatus("error");

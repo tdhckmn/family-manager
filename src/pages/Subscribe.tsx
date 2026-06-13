@@ -35,7 +35,7 @@ export default function Subscribe() {
 
   // If they somehow land here with an active sub, send them home
   if (subIsActive(household.subStatus)) {
-    return <Link to="/home" style={{ color: JADE }}>Go to dashboard →</Link>;
+    return <Link to="/app" style={{ color: JADE }}>Go to dashboard →</Link>;
   }
 
   return (
@@ -87,7 +87,7 @@ export default function Subscribe() {
           )}
 
           {trialing && trialDays > 0 && (
-            <Link to="/home" style={{ display: "block", padding: "11px", borderRadius: 12, border: `1px solid ${BORDER}`, color: TEXT_DIM, textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
+            <Link to="/app" style={{ display: "block", padding: "11px", borderRadius: 12, border: `1px solid ${BORDER}`, color: TEXT_DIM, textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
               Continue trial ({trialDays} days left)
             </Link>
           )}

@@ -58,7 +58,7 @@ export default function Admin() {
     });
   }, [selected?.uid]);
 
-  if (!isOwner) return <Navigate to="/home" replace />;
+  if (!isOwner) return <Navigate to="/app" replace />;
 
   async function grantOverride() {
     if (!selected) return;
@@ -91,7 +91,7 @@ export default function Admin() {
       <div style={{ position: "relative", zIndex: 5, maxWidth: 900, margin: "0 auto" }}>
 
         <div style={{ marginBottom: 28, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Link to="/home" style={{ color: TEXT_DIM, fontSize: 12, textDecoration: "none", fontWeight: 600 }}>← Back to home</Link>
+          <Link to="/app" style={{ color: TEXT_DIM, fontSize: 12, textDecoration: "none", fontWeight: 600 }}>← Back to home</Link>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: AMBER }}>Admin Panel</div>
         </div>
 

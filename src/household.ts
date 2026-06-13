@@ -3,6 +3,13 @@ import { createContext, useContext } from "react";
 export type HouseholdRole = "owner" | "member";
 export type SubStatus = "active" | "trialing" | "past_due" | "cancelled" | "none";
 
+export interface HouseholdPerson {
+  id: string;
+  name: string;
+  color?: string;
+  linkedUid?: string;
+}
+
 export interface HouseholdInfo {
   /** The household owner's uid — use for all Firestore data reads/writes. */
   householdId: string;
@@ -11,6 +18,9 @@ export interface HouseholdInfo {
   trialEndsAt: string | null;
   periodEndsAt: string | null;
   isOverride: boolean;
+  /** Which named household person this account is currently identified as. */
+  personId?: string;
+  personName?: string;
 }
 
 export const HouseholdContext = createContext<HouseholdInfo | null>(null);

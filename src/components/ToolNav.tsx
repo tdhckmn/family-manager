@@ -5,7 +5,6 @@ import { Icon } from "./Icon";
 const TEXT = "var(--text)";
 const TEXT_DIM = "var(--text-dim)";
 const BORDER = "var(--border)";
-const JADE = "#5db88a";
 const BLUE = "#5b8fd4";
 const LAV  = "#a78bfa";
 
@@ -16,12 +15,12 @@ const ORANGE = "#e07a3c";
 const PINK   = "#e070a8";
 
 const TOOLS: { key: ToolKey; to: string; label: string; accent: string; icon: string }[] = [
-  { key: "calendar",    to: "/calendar",    label: "Today",    accent: YELLOW, icon: "calendar" },
-  { key: "finance",     to: "/finance",     label: "Finances", accent: JADE,   icon: "wallet" },
-  { key: "notes",       to: "/notes",       label: "Notes",    accent: BLUE,   icon: "check"  },
-  { key: "chores",      to: "/chores",      label: "Chores",   accent: PINK,   icon: "sparkles" },
-  { key: "food",        to: "/food",        label: "Meals",    accent: LAV,    icon: "book" },
-  { key: "maintenance", to: "/maintenance", label: "Home",     accent: ORANGE, icon: "wrench" },
+  { key: "calendar",    to: "/app/calendar",    label: "Today",    accent: YELLOW, icon: "calendar" },
+  { key: "finance",     to: "/app/finance",     label: "Finances", accent: "var(--accent)", icon: "wallet" },
+  { key: "notes",       to: "/app/notes",       label: "Notes",    accent: BLUE,   icon: "check"  },
+  { key: "chores",      to: "/app/chores",      label: "Chores",   accent: PINK,   icon: "sparkles" },
+  { key: "food",        to: "/app/food",        label: "Meals",    accent: LAV,    icon: "book" },
+  { key: "maintenance", to: "/app/maintenance", label: "Home",     accent: ORANGE, icon: "wrench" },
 ];
 
 function useIsMobile(maxWidth = 640): boolean {

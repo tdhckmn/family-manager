@@ -5,8 +5,10 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useHouseholdUid } from "../../household";
+import { usePeople, personColor } from "../../usePeople";
 import { Icon, type IconName } from "../../components/Icon";
 import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import { usePrefs } from "../../prefs";
 import {
   PageShell, Pill, useIsMobile,
   toISODate, fromISODate, daysUntil, weekKey, todayISO,
@@ -14,7 +16,7 @@ import {
   BG, SURFACE, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
   JADE, BLUE, PINK, AMBER, TEAL, LAV, YELLOW, DANGER, FONT,
 } from "../shared/kit";
-import { useWeather, weatherInfo, temp, UNIT_KEY, ZIP_KEY, type Unit, type DayWeather, type WeatherData } from "./weather";
+import { useWeather, weatherInfo, temp, type Unit, type DayWeather, type WeatherData } from "./weather";
 
 const TODAY_HI_BG = "rgba(232,200,74,0.07)";   // yellow wash for the current day
 const TODAY_HI_BORDER = YELLOW + "55";
@@ -22,7 +24,7 @@ const TODAY_HI_BORDER = YELLOW + "55";
 // ── Source data shapes (subset of each module's model) ───────────────────────
 interface Note { id: string; title: string; completed: boolean; dueDate?: string | null; }
 interface Chore { id: string; name: string; assignedTo: string; daysOfWeek: number[]; }
-interface MaintTask { id: string; task: string; lastDone?: string | null; intervalDays: number; category: string; }
+interface MaintTask { id: string; task: string; lastDone?: string | null; intervalDays: number; category: string; remindDays?: number; }
 interface FinanceDue { id: string; name: string; cost: number; due: string; isSub: boolean; }
 interface Meal { id: string; name: string; }
 interface PlanEntry { id: string; mealId: string; day?: string; label?: string; }
@@ -65,16 +67,12 @@ function nextMaintDue(t: MaintTask): string | null {
 }
 const fmtMoney = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
-const assignPalette = [PINK, BLUE, JADE, AMBER, LAV, TEAL];
-function assigneeColor(name: string) {
-  if (!name) return TEXT_DIM;
-  let h = 0; for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return assignPalette[h % assignPalette.length];
-}
 
 // ── Page ─────────────────────────────────────────────────────────────────
 export default function Calendar() {
   const uidAuth = useHouseholdUid();
+  const { prefs } = usePrefs();
+  const people = usePeople();
   const isMobile = useIsMobile();
   const [searchParams] = useSearchParams();
   const kiosk = searchParams.get("kiosk") === "true";
@@ -92,18 +90,12 @@ export default function Calendar() {
   const [justDoneNoteIds, setJustDoneNoteIds] = useState<Set<string>>(new Set());
   const [justDoneMaintIds, setJustDoneMaintIds] = useState<Set<string>>(new Set());
 
-  const [unit, setUnit] = useState<Unit>(() => (localStorage.getItem(UNIT_KEY) === "C" ? "C" : "F"));
-  const [zip, setZip] = useState(() => localStorage.getItem(ZIP_KEY) ?? "");
-  const { data: weather } = useWeather(zip);
-  function changeUnit(u: Unit) { setUnit(u); localStorage.setItem(UNIT_KEY, u); }
-  function changeZip(z: string) {
-    const t = z.trim();
-    setZip(t);
-    if (t) localStorage.setItem(ZIP_KEY, t); else localStorage.removeItem(ZIP_KEY);
-  }
+  const unit = prefs.tempUnit;
+  const { data: weather } = useWeather(prefs.weatherZip);
 
   const today = useMemo(() => new Date(), []);
-  const quote = useMemo(() => quoteOfDay(), []);
+  const showWisdom = prefs.wisdomPages.includes("calendar");
+  const quote = useMemo(() => quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes), [prefs.wisdomTraditions, prefs.disabledQuotes]);
   const todayIdx = today.getDay();
   const wk = weekKey(today);
 
@@ -164,10 +156,11 @@ export default function Calendar() {
     if (d === 0) return true;                          // due today — always
     return !t.completed || justDoneNoteIds.has(t.id);  // overdue — if open / just-done
   }).sort((a, b) => (a.dueDate! < b.dueDate! ? -1 : 1));
-  // Heads-up: maintenance overdue/within 7 days + finances (bills & subscriptions) due within 3 days.
+  // Heads-up: each task surfaces within its own lead time (remindDays; default 7),
+  // and stays while overdue. Plus finances (bills & subscriptions) due within 3 days.
   const maintAlerts = maint
     .map(t => ({ t, due: nextMaintDue(t) }))
-    .filter(x => x.due && daysUntil(x.due) <= 7)
+    .filter(x => x.due && daysUntil(x.due) <= (x.t.remindDays ?? 7))
     .sort((a, b) => daysUntil(a.due!) - daysUntil(b.due!));
   const financeAlerts = financeDue
     .filter(s => daysUntil(s.due) >= 0 && daysUntil(s.due) <= 3)
@@ -220,6 +213,8 @@ export default function Calendar() {
         onToggleChore={toggleChore}
         nothingToday={nothingToday}
         weather={weather} unit={unit}
+        people={people}
+        quote={quote} showWisdom={showWisdom}
       />
     );
   }
@@ -239,33 +234,30 @@ export default function Calendar() {
   return (
     <PageShell tool="calendar" maxWidth={view === "week" ? 1100 : 760} headerExtra={toggle}>
 
-      <div style={{ marginBottom: 20 }}>
-        <WisdomCard quote={quote} compact />
-      </div>
-
       {/* Date heading */}
-      <div style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div>
+      {isMobile ? (
+        <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: YELLOW }}>
             {view === "today" ? "Your day" : "Your week"}
           </div>
-          <h1 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 800, color: TEXT, margin: "4px 0 0" }}>{dateLine}</h1>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
-          {view === "today" && (
-            <a href={`${window.location.origin}/calendar?kiosk=true`} target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, fontWeight: 700, color: TEXT_DIM, textDecoration: "none", display: "flex", alignItems: "center", gap: 5, opacity: 0.55, transition: "opacity 0.15s", flexShrink: 0 }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-              onMouseLeave={e => (e.currentTarget.style.opacity = "0.55")}>
-              <Icon name="calendar" size={13} color={YELLOW} /> Kiosk ↗
-            </a>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: TEXT, margin: "4px 0 12px" }}>{dateLine}</h1>
+          {weather?.current && (
+            <CurrentWeather current={weather.current} day={weather.daily[todayISO()] ?? null} unit={unit} location={weather.location} fullWidth />
           )}
+        </div>
+      ) : (
+        <div style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: YELLOW }}>
+              {view === "today" ? "Your day" : "Your week"}
+            </div>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: TEXT, margin: "4px 0 0" }}>{dateLine}</h1>
+          </div>
           {weather?.current && (
             <CurrentWeather current={weather.current} day={weather.daily[todayISO()] ?? null} unit={unit} location={weather.location} />
           )}
-          <WeatherControls unit={unit} onUnit={changeUnit} zip={zip} onZip={changeZip} />
         </div>
-      </div>
+      )}
 
       {view === "today" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -302,34 +294,9 @@ export default function Calendar() {
             </button>
           )}
 
-          {nothingToday && (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: TEXT_MUTED }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_DIM }}>A clear day.</div>
-              <div style={{ fontSize: 13, marginTop: 6 }}>Nothing scheduled. Enjoy the stillness — or plan ahead.</div>
-            </div>
-          )}
-
-          {/* Chores */}
-          {todayChores.length > 0 && (
-            <Section icon="sparkles" accent={PINK} title="Chores"
-              right={<span style={{ fontSize: 12, fontWeight: 700, color: choresDone === todayChores.length ? JADE : TEXT_DIM }}>{choresDone}/{todayChores.length}</span>}
-              to="/chores">
-              {todayChores.map(c => {
-                const checked = !!log[`${c.id}:${todayIdx}`];
-                return (
-                  <button key={c.id} onClick={() => toggleChore(c.id)} style={rowBtn(checked)}>
-                    <CheckBox on={checked} color={JADE} />
-                    <span style={{ flex: 1, fontSize: 14, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>{c.name}</span>
-                    {c.assignedTo && <span style={{ fontSize: 11, fontWeight: 700, color: assigneeColor(c.assignedTo) }}>{c.assignedTo}</span>}
-                  </button>
-                );
-              })}
-            </Section>
-          )}
-
-          {/* Notes due */}
+          {/* Todo (notes due) */}
           {dueNotes.length > 0 && (
-            <Section icon="check" accent={BLUE} title="Todo" to="/notes">
+            <Section icon="check" accent={BLUE} title="Todo" to="/app/notes">
               {dueNotes.map(t => {
                 const done = t.completed || justDoneNoteIds.has(t.id);
                 const overdue = daysUntil(t.dueDate!) < 0;
@@ -344,14 +311,42 @@ export default function Calendar() {
             </Section>
           )}
 
+          {nothingToday && (
+            <div style={{ textAlign: "center", padding: "40px 20px", color: TEXT_MUTED }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: TEXT_DIM }}>A clear day.</div>
+              <div style={{ fontSize: 13, marginTop: 6 }}>Nothing scheduled. Enjoy the stillness — or plan ahead.</div>
+            </div>
+          )}
+
+          {/* Chores */}
+          {todayChores.length > 0 && (
+            <Section icon="sparkles" accent={PINK} title="Chores"
+              right={<span style={{ fontSize: 12, fontWeight: 700, color: choresDone === todayChores.length ? JADE : TEXT_DIM }}>{choresDone}/{todayChores.length}</span>}
+              to="/app/chores">
+              {todayChores.map(c => {
+                const checked = !!log[`${c.id}:${todayIdx}`];
+                return (
+                  <button key={c.id} onClick={() => toggleChore(c.id)} style={rowBtn(checked)}>
+                    <CheckBox on={checked} color={JADE} />
+                    <span style={{ flex: 1, fontSize: 14, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>{c.name}</span>
+                    {c.assignedTo && <span style={{ fontSize: 11, fontWeight: 700, color: personColor(people.find(p => p.name === c.assignedTo), c.assignedTo) }}>{c.assignedTo}</span>}
+                  </button>
+                );
+              })}
+            </Section>
+          )}
+
           {/* Meals */}
           {todayMeals.length > 0 && (
-            <Section icon="book" accent={LAV} title="Meals" to="/food">
+            <Section icon="book" accent={LAV} title="Meals" to="/app/food">
               {todayMeals.map(e => (
-                <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: "var(--surface)", border: `1px solid ${BORDER}` }}>
+                <Link key={e.id} to={`/app/food?meal=${e.mealId}`} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: "var(--surface)", border: `1px solid ${BORDER}`, transition: "border-color 0.15s" }}
+                  onMouseEnter={ev => (ev.currentTarget as HTMLAnchorElement).style.borderColor = LAV + "55"}
+                  onMouseLeave={ev => (ev.currentTarget as HTMLAnchorElement).style.borderColor = BORDER}>
                   {e.label && <Pill color={LAV}>{e.label}</Pill>}
-                  <span style={{ fontSize: 14, color: TEXT }}>{mealName(e.mealId)}</span>
-                </div>
+                  <span style={{ fontSize: 14, color: TEXT, flex: 1 }}>{mealName(e.mealId)}</span>
+                  <span style={{ fontSize: 12, color: TEXT_MUTED, opacity: 0.5 }}>→</span>
+                </Link>
               ))}
             </Section>
           )}
@@ -372,7 +367,7 @@ export default function Calendar() {
                 );
               })}
               {financeAlerts.map(s => (
-                <Link key={s.id} to="/finance" style={{ textDecoration: "none" }}>
+                <Link key={s.id} to="/app/finance" style={{ textDecoration: "none" }}>
                   <div style={infoRow}>
                     <Icon name="card" size={14} color={TEAL} />
                     <span style={{ flex: 1, fontSize: 14, color: TEXT }}>{s.name} {s.isSub ? "renews" : "due"}</span>
@@ -423,7 +418,7 @@ export default function Calendar() {
                   ))}
                   {dChores.map(c => (
                     <div key={c.id} style={{ fontSize: 12, color: TEXT_DIM, display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: assigneeColor(c.assignedTo), flexShrink: 0 }} />
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: personColor(people.find(p => p.name === c.assignedTo), c.assignedTo), flexShrink: 0 }} />
                       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
                     </div>
                   ))}
@@ -452,9 +447,12 @@ interface KioskProps {
   onToggleChore: (id: string) => void;
   nothingToday: boolean;
   weather: WeatherData | null; unit: Unit;
+  people: ReturnType<typeof usePeople>;
+  quote: ReturnType<typeof quoteOfDay>;
+  showWisdom: boolean;
 }
 
-function KioskView({ dateLine, todayChores, log, todayIdx, dueNotes, todayMeals, mealName, maintAlerts, financeAlerts, onToggleChore, nothingToday, weather, unit }: KioskProps) {
+function KioskView({ dateLine, todayChores, log, todayIdx, dueNotes, todayMeals, mealName, maintAlerts, financeAlerts, onToggleChore, nothingToday, weather, unit, people, quote, showWisdom }: KioskProps) {
   const [time, setTime] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000);
@@ -468,7 +466,7 @@ function KioskView({ dateLine, todayChores, log, todayIdx, dueNotes, todayMeals,
   const choresDone = todayChores.filter(c => log[`${c.id}:${todayIdx}`]).length;
 
   return (
-    <div style={{ background: "#06091a", minHeight: "100vh", fontFamily: FONT, color: TEXT, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div data-theme="dark" style={{ background: "#06091a", minHeight: "100vh", fontFamily: FONT, color: "var(--text)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Clock header */}
       <div style={{ padding: "32px 48px 20px", borderBottom: `1px solid rgba(255,255,255,0.06)`, display: "flex", alignItems: "flex-end", gap: 20, flexWrap: "wrap" }}>
         <div>
@@ -506,8 +504,12 @@ function KioskView({ dateLine, todayChores, log, todayIdx, dueNotes, todayMeals,
 
       {/* Content */}
       <div style={{ flex: 1, overflow: "auto", padding: "24px 48px 40px", display: "flex", flexDirection: "column", gap: 20, maxWidth: 960 }}>
+        {showWisdom && (
+          <WisdomCard quote={quote} compact noLink />
+        )}
+
         {nothingToday && (
-          <div style={{ fontSize: 20, color: TEXT_DIM, fontWeight: 600, marginTop: 20 }}>A clear day — nothing scheduled.</div>
+          <div style={{ fontSize: 20, color: "var(--text-dim)", fontWeight: 600, marginTop: 20 }}>A clear day — nothing scheduled.</div>
         )}
 
         {todayChores.length > 0 && (
@@ -521,7 +523,7 @@ function KioskView({ dateLine, todayChores, log, todayIdx, dueNotes, todayMeals,
                     {checked && <span style={{ color: "#06091a", fontSize: 13, fontWeight: 800 }}>✓</span>}
                   </span>
                   <span style={{ fontSize: 16, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>{c.name}</span>
-                  {c.assignedTo && <span style={{ fontSize: 13, color: assigneeColor(c.assignedTo), marginLeft: "auto", fontWeight: 700 }}>{c.assignedTo}</span>}
+                  {c.assignedTo && <span style={{ fontSize: 13, color: personColor(people.find(p => p.name === c.assignedTo), c.assignedTo), marginLeft: "auto", fontWeight: 700 }}>{c.assignedTo}</span>}
                 </button>
               );
             })}
@@ -588,18 +590,22 @@ function KioskSection({ title, accent, children }: { title: string; accent: stri
 }
 
 // ── Small building blocks ────────────────────────────────────────────────
-function CurrentWeather({ current, day, unit, location }: {
+function CurrentWeather({ current, day, unit, location, fullWidth }: {
   current: { code: number; isDay: boolean; tempC: number; tempF: number };
   day: DayWeather | null;
   unit: Unit;
   location: string;
+  fullWidth?: boolean;
 }) {
   const wi = weatherInfo(current.code, current.isDay);
   const now = temp(unit, current.tempC, current.tempF);
   const hi = day && temp(unit, day.maxC, day.maxF);
   const lo = day && temp(unit, day.minC, day.minF);
+  const href = `https://duckduckgo.com/?q=weather+${encodeURIComponent(location || "near me")}`;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12 }}>
+    <a href={href} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, width: fullWidth ? "100%" : undefined, boxSizing: "border-box", cursor: "pointer", transition: "border-color 0.15s" }}
+      onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.borderColor = YELLOW}
+      onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.borderColor = BORDER}>
       <Icon name={wi.icon} size={22} color={wi.color} />
       <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
         <span style={{ fontSize: 16, fontWeight: 800, color: TEXT }}>{now}°{unit}</span>
@@ -607,45 +613,7 @@ function CurrentWeather({ current, day, unit, location }: {
           {wi.label}{hi != null && ` · ${hi}°/${lo}°`}{location && ` · ${location}`}
         </span>
       </div>
-    </div>
-  );
-}
-
-function WeatherControls({ unit, onUnit, zip, onZip }: {
-  unit: Unit; onUnit: (u: Unit) => void;
-  zip: string; onZip: (z: string) => void;
-}) {
-  const [draft, setDraft] = useState(zip);
-  useEffect(() => { setDraft(zip); }, [zip]);
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-      {/* °F / °C segmented toggle */}
-      <div style={{ display: "flex", background: "var(--surface)", borderRadius: 8, padding: 2, border: `1px solid ${BORDER}` }}>
-        {(["F", "C"] as const).map(u => (
-          <button key={u} onClick={() => onUnit(u)}
-            style={{ padding: "3px 9px", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: FONT, fontSize: 11, fontWeight: 800,
-              background: unit === u ? YELLOW : "transparent", color: unit === u ? BG : TEXT_DIM }}>
-            °{u}
-          </button>
-        ))}
-      </div>
-      {/* Location: ZIP/city, or blank to use device location */}
-      <form onSubmit={e => { e.preventDefault(); onZip(draft); }} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <input
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onBlur={() => { if (draft.trim() !== zip) onZip(draft); }}
-          placeholder="ZIP / city"
-          style={{ width: 92, background: "var(--surface)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "4px 8px", color: TEXT, fontSize: 12, fontFamily: FONT, outline: "none" }}
-        />
-        {zip && (
-          <button type="button" onClick={() => onZip("")} title="Use my location"
-            style={{ background: "var(--surface)", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "4px 6px", cursor: "pointer", display: "flex", alignItems: "center" }}>
-            <Icon name="target" size={13} color={TEXT_DIM} />
-          </button>
-        )}
-      </form>
-    </div>
+    </a>
   );
 }
 

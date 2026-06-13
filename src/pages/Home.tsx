@@ -1,30 +1,15 @@
-import { useMemo, useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { WisdomCard, quoteOfDay } from "../components/Wisdom";
+import { WisdomCard, quoteOfDay, AppIcon } from "../components/Wisdom";
 import { Icon } from "../components/Icon";
 import StarField from "../components/StarField";
+import { usePrefs } from "../prefs";
 
 const BG = "var(--bg)";
 const SURFACE = "var(--surface)";
 const BORDER = "var(--border)";
 const TEXT = "var(--text)";
 const TEXT_DIM = "var(--text-dim)";
-
-function YinYang({ size }: { size: number }) {
-  const YANG = "#5db88a";
-  const YIN  = "#1a5c3e";
-  return (
-    <svg viewBox="0 0 100 100" width={size} height={size} style={{ display: "block", opacity: 0.72 }}>
-      <circle cx="50" cy="50" r="45" fill={YIN} />
-      <path d="M50,5 A45,45,0,0,1,50,95 Z" fill={YANG} />
-      <circle cx="50" cy="27.5" r="22.5" fill={YANG} />
-      <circle cx="50" cy="72.5" r="22.5" fill={YIN} />
-      <circle cx="50" cy="27.5" r="7.5" fill={YIN} />
-      <circle cx="50" cy="72.5" r="7.5" fill={YANG} />
-      <circle cx="50" cy="50" r="45" fill="none" stroke={YANG} strokeWidth="1.5" />
-    </svg>
-  );
-}
 
 function useIsMobile(breakpoint = 640) {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < breakpoint);
@@ -37,8 +22,11 @@ function useIsMobile(breakpoint = 640) {
 }
 
 export default function Home() {
-  const quote = useMemo(() => quoteOfDay(), []);
+  const { prefs } = usePrefs();
   const isMobile = useIsMobile();
+  const quote = quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes);
+  const accent = prefs.accentColor;
+  const showWisdom = prefs.wisdomPages.includes("home");
 
   return (
     <div style={{ background: BG, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", position: "relative", overflow: "hidden", fontFamily: "'Montserrat', sans-serif" }}>
@@ -49,15 +37,14 @@ export default function Home() {
 
         {/* Header */}
         <div style={{ marginBottom: 32, textAlign: "center" }}>
-          {/* Yin yang */}
           <div style={{
             marginBottom: 12,
             display: "flex",
             justifyContent: "center",
-            filter: "drop-shadow(0 0 20px rgba(93,184,138,0.22))",
+            filter: `drop-shadow(0 0 22px ${accent}38)`,
             userSelect: "none",
           }}>
-            <YinYang size={isMobile ? 52 : 62} />
+            <AppIcon size={isMobile ? 52 : 62} color={accent} traditions={prefs.wisdomTraditions} />
           </div>
           <h1 style={{ fontSize: "clamp(28px, 7vw, 52px)", fontWeight: 800, color: TEXT, letterSpacing: -0.5, margin: 0, lineHeight: 1.1 }}>
             Equanimity
@@ -68,18 +55,20 @@ export default function Home() {
         </div>
 
         {/* Daily wisdom */}
-        <div style={{ marginBottom: 28 }}>
-          <WisdomCard quote={quote} compact />
-        </div>
+        {showWisdom && (
+          <div style={{ marginBottom: 28 }}>
+            <WisdomCard quote={quote} compact />
+          </div>
+        )}
 
         {/* Nav grid */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
-          <NavCard to="/calendar"   icon={<Icon name="calendar" size={24} />} label="Today"     desc="Your day · Chores · Meals · Due" accent="#e8c84a" isMobile={isMobile} />
-          <NavCard to="/finance"    icon={<Icon name="wallet" size={24} />} label="Finances"     desc="Budget · Account plan · Income" accent="#5db88a" isMobile={isMobile} />
-          <NavCard to="/notes"      icon={<Icon name="check"  size={24} />} label="Notes"        desc="Markdown notes · Tasks · Journaling"         accent="#5b8fd4" isMobile={isMobile} />
-          <NavCard to="/chores"     icon={<Icon name="sparkles" size={24} />} label="Chores"     desc="Weekly board · Assignments · Tracking" accent="#e070a8" isMobile={isMobile} />
-          <NavCard to="/food" icon={<Icon name="book" size={24} />} label="Meal Planner" desc="Weekly meals · Recipes · Shopping" accent="#a78bfa" isMobile={isMobile} />
-          <NavCard to="/maintenance" icon={<Icon name="wrench" size={24} />} label="Home Care" desc="Maintenance · Overdue · Reminders" accent="#e07a3c" isMobile={isMobile} />
+          <NavCard to="/app/calendar"   icon={<Icon name="calendar" size={24} />} label="Today"        desc="Your day · Chores · Meals · Due"        accent="#e8c84a" isMobile={isMobile} />
+          <NavCard to="/app/finance"    icon={<Icon name="wallet"   size={24} />} label="Finances"     desc="Budget · Account plan · Income"         accent="#5db88a" isMobile={isMobile} />
+          <NavCard to="/app/notes"      icon={<Icon name="check"    size={24} />} label="Notes"        desc="Markdown notes · Tasks · Journaling"    accent="#5b8fd4" isMobile={isMobile} />
+          <NavCard to="/app/chores"     icon={<Icon name="sparkles" size={24} />} label="Chores"       desc="Weekly board · Assignments · Tracking"  accent="#e070a8" isMobile={isMobile} />
+          <NavCard to="/app/food"       icon={<Icon name="book"     size={24} />} label="Meal Planner" desc="Weekly meals · Recipes · Shopping"       accent="#a78bfa" isMobile={isMobile} />
+          <NavCard to="/app/maintenance" icon={<Icon name="wrench"  size={24} />} label="Home Care"   desc="Maintenance · Overdue · Reminders"      accent="#e07a3c" isMobile={isMobile} />
         </div>
       </div>
     </div>
@@ -87,12 +76,7 @@ export default function Home() {
 }
 
 function NavCard({ to, icon, label, desc, accent, isMobile }: {
-  to: string;
-  icon: ReactNode;
-  label: string;
-  desc: string;
-  accent: string;
-  isMobile: boolean;
+  to: string; icon: ReactNode; label: string; desc: string; accent: string; isMobile: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
 

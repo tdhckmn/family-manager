@@ -4,7 +4,9 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useHouseholdUid } from "../../household";
+import { useOverlay } from "../../overlay";
 import { Icon } from "../../components/Icon";
+import { usePeople, personColor } from "../../usePeople";
 import {
   PageShell, Panel, Field, Pill, EmptyHint, useIsMobile,
   btn, inputStyle, uid, toISODate, weekKey, DAY_NAMES, DAY_ABBR, MONTH_NAMES,
@@ -16,26 +18,16 @@ import {
 interface Chore {
   id: string;
   name: string;
-  assignedTo: string;     // free-text family member; "" = anyone
+  assignedTo: string;     // household person name; "" = anyone
   daysOfWeek: number[];   // 0=Sun … 6=Sat
   category?: string;
   notes?: string;
 }
 
-/** Per-week completion log. doc id = weekKey; `done` keyed by `${choreId}:${dayIdx}`. */
-interface WeekLog {
-  done: Record<string, boolean>;
-}
-
-const ASSIGNEE_PALETTE = [PINK, BLUE, JADE, AMBER, LAV, TEAL];
-function assigneeColor(name: string): string {
-  if (!name) return TEXT_DIM;
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return ASSIGNEE_PALETTE[h % ASSIGNEE_PALETTE.length];
-}
-
 const EMPTY: Omit<Chore, "id"> = { name: "", assignedTo: "", daysOfWeek: [], category: "", notes: "" };
+const choreToDraft = (c: Chore): Omit<Chore, "id"> => ({
+  name: c.name, assignedTo: c.assignedTo, daysOfWeek: [...c.daysOfWeek], category: c.category ?? "", notes: c.notes ?? "",
+});
 
 function formatDays(daysOfWeek: number[]): string {
   const s = [...daysOfWeek].sort((a, b) => a - b);
@@ -45,10 +37,16 @@ function formatDays(daysOfWeek: number[]): string {
   return s.map(d => ["Su","Mo","Tu","We","Th","Fr","Sa"][d]).join(" · ");
 }
 
+/** Per-week completion log. doc id = weekKey; `done` keyed by `${choreId}:${dayIdx}`. */
+interface WeekLog {
+  done: Record<string, boolean>;
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────
 export default function Chores() {
   const uidAuth = useHouseholdUid();
   const isMobile = useIsMobile();
+  const people = usePeople();
   const [chores, setChores] = useState<Chore[]>([]);
   const [log, setLog] = useState<WeekLog>({ done: {} });
   const [editorId, setEditorId] = useState<string | null>(null);
@@ -118,24 +116,23 @@ export default function Chores() {
   const isThisWeek = wk === weekKey(new Date());
 
   function openNew() { setDraft(EMPTY); setEditorId("new"); }
-  function openEdit(c: Chore) {
-    setDraft({ name: c.name, assignedTo: c.assignedTo, daysOfWeek: [...c.daysOfWeek], category: c.category ?? "", notes: c.notes ?? "" });
-    setEditorId(c.id);
-  }
   function closeEditor() { setEditorId(null); }
 
+  async function persistChore(id: string, d: Omit<Chore, "id">) {
+    const payload: Chore = {
+      id,
+      name: d.name.trim(),
+      assignedTo: d.assignedTo.trim(),
+      daysOfWeek: [...d.daysOfWeek].sort((a, b) => a - b),
+      category: d.category?.trim() || "",
+      notes: d.notes?.trim() || "",
+    };
+    await setDoc(doc(db, "users", uidAuth, "chores", id), payload);
+  }
   async function saveDraft() {
     if (!draft.name.trim() || draft.daysOfWeek.length === 0) return;
     const id = editorId && editorId !== "new" ? editorId : uid();
-    const payload: Chore = {
-      id,
-      name: draft.name.trim(),
-      assignedTo: draft.assignedTo.trim(),
-      daysOfWeek: [...draft.daysOfWeek].sort((a, b) => a - b),
-      category: draft.category?.trim() || "",
-      notes: draft.notes?.trim() || "",
-    };
-    await setDoc(doc(db, "users", uidAuth, "chores", id), payload);
+    await persistChore(id, draft);
     closeEditor();
   }
   async function remove(id: string) {
@@ -176,8 +173,13 @@ export default function Chores() {
                 <input autoFocus value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="Take out trash" style={inputStyle} />
               </Field>
               <Field label="Assigned to (optional)">
-                <input value={draft.assignedTo} onChange={e => setDraft({ ...draft, assignedTo: e.target.value })} placeholder="Name" list="chore-assignees" style={inputStyle} />
-                <datalist id="chore-assignees">{assignees.map(a => <option key={a} value={a} />)}</datalist>
+                <select value={draft.assignedTo} onChange={e => setDraft({ ...draft, assignedTo: e.target.value })} style={inputStyle}>
+                  <option value="">Anyone</option>
+                  {people.length > 0
+                    ? people.map(p => <option key={p.id} value={p.name}>{p.name}</option>)
+                    : assignees.filter(a => a !== draft.assignedTo).concat(draft.assignedTo ? [draft.assignedTo] : []).map(a => <option key={a} value={a}>{a}</option>)
+                  }
+                </select>
               </Field>
             </div>
             <div style={{ marginTop: 12 }}>
@@ -218,7 +220,7 @@ export default function Chores() {
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
               {assignees.map(a => (
                 <span key={a} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: TEXT_DIM }}>
-                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: assigneeColor(a) }} /> {a}
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: personColor(people.find(p => p.name === a), a) }} /> {a}
                 </span>
               ))}
             </div>
@@ -243,7 +245,7 @@ export default function Chores() {
                     {list.length === 0 && !isMobile && <span style={{ fontSize: 11, color: TEXT_MUTED, fontStyle: "italic", padding: "2px 4px" }}>—</span>}
                     {list.map(c => {
                       const checked = !!log.done[`${c.id}:${dayIdx}`];
-                      const color = assigneeColor(c.assignedTo);
+                      const color = personColor(people.find(p => p.name === c.assignedTo), c.assignedTo);
                       return (
                         <button key={c.id} onClick={() => toggle(c.id, dayIdx)}
                           style={{ display: "flex", alignItems: "flex-start", gap: 8, textAlign: "left", padding: "8px 9px", borderRadius: 9, cursor: "pointer", fontFamily: FONT,
@@ -275,7 +277,7 @@ export default function Chores() {
                   style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 13px", borderRadius: 10, background: SURFACE, border: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.12s" }}
                   onMouseEnter={e => (e.currentTarget.style.background = SURFACE_HI)}
                   onMouseLeave={e => (e.currentTarget.style.background = SURFACE)}>
-                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: assigneeColor(c.assignedTo), flexShrink: 0 }} />
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: personColor(people.find(p => p.name === c.assignedTo), c.assignedTo), flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{c.name}</span>
                     {c.assignedTo && <span style={{ fontSize: 12, color: TEXT_DIM }}> · {c.assignedTo}</span>}
@@ -299,8 +301,11 @@ export default function Chores() {
             log={log.done}
             weekStart={weekStart}
             todayIdx={todayIdx}
+            assignees={assignees}
+            people={people}
             onClose={() => setChoreDetailId(null)}
-            onEdit={() => { setChoreDetailId(null); openEdit(c); }}
+            onSave={(d) => persistChore(c.id, d)}
+            onDelete={async () => { await remove(c.id); setChoreDetailId(null); }}
             onToggle={(dayIdx) => toggle(c.id, dayIdx)}
           />
         );
@@ -315,42 +320,103 @@ const navBtn: React.CSSProperties = {
   justifyContent: "center", fontFamily: FONT,
 };
 
-// ── Chore detail overlay ─────────────────────────────────────────────────────
-function ChoreDetail({ chore, log, weekStart, todayIdx, onClose, onEdit, onToggle }: {
+// ── Chore detail overlay (view + inline edit) ────────────────────────────────
+function ChoreDetail({ chore, log, weekStart, todayIdx, assignees, people, onClose, onSave, onDelete, onToggle }: {
   chore: Chore;
   log: Record<string, boolean>;
   weekStart: Date;
   todayIdx: number;
+  assignees: string[];
+  people: ReturnType<typeof usePeople>;
   onClose: () => void;
-  onEdit: () => void;
+  onSave: (draft: Omit<Chore, "id">) => void | Promise<void>;
+  onDelete: () => void;
   onToggle: (dayIdx: number) => void;
 }) {
+  useOverlay();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Omit<Chore, "id">>(() => choreToDraft(chore));
   const sortedDays = [...chore.daysOfWeek].sort((a, b) => a - b);
   const doneCount = sortedDays.filter(d => log[`${chore.id}:${d}`]).length;
-  const color = assigneeColor(chore.assignedTo);
+  const color = personColor(people.find(p => p.name === chore.assignedTo), chore.assignedTo);
+
+  function startEdit() { setDraft(choreToDraft(chore)); setEditing(true); }
+  async function save() {
+    if (!draft.name.trim() || draft.daysOfWeek.length === 0) return;
+    await onSave(draft);
+    setEditing(false);
+  }
+
+  const iconBtn = (onClick: () => void, icon: "x" | "pencil", hover: string) => (
+    <button onClick={onClick}
+      style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, cursor: "pointer", color: TEXT_DIM, padding: "6px 10px", display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0 }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = hover; (e.currentTarget as HTMLButtonElement).style.borderColor = hover + "60"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
+      <Icon name={icon} size={16} color="currentColor" />
+    </button>
+  );
 
   return (
     <div style={{ position: "fixed", inset: 0, background: BG, zIndex: 50, overflowY: "auto", fontFamily: FONT, color: TEXT }}>
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 20px", minHeight: 60, gap: 12, boxSizing: "border-box" }}>
-        <button onClick={onClose}
-          style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, cursor: "pointer", color: TEXT_DIM, padding: "6px 10px", display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0 }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER_HI; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
-          <Icon name="x" size={16} color="currentColor" />
-        </button>
+        {iconBtn(editing ? () => setEditing(false) : onClose, "x", TEXT)}
         <div style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: 16, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          Chore
+          {editing ? "Edit chore" : "Chore"}
         </div>
-        <button onClick={onEdit}
-          style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, cursor: "pointer", color: TEXT_DIM, padding: "6px 10px", display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0 }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = PINK; (e.currentTarget as HTMLButtonElement).style.borderColor = PINK + "60"; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
-          <Icon name="pencil" size={16} color="currentColor" />
-        </button>
+        {editing
+          ? <button onClick={save} disabled={!draft.name.trim() || draft.daysOfWeek.length === 0} style={{ ...btn(PINK), opacity: (!draft.name.trim() || draft.daysOfWeek.length === 0) ? 0.5 : 1 }}>Save</button>
+          : iconBtn(startEdit, "pencil", PINK)}
       </div>
 
-      {/* Body */}
+      {editing ? (
+        /* ── Inline editor ── */
+        <div style={{ padding: "28px 24px 80px", maxWidth: 600, margin: "0 auto" }}>
+          <Field label="Chore">
+            <input autoFocus value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="Take out trash" style={inputStyle} />
+          </Field>
+          <div style={{ marginTop: 12 }}>
+            <Field label="Assigned to (optional)">
+              <select value={draft.assignedTo} onChange={e => setDraft({ ...draft, assignedTo: e.target.value })} style={inputStyle}>
+                <option value="">Anyone</option>
+                {people.length > 0
+                  ? people.map(p => <option key={p.id} value={p.name}>{p.name}</option>)
+                  : assignees.filter(a => a !== draft.assignedTo).concat(draft.assignedTo ? [draft.assignedTo] : []).map(a => <option key={a} value={a}>{a}</option>)
+                }
+              </select>
+            </Field>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Field label="Repeats on">
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {DAY_ABBR.map((d, i) => {
+                  const on = draft.daysOfWeek.includes(i);
+                  return (
+                    <button key={i} onClick={() => setDraft(dr => ({ ...dr, daysOfWeek: on ? dr.daysOfWeek.filter(x => x !== i) : [...dr.daysOfWeek, i] }))}
+                      style={{ width: 44, padding: "8px 0", borderRadius: 8, cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 700,
+                        background: on ? PINK : "transparent", color: on ? BG : TEXT_DIM, border: `1px solid ${on ? PINK : BORDER}`, transition: "all 0.12s" }}>
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Field label="Notes (optional)">
+              <textarea value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} placeholder="Any details…" rows={3} style={{ ...inputStyle, resize: "vertical" }} />
+            </Field>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 20, flexWrap: "wrap" }}>
+            <button onClick={save} style={btn(PINK)}>Save</button>
+            <button onClick={() => setEditing(false)} style={btn("transparent", TEXT_DIM, BORDER)}>Cancel</button>
+            <button onClick={onDelete} style={{ ...btn("transparent", DANGER, "transparent"), marginLeft: "auto" }}>
+              <Icon name="trash" size={14} color={DANGER} /> Delete
+            </button>
+          </div>
+        </div>
+      ) : (
+      /* ── View ── */
       <div style={{ padding: "32px 24px 80px", maxWidth: 600, margin: "0 auto" }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: TEXT, margin: "0 0 12px", lineHeight: 1.2 }}>{chore.name}</h1>
 
@@ -402,6 +468,7 @@ function ChoreDetail({ chore, log, weekStart, todayIdx, onClose, onEdit, onToggl
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
