@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   FinancePlan, IncomeSource, FixedExpense, SinkingFund, BankAccount, PaycheckSplit, SplitType,
   AccountMappings, BudgetTargets,
-  Frequency, IncomeFrequency, ExpenseFrequency, Owner,
+  Frequency, IncomeFrequency, ExpenseFrequency,
   SURFACE, SURFACE_HI, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
   JADE, PURPLE, BLUE, AMBER, DANGER, PINK, TEAL,
   INCOME_FREQ_LABELS, MONTH_NAMES, OWNER_COLOR,
@@ -13,6 +13,8 @@ import {
 } from "./shared";
 import { Nudge, AccountFlow, AccountKind } from "./nudges";
 import { Icon } from "../../components/Icon";
+import { HouseholdPerson } from "../../household";
+import { personColor } from "../../usePeople";
 
 // ── Section header total (amount/mo + % of income) ──────────────────────────
 
@@ -57,13 +59,14 @@ function oneTimeLands(referenceDate: string): string {
   return new Date(referenceDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
-export function IncomeSection({ plan, save, year, month, totalIncome, bankAccounts }: {
+export function IncomeSection({ plan, save, year, month, totalIncome, bankAccounts, people = [] }: {
   plan: FinancePlan; save: (p: FinancePlan) => void;
   year: number; month: number; totalIncome: number; bankAccounts: BankAccount[];
+  people?: HouseholdPerson[];
 }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const blank = { id: "", name: "", owner: "Self" as Owner, amount: 0, frequency: "biweekly" as IncomeFrequency, referenceDate: "", splits: [] as PaycheckSplit[] };
+  const blank = { id: "", name: "", owner: people[0]?.name ?? "Self", amount: 0, frequency: "biweekly" as IncomeFrequency, referenceDate: "", splits: [] as PaycheckSplit[] };
   const [draft, setDraft] = useState(blank);
 
   function openAdd() { setDraft({ ...blank, id: uid() }); setAdding(true); setEditId(null); }
@@ -124,7 +127,7 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
         {sorted.map(src => {
           const isEditing = editId === src.id;
           if (isEditing) {
-            return <div key={src.id}><IncomeForm draft={draft} setDraft={setDraft} bankAccounts={bankAccounts} onSave={commitEdit} onCancel={() => setEditId(null)} onDelete={() => remove(src.id)} /></div>;
+            return <div key={src.id}><IncomeForm draft={draft} setDraft={setDraft} bankAccounts={bankAccounts} people={people} onSave={commitEdit} onCancel={() => setEditId(null)} onDelete={() => remove(src.id)} /></div>;
           }
           const isOneTime = src.frequency === "onetime";
           const checks = countPaydays(year, month, src.frequency, src.referenceDate);
@@ -149,7 +152,7 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
               onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HI}
               onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                <Pill color={OWNER_COLOR[src.owner]}>{src.owner}</Pill>
+                <Pill color={personColor(people.find(p => p.name === src.owner), src.owner) ?? OWNER_COLOR[src.owner] ?? BLUE}>{src.owner}</Pill>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{src.name}</div>
                   <div style={{ fontSize: 10, color: TEXT_DIM }}>
@@ -179,7 +182,7 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
       {adding && (
         <div style={{ marginTop: 14, padding: "14px", background: "rgba(93,184,138,0.05)", border: `1px solid ${JADE}30`, borderRadius: 12 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: JADE, marginBottom: 12 }}>New Income Source</div>
-          <IncomeForm draft={draft} setDraft={setDraft} bankAccounts={bankAccounts} onSave={commitAdd} onCancel={() => setAdding(false)} />
+          <IncomeForm draft={draft} setDraft={setDraft} bankAccounts={bankAccounts} people={people} onSave={commitAdd} onCancel={() => setAdding(false)} />
         </div>
       )}
 
@@ -311,10 +314,11 @@ function SplitEditor({ splits, onChange, bankAccounts, perCheck }: {
   );
 }
 
-function IncomeForm({ draft, setDraft, bankAccounts, onSave, onCancel, onDelete }: {
+function IncomeForm({ draft, setDraft, bankAccounts, people = [], onSave, onCancel, onDelete }: {
   draft: Omit<IncomeSource, "amount"> & { amount: number; splits: PaycheckSplit[] };
   setDraft: (d: typeof draft) => void;
   bankAccounts: BankAccount[];
+  people?: HouseholdPerson[];
   onSave: () => void; onCancel: () => void; onDelete?: () => void;
 }) {
   const set = (k: string, v: string | number) => setDraft({ ...draft, [k]: v });
@@ -324,8 +328,12 @@ function IncomeForm({ draft, setDraft, bankAccounts, onSave, onCancel, onDelete 
   return (
     <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
       <InlineInput label="Name" value={draft.name} onChange={v => set("name", v)} placeholder={isOneTime ? "e.g. Tax refund" : "e.g. Paycheck"} />
-      <SelectInput label="Owner" value={draft.owner} onChange={v => set("owner", v)}>
-        <option>Self</option><option>Partner</option><option>Business</option>
+      <SelectInput label="Earner" value={draft.owner} onChange={v => set("owner", v)}>
+        {people.length > 0
+          ? people.map(p => <option key={p.id} value={p.name}>{p.name}</option>)
+          : <><option value="Self">Self</option><option value="Partner">Partner</option></>
+        }
+        <option value="Business">Business</option>
       </SelectInput>
       <InlineInput label={isOneTime ? "Amount ($)" : "Amount per check ($)"} value={String(draft.amount || "")} onChange={v => set("amount", v)} type="number" placeholder="0" />
       <SelectInput label="Frequency" value={draft.frequency} onChange={v => set("frequency", v)}>

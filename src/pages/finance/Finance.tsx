@@ -16,8 +16,11 @@ import { computePlanNudges, computeAccountFlows, computeAccountNudges, Nudge } f
 import ToolNav from "../../components/ToolNav";
 import { Icon } from "../../components/Icon";
 import { useHouseholdUid } from "../../household";
+import { usePeople } from "../../usePeople";
 import StarField from "../../components/StarField";
 import { UserProfile } from "../../components/GlobalHeader";
+import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import { usePrefs } from "../../prefs";
 import {
   IncomeSection, FixedExpensesSection, SavingsSection, WantsSection,
   AccountPlanSection, SectionNudges,
@@ -112,7 +115,7 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, gap: 12, flexWrap: "wrap", rowGap: 10, boxSizing: "border-box" }}>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-        <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+        <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
           onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
           onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
           ← Home
@@ -190,13 +193,13 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_DIM, padding: "8px 16px 8px", opacity: 0.6 }}>
                   Manage
                 </div>
-                <Link to="/accounts" onClick={() => setMenuOpen(false)}
+                <Link to="/app/accounts" onClick={() => setMenuOpen(false)}
                   style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", color: TEXT, fontSize: 13, fontWeight: 600, transition: "background 0.1s" }}
                   onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = "var(--surface-hi)"}
                   onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = "transparent"}>
                   <Icon name="bank" size={15} /> Accounts
                 </Link>
-                <Link to="/settings" onClick={() => setMenuOpen(false)}
+                <Link to="/app/settings" onClick={() => setMenuOpen(false)}
                   style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", color: TEXT, fontSize: 13, fontWeight: 600, transition: "background 0.1s" }}
                   onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = "var(--surface-hi)"}
                   onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = "transparent"}>
@@ -444,6 +447,8 @@ function MonthlyGoalsCard({ plan, save, monthKey, monthLabel }: {
 
 export default function Finance() {
   const uid = useHouseholdUid();
+  const people = usePeople();
+  const { prefs } = usePrefs();
   const [plan, setPlan] = useState<FinancePlan>(DEFAULT_PLAN);
 
   const isMobile = useIsMobile();
@@ -607,6 +612,13 @@ export default function Finance() {
 
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 64px" }}>
 
+        {/* Daily wisdom */}
+        {prefs.wisdomPages.includes("finance") && (
+          <div style={{ marginBottom: 16 }}>
+            <WisdomCard quote={quoteOfDay(prefs.wisdomTraditions)} compact />
+          </div>
+        )}
+
         {/* This month's focus goals */}
         <div style={{ marginBottom: 16 }}>
           <MonthlyGoalsCard plan={plan} save={save} monthKey={monthKey} monthLabel={`${MONTH_NAMES[month]} ${year}`} />
@@ -632,7 +644,7 @@ export default function Finance() {
 
         {/* Income + Budget Overview */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
-          <IncomeSection plan={plan} save={save} year={year} month={month} totalIncome={totalIncome} bankAccounts={accounts} />
+          <IncomeSection plan={plan} save={save} year={year} month={month} totalIncome={totalIncome} bankAccounts={accounts} people={people} />
           <BudgetOverviewCard
             plan={plan} save={save}
             totalIncome={totalIncome} totalNeeds={totalNeeds} totalSavings={totalSavings} totalWants={totalWants}

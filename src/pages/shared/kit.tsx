@@ -6,6 +6,8 @@ import { useState, useEffect, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import StarField from "../../components/StarField";
 import ToolNav, { type ToolKey } from "../../components/ToolNav";
+import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import { usePrefs } from "../../prefs";
 
 // ── Palette ─────────────────────────────────────────────────────────────────
 export const BG = "var(--bg)";
@@ -16,7 +18,7 @@ export const BORDER_HI = "var(--border-hi)";
 export const TEXT = "var(--text)";
 export const TEXT_DIM = "var(--text-dim)";
 export const TEXT_MUTED = "var(--text-muted)";
-export const JADE = "#5db88a";
+export const JADE = "var(--accent)";
 export const BLUE = "#5b8fd4";
 export const LAV = "#a78bfa";
 export const AMBER = "#d4a45b";
@@ -141,13 +143,17 @@ export function PageShell({ tool, maxWidth = 900, children, headerExtra }: {
   children: ReactNode;
   headerExtra?: ReactNode;
 }) {
+  const { prefs } = usePrefs();
+  const showWisdom = prefs.wisdomPages.includes(tool);
+  const wisdomQuote = showWisdom ? quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes) : null;
+
   return (
     <div style={{ background: BG, minHeight: "100vh", fontFamily: FONT, color: TEXT, position: "relative" }}>
       <StarField />
       <div style={{ position: "relative", zIndex: 1 }}>
         {/* Right padding reserves room for the fixed global settings gear (top-right). */}
         <div style={{ padding: "14px 62px 14px 20px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, rowGap: 10, flexWrap: "wrap", boxSizing: "border-box" }}>
-          <Link to="/" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
             ← Home
@@ -157,6 +163,11 @@ export function PageShell({ tool, maxWidth = 900, children, headerExtra }: {
           {headerExtra && <div style={{ flexShrink: 0 }}>{headerExtra}</div>}
         </div>
         <div style={{ maxWidth, margin: "0 auto", width: "100%", padding: "24px 20px 80px", boxSizing: "border-box" }}>
+          {showWisdom && wisdomQuote && (
+            <div style={{ marginBottom: 20 }}>
+              <WisdomCard quote={wisdomQuote} compact />
+            </div>
+          )}
           {children}
         </div>
       </div>

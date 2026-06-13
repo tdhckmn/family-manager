@@ -1,21 +1,23 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type FormEvent } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../firebase";
 import { Icon } from "./Icon";
 import MarkdownHelp from "./MarkdownHelp";
 import { isOwnerEmail } from "../household";
+import { useOverlayOpen } from "../overlay";
+import { usePrefs } from "../prefs";
+import { useTheme } from "../theme";
 
 const BG_PANEL  = "var(--panel)";
 const BORDER    = "var(--border)";
 const TEXT      = "var(--text)";
 const TEXT_DIM  = "var(--text-dim)";
 const DANGER    = "#c0566a";
-const JADE      = "#5db88a";
 
 // Pages that render their own integrated gear, or are themselves a settings surface —
 // suppress the global gear there.
-const PAGES_WITH_OWN_GEAR = ["/finance", "/settings"];
+const PAGES_WITH_OWN_GEAR = ["/app/finance", "/app/settings"];
 
 /** Avatar + Google name/email block, shared across settings menus. */
 export function UserProfile({ user }: { user: User | null }) {
@@ -29,7 +31,7 @@ export function UserProfile({ user }: { user: User | null }) {
         <img src={user.photoURL} alt="" referrerPolicy="no-referrer"
           style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, objectFit: "cover", border: `1px solid ${BORDER}` }} />
       ) : (
-        <div style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, background: `${JADE}22`, border: `1px solid ${JADE}55`, color: JADE, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800 }}>
+        <div style={{ width: 36, height: 36, borderRadius: "50%", flexShrink: 0, background: "rgba(var(--accent-rgb),0.13)", border: "1px solid rgba(var(--accent-rgb),0.33)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800 }}>
           {initial}
         </div>
       )}
@@ -47,7 +49,10 @@ export default function GlobalHeader() {
   const [mdOpen, setMdOpen] = useState(false);
   const [user, setUser] = useState<User | null>(auth.currentUser);
   const ref = useRef<HTMLDivElement>(null);
-  const onNotes = location.pathname === "/notes";
+  const onNotes = location.pathname === "/app/notes";
+  const overlayOpen = useOverlayOpen();
+  const { prefs, updatePrefs } = usePrefs();
+  const [theme, setTheme] = useTheme();
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
@@ -62,6 +67,8 @@ export default function GlobalHeader() {
 
   // Finance (and any future page) manages its own gear
   if (PAGES_WITH_OWN_GEAR.includes(location.pathname)) return null;
+  // A full-screen detail viewer is open — it has its own header controls.
+  if (overlayOpen) return null;
 
   function handleSignOut() {
     setOpen(false);
@@ -132,7 +139,7 @@ export default function GlobalHeader() {
             <div style={{ height: 1, background: BORDER, margin: "4px 0" }} />
 
             <Link
-              to="/settings"
+              to="/app/settings"
               onClick={() => setOpen(false)}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
@@ -149,16 +156,16 @@ export default function GlobalHeader() {
 
             {isOwnerEmail(user?.email) && (
               <Link
-                to="/admin"
+                to="/app/admin"
                 onClick={() => setOpen(false)}
                 style={{
                   display: "flex", alignItems: "center", gap: 10,
                   width: "100%", textAlign: "left", padding: "10px 16px",
                   background: "transparent", border: "none", textDecoration: "none",
-                  color: JADE, fontSize: 13, fontWeight: 600,
+                  color: "var(--accent)", fontSize: 13, fontWeight: 600,
                   cursor: "pointer", fontFamily: "'Montserrat', sans-serif",
                 }}
-                onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = `${JADE}12`}
+                onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = "rgba(var(--accent-rgb),0.07)"}
                 onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = "transparent"}
               >
                 <Icon name="shield" size={15} /> Admin
@@ -182,6 +189,45 @@ export default function GlobalHeader() {
               </button>
             )}
 
+            <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+
+            {/* Theme toggle */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px" }}>
+              <Icon name="sparkles" size={14} color={TEXT_DIM} />
+              <span style={{ fontSize: 12, color: TEXT_DIM, fontWeight: 600, flex: 1 }}>Theme</span>
+              <div style={{ display: "flex", background: "var(--surface)", borderRadius: 7, padding: 2, border: "1px solid var(--border)" }}>
+                {(["dark", "light"] as const).map(t => (
+                  <button key={t} onClick={() => setTheme(t)}
+                    style={{ padding: "3px 10px", borderRadius: 5, border: "none", cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: 11, fontWeight: 800, textTransform: "capitalize",
+                      background: theme === t ? TEXT_DIM : "transparent",
+                      color: theme === t ? "var(--bg)" : TEXT_DIM }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Weather: °F / °C + location */}
+            <div style={{ padding: "8px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Icon name="sun" size={14} color={TEXT_DIM} />
+                <span style={{ fontSize: 12, color: TEXT_DIM, fontWeight: 600, flex: 1 }}>Temperature</span>
+                <div style={{ display: "flex", background: "var(--surface)", borderRadius: 7, padding: 2, border: "1px solid var(--border)" }}>
+                  {(["F", "C"] as const).map(u => (
+                    <button key={u} onClick={() => updatePrefs({ tempUnit: u })}
+                      style={{ padding: "3px 9px", borderRadius: 5, border: "none", cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: 11, fontWeight: 800,
+                        background: prefs.tempUnit === u ? "#e8c84a" : "transparent",
+                        color: prefs.tempUnit === u ? "#06091a" : TEXT_DIM }}>
+                      °{u}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <WeatherZipRow zip={prefs.weatherZip} onZip={z => updatePrefs({ weatherZip: z })} />
+            </div>
+
+            <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />
+
             <button
               onClick={handleSignOut}
               style={{
@@ -201,6 +247,33 @@ export default function GlobalHeader() {
       )}
 
       {mdOpen && <MarkdownHelp onClose={() => setMdOpen(false)} />}
+    </div>
+  );
+}
+
+function WeatherZipRow({ zip, onZip }: { zip: string; onZip: (z: string) => void }) {
+  const [draft, setDraft] = useState(zip);
+  useEffect(() => { setDraft(zip); }, [zip]);
+  function commit() { if (draft.trim() !== zip) onZip(draft.trim()); }
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <Icon name="target" size={14} color={TEXT_DIM} />
+      <span style={{ fontSize: 12, color: TEXT_DIM, fontWeight: 600, flex: 1 }}>Location</span>
+      <form onSubmit={(e: FormEvent) => { e.preventDefault(); commit(); }} style={{ display: "flex", gap: 4 }}>
+        <input
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          placeholder="ZIP / city"
+          style={{ width: 90, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, padding: "3px 8px", color: TEXT_DIM, fontSize: 12, fontFamily: "'Montserrat', sans-serif", outline: "none" }}
+        />
+        {zip && (
+          <button type="button" onClick={() => { setDraft(""); onZip(""); }} title="Use device location"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, padding: "3px 6px", cursor: "pointer", display: "flex", alignItems: "center" }}>
+            <Icon name="x" size={11} color={TEXT_DIM} />
+          </button>
+        )}
+      </form>
     </div>
   );
 }
