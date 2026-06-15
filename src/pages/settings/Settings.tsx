@@ -6,14 +6,15 @@ import { auth, db } from "../../firebase";
 import { Icon } from "../../components/Icon";
 import { UserProfile } from "../../components/GlobalHeader";
 import StarField from "../../components/StarField";
-import { useTheme, type Theme } from "../../theme";
+import { type Theme } from "../../theme";
 import { useHousehold, subIsActive, daysLeft, HouseholdPerson } from "../../household";
 import {
   Panel, BG, BORDER, BORDER_HI, TEXT, TEXT_DIM, TEXT_MUTED,
-  JADE, DANGER, YELLOW, INK, FONT, btn,
+  JADE, BLUE, SURFACE, DANGER, YELLOW, INK, FONT, btn,
 } from "../shared/kit";
+import { useGCal, fetchCalendars, type GCalCalendar } from "../../gcal";
 import { usePrefs } from "../../prefs";
-import { TRADITION_META, TRADITION_ORDER, TraditionCard } from "../../components/Wisdom";
+import { TRADITION_META, TRADITION_ORDER, TraditionCard, APP_ICON_REGISTRY } from "../../components/Wisdom";
 
 const ACCENT_PRESETS = [
   { color: "#5db88a", label: "Jade" },
@@ -33,6 +34,7 @@ const PAGE_OPTIONS = [
   { key: "chores",      label: "Chores",    desc: "Above the chores board" },
   { key: "food",        label: "Meals",     desc: "Above the meal planner" },
   { key: "maintenance", label: "Home Care", desc: "Above maintenance tasks" },
+  { key: "focus",       label: "Focus",     desc: "Above the breathing exercises" },
 ];
 
 interface HouseholdDoc {
@@ -52,7 +54,6 @@ function generateCode(): string {
 
 export default function Settings() {
   const [user, setUser] = useState<User | null>(auth.currentUser);
-  const [theme, setTheme] = useTheme();
   const [copied, setCopied] = useState(false);
   const { prefs, updatePrefs } = usePrefs();
   useEffect(() => onAuthStateChanged(auth, setUser), []);
@@ -440,6 +441,47 @@ export default function Settings() {
               <div style={{ width: 14, height: 14, borderRadius: "50%", background: prefs.accentColor, flexShrink: 0 }} />
               <span style={{ fontFamily: "monospace", fontSize: 11 }}>{prefs.accentColor}</span>
             </div>
+
+            <div style={{ height: 1, background: BORDER, margin: "18px 0 16px" }} />
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: TEXT_DIM, marginBottom: 10 }}>App Icon</div>
+            <div style={{ fontSize: 12, color: TEXT_DIM, marginBottom: 14, lineHeight: 1.5 }}>
+              Symbol shown at the top of the home screen.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {/* Auto option */}
+              <button
+                onClick={() => updatePrefs({ appIcon: "" })}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  gap: 4, padding: "8px 6px", width: 62, borderRadius: 9, cursor: "pointer",
+                  fontFamily: FONT, border: `1.5px solid ${!prefs.appIcon ? prefs.accentColor + "88" : BORDER}`,
+                  background: !prefs.appIcon ? `${prefs.accentColor}14` : "var(--surface)",
+                  transition: "all 0.15s",
+                }}
+              >
+                <span style={{ fontSize: 20, lineHeight: 1, color: !prefs.appIcon ? prefs.accentColor : TEXT_DIM, fontWeight: 700 }}>~</span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: !prefs.appIcon ? prefs.accentColor : TEXT_DIM }}>Auto</span>
+              </button>
+              {APP_ICON_REGISTRY.map(({ id, label, Icon }) => {
+                const sel = prefs.appIcon === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => updatePrefs({ appIcon: id })}
+                    style={{
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                      gap: 4, padding: "8px 6px", width: 62, borderRadius: 9, cursor: "pointer",
+                      fontFamily: FONT, border: `1.5px solid ${sel ? prefs.accentColor + "88" : BORDER}`,
+                      background: sel ? `${prefs.accentColor}14` : "var(--surface)",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <Icon size={24} color={sel ? prefs.accentColor : "var(--text-muted)"} />
+                    <span style={{ fontSize: 9, fontWeight: 700, color: sel ? prefs.accentColor : TEXT_DIM, textAlign: "center", lineHeight: 1.2 }}>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </Panel>
 
           {/* Wisdom */}
@@ -547,12 +589,26 @@ export default function Settings() {
               Choose how Equanimity looks. Your choice is saved on this device.
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <ThemeOption label="Dark" value="dark" current={theme} onPick={setTheme}
+              <ThemeOption label="Dark" value="dark" current={prefs.theme} onPick={(t) => updatePrefs({ theme: t })}
                 swatchBg="#06091a" swatchSurface="rgba(255,255,255,0.12)" swatchText="#dedad0" />
-              <ThemeOption label="Light" value="light" current={theme} onPick={setTheme}
+              <ThemeOption label="Light" value="light" current={prefs.theme} onPick={(t) => updatePrefs({ theme: t })}
                 swatchBg="#f2f0e8" swatchSurface="rgba(20,22,45,0.10)" swatchText="#23222e" />
             </div>
           </Panel>
+
+          {/* Focus page — temporary entry point */}
+          <Panel title="Focus" icon={<Icon name="sparkles" size={15} />} accent={prefs.accentColor}>
+            <p style={{ fontSize: 13, color: TEXT_DIM, lineHeight: 1.65, margin: "0 0 14px" }}>
+              Noise generation and guided breathing techniques to reduce stress and restore focus.
+            </p>
+            <Link to="/app/focus"
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, background: prefs.accentColor, color: INK, textDecoration: "none", fontFamily: FONT, fontWeight: 800, fontSize: 13 }}>
+              Open Focus →
+            </Link>
+          </Panel>
+
+          {/* Google Calendar */}
+          <GCalSettingsPanel />
 
           {/* Kiosk / wall-display mode */}
           <Panel title="Kiosk Mode" icon={<Icon name="calendar" size={15} />} accent={YELLOW}>
@@ -582,6 +638,130 @@ export default function Settings() {
   );
 }
 
+
+function GCalSettingsPanel() {
+  const { prefs, updatePrefs } = usePrefs();
+  const { token, status, authError, clientConfigured, connect, disconnect } = useGCal();
+  const [calendars, setCalendars] = useState<GCalCalendar[]>([]);
+  const [calLoading, setCalLoading] = useState(false);
+
+  useEffect(() => {
+    if (!token) { setCalendars([]); return; }
+    setCalLoading(true);
+    fetchCalendars(token)
+      .then(cals => {
+        setCalendars(cals);
+        setCalLoading(false);
+        // Auto-enable the primary calendar on first connect
+        if ((prefs.gcalEnabledCalendars ?? []).length === 0) {
+          const primary = cals.find(c => c.primary);
+          if (primary) updatePrefs({ gcalEnabledCalendars: [primary.id] });
+        }
+      })
+      .catch(() => setCalLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  const enabled = prefs.gcalEnabledCalendars ?? [];
+  const toggle = (id: string) => {
+    const next = enabled.includes(id) ? enabled.filter(x => x !== id) : [...enabled, id];
+    updatePrefs({ gcalEnabledCalendars: next });
+  };
+
+  const isConnected = status === "connected";
+  const isLoading = status === "loading";
+
+  return (
+    <Panel title="Google Calendar" icon={<Icon name="calendar" size={15} />} accent={BLUE}>
+      {!clientConfigured ? (
+        <div style={{ fontSize: 13, color: TEXT_DIM, lineHeight: 1.6 }}>
+          Add <code style={{ background: "var(--surface-hi)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>VITE_GOOGLE_CLIENT_ID</code> to your <code style={{ background: "var(--surface-hi)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>.env</code> file to enable this integration. Create an OAuth 2.0 Client ID at <strong>console.cloud.google.com</strong> with the Google Calendar API enabled.
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 12, color: TEXT_DIM, marginBottom: 14, lineHeight: 1.5 }}>
+            {isConnected
+              ? "Connected. Choose which calendars to show on the Today view."
+              : "Connect to show today's Google Calendar events alongside your other tasks."}
+          </div>
+
+          {/* Connect / disconnect */}
+          {isConnected ? (
+            <button
+              onClick={disconnect}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px",
+                borderRadius: 10, border: `1px solid ${DANGER}44`, background: "transparent",
+                color: DANGER, fontFamily: FONT, fontWeight: 700, fontSize: 13, cursor: "pointer",
+                marginBottom: calendars.length > 0 ? 16 : 0, transition: "background 0.15s",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = `${DANGER}12`; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+            >
+              Disconnect Google Calendar
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={connect}
+                disabled={isLoading}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 22px",
+                  borderRadius: 10, border: "none", background: BLUE,
+                  color: "#fff", fontFamily: FONT, fontWeight: 700, fontSize: 13,
+                  cursor: isLoading ? "default" : "pointer", opacity: isLoading ? 0.7 : 1,
+                  marginBottom: authError ? 10 : 0, transition: "opacity 0.15s",
+                }}
+              >
+                {isLoading ? "Connecting…" : "Connect Google Calendar"}
+              </button>
+              {authError && (
+                <div style={{ fontSize: 12, color: DANGER, marginTop: 8 }}>{authError}</div>
+              )}
+            </>
+          )}
+
+          {/* Calendar selector */}
+          {isConnected && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {calLoading && <div style={{ fontSize: 13, color: TEXT_DIM }}>Loading calendars…</div>}
+              {!calLoading && calendars.map(cal => {
+                const on = enabled.includes(cal.id);
+                return (
+                  <button
+                    key={cal.id}
+                    onClick={() => toggle(cal.id)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
+                      borderRadius: 10, border: `1px solid ${on ? cal.backgroundColor + "66" : BORDER}`,
+                      background: on ? `${cal.backgroundColor}0f` : SURFACE,
+                      cursor: "pointer", textAlign: "left", fontFamily: FONT, transition: "all 0.15s",
+                    }}
+                  >
+                    <span style={{
+                      width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+                      border: `2px solid ${on ? cal.backgroundColor : BORDER}`,
+                      background: on ? cal.backgroundColor : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.15s",
+                    }}>
+                      {on && <span style={{ color: "#fff", fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                    </span>
+                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: cal.backgroundColor, flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: on ? TEXT : TEXT_DIM, flex: 1 }}>
+                      {cal.summary}
+                      {cal.primary && <span style={{ fontSize: 10, color: TEXT_MUTED, fontWeight: 600, marginLeft: 6 }}>primary</span>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </Panel>
+  );
+}
 
 function SettingsZipInput({ zip, onZip }: { zip: string; onZip: (z: string) => void }) {
   const [draft, setDraft] = useState(zip);

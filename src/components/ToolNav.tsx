@@ -16,7 +16,7 @@ const PINK   = "#e070a8";
 
 const TOOLS: { key: ToolKey; to: string; label: string; accent: string; icon: string }[] = [
   { key: "calendar",    to: "/app/calendar",    label: "Today",    accent: YELLOW, icon: "calendar" },
-  { key: "finance",     to: "/app/finance",     label: "Finances", accent: "var(--accent)", icon: "wallet" },
+  { key: "finance",     to: "/app/finance",     label: "Finances", accent: "#5db88a",       icon: "wallet" },
   { key: "notes",       to: "/app/notes",       label: "Notes",    accent: BLUE,   icon: "check"  },
   { key: "chores",      to: "/app/chores",      label: "Chores",   accent: PINK,   icon: "sparkles" },
   { key: "food",        to: "/app/food",        label: "Meals",    accent: LAV,    icon: "book" },

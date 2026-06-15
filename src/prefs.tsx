@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "./firebase";
-import { useHouseholdUid } from "./household";
+import { useAuth } from "./auth";
+import { applyTheme, type Theme } from "./theme";
 
 export interface AppPrefs {
   accentColor: string;
@@ -10,6 +11,9 @@ export interface AppPrefs {
   disabledQuotes: string[];
   tempUnit: "F" | "C";
   weatherZip: string;
+  appIcon: string; // "" = auto (tradition-based)
+  theme: Theme;
+  gcalEnabledCalendars: string[]; // Google Calendar IDs to show on Today view
 }
 
 export const DEFAULT_PREFS: AppPrefs = {
@@ -19,6 +23,9 @@ export const DEFAULT_PREFS: AppPrefs = {
   disabledQuotes: [],
   tempUnit: "F",
   weatherZip: "",
+  appIcon: "mountain",
+  theme: "dark",
+  gcalEnabledCalendars: [],
 };
 
 const PrefsContext = createContext<{
@@ -35,22 +42,54 @@ function applyAccent(hex: string) {
   document.documentElement.style.setProperty("--accent-rgb", `${r},${g},${b}`);
 }
 
+const CACHE_KEY = (uid: string) => `eq_prefs_${uid}`;
+
+function readCache(uid: string): AppPrefs | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY(uid));
+    return raw ? { ...DEFAULT_PREFS, ...(JSON.parse(raw) as Partial<AppPrefs>) } : null;
+  } catch { return null; }
+}
+
+function writeCache(uid: string, prefs: AppPrefs) {
+  try { localStorage.setItem(CACHE_KEY(uid), JSON.stringify(prefs)); } catch { /* quota */ }
+}
+
 export function PrefsProvider({ children }: { children: ReactNode }) {
-  const uid = useHouseholdUid();
-  const [prefs, setLocal] = useState<AppPrefs>(DEFAULT_PREFS);
+  const user = useAuth();
+
+  // Initialize from localStorage so returning users see their real prefs on frame 1.
+  // applyAccent is called inside the initializer (not in an effect) so the CSS var is
+  // set synchronously — no single-frame wrong-color flash.
+  const [prefs, setLocal] = useState<AppPrefs>(() => {
+    const cached = readCache(user.uid);
+    const initial = cached ?? DEFAULT_PREFS;
+    applyAccent(initial.accentColor);
+    return initial;
+  });
 
   useEffect(() => {
-    return onSnapshot(doc(db, "users", uid, "meta", "prefs"), snap => {
-      if (snap.exists()) setLocal({ ...DEFAULT_PREFS, ...(snap.data() as Partial<AppPrefs>) });
+    // Re-read cache if uid changes after mount (household member switch, etc.)
+    const cached = readCache(user.uid);
+    if (cached) { setLocal(cached); applyAccent(cached.accentColor); }
+
+    return onSnapshot(doc(db, "users", user.uid, "meta", "prefs"), snap => {
+      const data: AppPrefs = snap.exists()
+        ? { ...DEFAULT_PREFS, ...(snap.data() as Partial<AppPrefs>) }
+        : DEFAULT_PREFS;
+      setLocal(data);
+      writeCache(user.uid, data);
     });
-  }, [uid]);
+  }, [user.uid]);
 
   useEffect(() => { applyAccent(prefs.accentColor); }, [prefs.accentColor]);
+  useEffect(() => { applyTheme(prefs.theme); }, [prefs.theme]);
 
   async function updatePrefs(partial: Partial<AppPrefs>) {
     const next = { ...prefs, ...partial };
     setLocal(next);
-    await setDoc(doc(db, "users", uid, "meta", "prefs"), next, { merge: true });
+    writeCache(user.uid, next);
+    await setDoc(doc(db, "users", user.uid, "meta", "prefs"), next, { merge: true });
   }
 
   return <PrefsContext.Provider value={{ prefs, updatePrefs }}>{children}</PrefsContext.Provider>;

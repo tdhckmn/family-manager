@@ -44,13 +44,13 @@ export default function Home() {
             filter: `drop-shadow(0 0 22px ${accent}38)`,
             userSelect: "none",
           }}>
-            <AppIcon size={isMobile ? 52 : 62} color={accent} traditions={prefs.wisdomTraditions} />
+            <AppIcon size={isMobile ? 52 : 62} color={accent} traditions={prefs.wisdomTraditions} appIcon={prefs.appIcon} />
           </div>
           <h1 style={{ fontSize: "clamp(28px, 7vw, 52px)", fontWeight: 800, color: TEXT, letterSpacing: -0.5, margin: 0, lineHeight: 1.1 }}>
             Equanimity
           </h1>
           <p style={{ fontSize: 15, color: TEXT_DIM, marginTop: 12, marginBottom: 0, fontWeight: 500 }}>
-            Finances &amp; focus for a steady mind.
+            Household management &amp; focus for a steady mind.
           </p>
         </div>
 

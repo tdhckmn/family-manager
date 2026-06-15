@@ -18,6 +18,8 @@ import Settings from "./pages/settings/Settings";
 import Subscribe from "./pages/Subscribe";
 import Admin from "./pages/admin/Admin";
 import WisdomLibrary from "./pages/wisdom/WisdomLibrary";
+import Focus from "./pages/focus/Focus";
+import { NoiseProvider } from "./noise";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -30,8 +32,10 @@ function PrivateLayout() {
   return (
     <AuthGate>
       <PrefsProvider>
-        <GlobalHeader />
-        <Outlet />
+        <NoiseProvider>
+          <GlobalHeader />
+          <Outlet />
+        </NoiseProvider>
       </PrefsProvider>
     </AuthGate>
   );
@@ -60,6 +64,7 @@ export default function App() {
         <Route path="subscribe" element={<Subscribe />} />
         <Route path="admin" element={<Admin />} />
         <Route path="wisdom" element={<WisdomLibrary />} />
+        <Route path="focus" element={<Focus />} />
         <Route path="*" element={<Navigate to="/app" replace />} />
       </Route>
 

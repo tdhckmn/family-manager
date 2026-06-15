@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && firebase deploy --only hosting,firestore"
+    "deploy": "npm run build && firebase deploy --only hosting,firestore",
+    "gen-og": "node scripts/gen-og.mjs",
+    "gen-favicons": "node scripts/gen-favicons.mjs"
   },
   "dependencies": {
     "firebase": "^10.14.1",
@@ -16,6 +18,7 @@
     "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.2",
