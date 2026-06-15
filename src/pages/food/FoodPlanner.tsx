@@ -429,10 +429,10 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
       <div style={{ position: "relative", zIndex: 1 }}>
         {/* ── HEADER ── */}
         <div style={{ padding: "14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 4 }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
-            ← Home
+            <Icon name="chevronLeft" size={13} /> Home
           </Link>
           <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
           <ToolNav current="food" />
@@ -621,7 +621,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                     <label style={labelStyle}>Min Rating</label>
                     <select style={selectStyle} value={filterRating} onChange={e => setFilterRating(Number(e.target.value))}>
                       <option value={0}>Any</option>
-                      {[5,4,3,2,1].map(r => <option key={r} value={r}>{r}+ ★</option>)}
+                      {[5,4,3,2,1].map(r => <option key={r} value={r}>{r}+ stars</option>)}
                     </select>
                   </div>
                 </div>

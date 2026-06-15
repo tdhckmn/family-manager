@@ -65,7 +65,7 @@ export default function GCalSection() {
         {header}
         <Link to="/app/settings" style={promptRow}>
           <span style={{ fontSize: 13, color: TEXT_DIM }}>Connect Google Calendar in</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: BLUE }}>Settings →</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: BLUE }}>Settings <Icon name="external" size={13} /></span>
         </Link>
       </div>
     );
@@ -77,7 +77,7 @@ export default function GCalSection() {
         {header}
         <Link to="/app/settings" style={promptRow}>
           <span style={{ fontSize: 13, color: TEXT_DIM }}>Choose calendars to show in</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: BLUE }}>Settings →</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: BLUE }}>Settings <Icon name="external" size={13} /></span>
         </Link>
       </div>
     );

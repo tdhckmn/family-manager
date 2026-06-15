@@ -90,7 +90,7 @@ export default function ToolNav({ current }: { current: ToolKey }) {
                     }}>
                     <Icon name={t.icon as import("./Icon").IconName} size={20} color={active ? t.accent : TEXT_DIM} />
                     <span style={{ flex: 1, fontSize: 15, fontWeight: 700, color: active ? t.accent : TEXT }}>{t.label}</span>
-                    {active && <span style={{ fontSize: 12, fontWeight: 700, color: t.accent }}>●</span>}
+                    {active && <span style={{ width: 5, height: 5, borderRadius: "50%", background: t.accent, display: "inline-block", flexShrink: 0 }} />}
                   </button>
                 );
               })}

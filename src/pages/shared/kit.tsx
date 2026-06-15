@@ -6,7 +6,9 @@ import { useState, useEffect, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import StarField from "../../components/StarField";
 import ToolNav, { type ToolKey } from "../../components/ToolNav";
+import GlobalHeader from "../../components/GlobalHeader";
 import { WisdomCard, useDailyQuote } from "../../components/Wisdom";
+import { Icon } from "../../components/Icon";
 import { usePrefs } from "../../prefs";
 
 // ── Palette ─────────────────────────────────────────────────────────────────
@@ -151,16 +153,22 @@ export function PageShell({ tool, maxWidth = 900, children, headerExtra }: {
     <div style={{ background: BG, minHeight: "100vh", fontFamily: FONT, color: TEXT, position: "relative" }}>
       <StarField />
       <div style={{ position: "relative", zIndex: 1 }}>
-        {/* Right padding reserves room for the fixed global settings gear (top-right). */}
-        <div style={{ padding: "14px 62px 14px 20px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, rowGap: 10, flexWrap: "wrap", boxSizing: "border-box" }}>
-          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+        <div style={{
+          position: "sticky", top: 0, zIndex: 100,
+          background: "var(--panel)", backdropFilter: "blur(14px)",
+          borderBottom: `1px solid ${BORDER}`,
+          display: "flex", alignItems: "center", gap: 12, rowGap: 10, flexWrap: "wrap",
+          padding: "14px 20px", minHeight: 60, boxSizing: "border-box",
+        }}>
+          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 4 }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
-            ← Home
+            <Icon name="chevronLeft" size={13} /> Home
           </Link>
           <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
           <div style={{ minWidth: 0, flex: "1 1 auto" }}><ToolNav current={tool} /></div>
           {headerExtra && <div style={{ flexShrink: 0 }}>{headerExtra}</div>}
+          <div style={{ flexShrink: 0, marginLeft: "auto" }}><GlobalHeader inline /></div>
         </div>
         <div style={{ maxWidth, margin: "0 auto", width: "100%", padding: "24px 20px 80px", boxSizing: "border-box" }}>
           {showWisdom && (

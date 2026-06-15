@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { auth, googleProvider } from "../firebase";
 import StarField from "../components/StarField";
 import EquanimityScene from "../components/EquanimityScene";
+import { Icon, type IconName } from "../components/Icon";
 
 const BG = "#06091a";
 const TEXT = "#dedad0";
@@ -18,13 +19,13 @@ const BLUE = "#5b8fd4";
 const PINK = "#d47b8f";
 const TEAL = "#4db6ac";
 
-const FEATURES = [
-  { icon: "💰", label: "Budget Planning", desc: "50/30/20 rule · Sinking funds · Monthly goals", color: JADE },
-  { icon: "🍽️", label: "Meal Planner", desc: "Weekly meals · Recipe library · Grocery lists", color: ORANGE },
-  { icon: "✅", label: "Todos", desc: "Shared task list · Markdown notes · Due dates", color: BLUE },
-  { icon: "🔧", label: "Home Maintenance", desc: "Track upkeep · Overdue alerts · Never forget", color: PURPLE },
-  { icon: "🧹", label: "Chore Board", desc: "Assign chores · Weekly schedule · Check off", color: PINK },
-  { icon: "📅", label: "Family Calendar", desc: "Daily overview · Meals · Tasks · Chores unified", color: TEAL },
+const FEATURES: { icon: IconName; label: string; desc: string; color: string }[] = [
+  { icon: "wallet", label: "Budget Planning", desc: "50/30/20 rule · Sinking funds · Monthly goals", color: JADE },
+  { icon: "utensils", label: "Meal Planner", desc: "Weekly meals · Recipe library · Grocery lists", color: ORANGE },
+  { icon: "check", label: "Todos", desc: "Shared task list · Markdown notes · Due dates", color: BLUE },
+  { icon: "wrench", label: "Home Maintenance", desc: "Track upkeep · Overdue alerts · Never forget", color: PURPLE },
+  { icon: "sparkles", label: "Chore Board", desc: "Assign chores · Weekly schedule · Check off", color: PINK },
+  { icon: "calendar", label: "Family Calendar", desc: "Daily overview · Meals · Tasks · Chores unified", color: TEAL },
 ];
 
 export default function Landing() {
@@ -120,7 +121,7 @@ export default function Landing() {
               "Private — your data stays yours",
             ].map(item => (
               <li key={item} style={{ fontSize: 14, color: TEXT_DIM, padding: "5px 0", display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ color: JADE, fontSize: 16 }}>✓</span> {item}
+                <Icon name="checkMark" size={16} color={JADE} /> {item}
               </li>
             ))}
           </ul>
@@ -138,7 +139,7 @@ export default function Landing() {
       {/* Kiosk callout */}
       <section style={{ position: "relative", zIndex: 5, maxWidth: 700, margin: "0 auto 80px", padding: "0 24px", textAlign: "center" }}>
         <div style={{ background: "rgba(93,184,138,0.06)", border: `1px solid ${JADE}33`, borderRadius: 20, padding: "32px 40px" }}>
-          <div style={{ fontSize: 28, marginBottom: 12 }}>📺</div>
+          <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}><Icon name="tv" size={28} color={JADE} /></div>
           <h3 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 10px" }}>Works as a wall display</h3>
           <p style={{ fontSize: 14, color: TEXT_DIM, margin: 0, lineHeight: 1.6 }}>
             Mount a tablet on your wall and open Equanimity's kiosk mode — a full-screen daily view of meals, chores, and reminders. Like Skylight, but without the $100 hardware or $10/month software fee.
@@ -154,7 +155,7 @@ export default function Landing() {
   );
 }
 
-function FeatureCard({ icon, label, desc, color }: { icon: string; label: string; desc: string; color: string }) {
+function FeatureCard({ icon, label, desc, color }: { icon: IconName; label: string; desc: string; color: string }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div
@@ -162,7 +163,7 @@ function FeatureCard({ icon, label, desc, color }: { icon: string; label: string
       onMouseLeave={() => setHovered(false)}
       style={{ background: hovered ? SURFACE_HOVER : SURFACE, border: `1px solid ${hovered ? color + "44" : BORDER}`, borderRadius: 16, padding: "22px 24px", transition: "all 0.2s", cursor: "default" }}
     >
-      <div style={{ fontSize: 26, marginBottom: 10 }}>{icon}</div>
+      <div style={{ marginBottom: 10 }}><Icon name={icon} size={26} color={color} /></div>
       <div style={{ fontSize: 15, fontWeight: 800, color: hovered ? color : TEXT, marginBottom: 6, transition: "color 0.2s" }}>{label}</div>
       <div style={{ fontSize: 12, color: TEXT_DIM, lineHeight: 1.5 }}>
         {desc.split(" · ").map((s, i, arr) => (

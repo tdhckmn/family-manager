@@ -4,6 +4,7 @@ import { collection, onSnapshot, doc, updateDoc, getDocs, query, orderBy } from 
 import { db } from "../../firebase";
 import { useAuth } from "../../auth";
 import StarField from "../../components/StarField";
+import { Icon } from "../../components/Icon";
 
 const OWNER_EMAIL = "thomasdhickman@gmail.com";
 
@@ -91,7 +92,7 @@ export default function Admin() {
       <div style={{ position: "relative", zIndex: 5, maxWidth: 900, margin: "0 auto" }}>
 
         <div style={{ marginBottom: 28, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Link to="/app" style={{ color: TEXT_DIM, fontSize: 12, textDecoration: "none", fontWeight: 600 }}>← Back to home</Link>
+          <Link to="/app" style={{ color: TEXT_DIM, fontSize: 12, textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name="chevronLeft" size={13} /> Back to home</Link>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: AMBER }}>Admin Panel</div>
         </div>
 
@@ -152,7 +153,7 @@ export default function Admin() {
                   {subDoc.override?.active ? (
                     <>
                       <div style={{ fontSize: 13, color: JADE, marginBottom: 12 }}>
-                        ✓ Override active — reason: <strong>{subDoc.override.reason ?? "—"}</strong>
+                        <Icon name="checkMark" size={13} /> Override active — reason: <strong>{subDoc.override.reason ?? "—"}</strong>
                       </div>
                       <button
                         onClick={revokeOverride}

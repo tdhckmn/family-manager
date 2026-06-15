@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { usePrefs } from "../prefs";
 import { useOverlay } from "../overlay";
+import { Icon as UIIcon } from "./Icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -521,6 +522,18 @@ export const WISDOM: Quote[] = [
   { text: "Make the best use of what is in your power, and take the rest as it happens.", author: "Epictetus", tradition: "Stoic" },
   { text: "Loss is nothing else but change, and change is Nature's delight.", author: "Marcus Aurelius", tradition: "Stoic" },
   { text: "It's not what happens to you, but how you react to it that matters.", author: "Epictetus", tradition: "Stoic" },
+  { text: "We suffer more often in imagination than in reality. True happiness is to enjoy the present.", author: "Seneca", tradition: "Stoic" },
+  { text: "Identify and separate matters so that you can say clearly which are externals and which are choices you control.", author: "Epictetus", tradition: "Stoic" },
+  { text: "Those who fear death or external events will never do anything worthy of a free person.", author: "Seneca", tradition: "Stoic" },
+  { text: "If it is not right do not do it; if it is not true do not say it.", author: "Marcus Aurelius", tradition: "Stoic" },
+  { text: "Difficulty strengthens the mind, as labor does the body.", author: "Seneca", tradition: "Stoic" },
+  { text: "Control thy passions lest they take vengeance on thee.", author: "Epictetus", tradition: "Stoic" },
+  { text: "The best revenge is to be unlike the one who performed the injury.", author: "Marcus Aurelius", tradition: "Stoic" },
+  { text: "Associate with people who are likely to improve you.", author: "Seneca", tradition: "Stoic" },
+  { text: "We have two ears and one mouth so that we can listen twice as much as we speak.", author: "Zeno of Citium", tradition: "Stoic" },
+  { text: "It is not because things are difficult that we do not dare; it is because we do not dare that they are difficult.", author: "Seneca", tradition: "Stoic" },
+  { text: "Only the educated and the self-disciplined are truly free.", author: "Epictetus", tradition: "Stoic" },
+  { text: "A gem cannot be polished without friction, nor anyone perfected without trials.", author: "Seneca", tradition: "Stoic" },
 
   // ── Taoist ────────────────────────────────────────────────────────────────
   { text: "Nature does not hurry, yet everything is accomplished.", author: "Lao Tzu", tradition: "Taoist" },
@@ -543,6 +556,19 @@ export const WISDOM: Quote[] = [
   { text: "Return is the movement of the Tao. Yielding is the way of the Tao.", author: "Lao Tzu", tradition: "Taoist" },
   { text: "Water is soft and yielding, yet it wears away the hardest stone.", author: "Lao Tzu", tradition: "Taoist" },
   { text: "The Tao that can be told is not the eternal Tao.", author: "Lao Tzu", tradition: "Taoist" },
+  { text: "Flow with whatever may happen, and let your mind be free: Stay centered by accepting what you do.", author: "Chuang Tzu", tradition: "Taoist" },
+  { text: "To accept being trapped is to be a servant. To live naturally, moving when it is time to move and resting when it is time to rest, is to be free.", author: "Lieh Tzu", tradition: "Taoist" },
+  { text: "When you are content to be simply yourself and don't compare or compete, everyone will respect you.", author: "Lao Tzu", tradition: "Taoist" },
+  { text: "Knowing others is intelligence; knowing yourself is true wisdom.", author: "Lao Tzu", tradition: "Taoist" },
+  { text: "Those who follow the natural order flow with the current.", author: "Wenzi", tradition: "Taoist" },
+  { text: "Great acts are made up of small deeds.", author: "Lao Tzu", tradition: "Taoist" },
+  { text: "If you realize that all things change, there is nothing you will try to hold on to.", author: "Lao Tzu", tradition: "Taoist" },
+  { text: "Care about what other people think and you will always be their prisoner.", author: "Lao Tzu", tradition: "Taoist" },
+  { text: "Perfect peace and freedom lie in the rejection of artificiality.", author: "Chuang Tzu", tradition: "Taoist" },
+  { text: "To know when you have enough is to be rich.", author: "Lao Tzu", tradition: "Taoist" },
+  { text: "Be content with what you have; rejoice in the way things are.", author: "Lao Tzu", tradition: "Taoist" },
+  { text: "The softest things in the world overcome the hardest things in the world.", author: "Lao Tzu", tradition: "Taoist" },
+  { text: "The Tao is a vessel that is empty, yet use will not drain it. It is like the deep ancestor of all things.", author: "Lao Tzu", tradition: "Taoist" },
 
   // ── Islam ─────────────────────────────────────────────────────────────────
   { text: "The best of people are those who bring the most benefit to others.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
@@ -656,7 +682,6 @@ export const WISDOM: Quote[] = [
   { text: "Hold faithfulness and sincerity as first principles.", author: "Confucius, Analects 1:8", tradition: "Confucian" },
   { text: "One of virtue, wishing to be established, seeks also to establish others.", author: "Confucius, Analects 6:28", tradition: "Confucian" },
   { text: "I daily examine myself on three points: whether in transacting business for others I may have been unfaithful; whether in intercourse with friends I may have been insincere; whether I may have failed to master and practice my teacher's instructions.", author: "Confucius, Analects 1:4", tradition: "Confucian" },
-  { text: "The gem cannot be polished without friction, nor anyone perfected without trials.", author: "Chinese proverb", tradition: "Confucian" },
 
   // ── Sikh ──────────────────────────────────────────────────────────────────
   { text: "Speak only that which will bring you honor.", author: "Guru Nanak", tradition: "Sikh" },
@@ -711,8 +736,9 @@ export const WISDOM: Quote[] = [
 
 export function getDayOfYear(): number {
   const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  return Math.floor((now.getTime() - start.getTime()) / 86_400_000);
+  // Use local month/day to avoid UTC-offset drift and DST ±1h errors.
+  const start = new Date(now.getFullYear(), 0, 1);
+  return Math.round((now.getTime() - start.getTime()) / 86_400_000) + 1;
 }
 
 export function quoteKey(q: Quote): string {
@@ -751,7 +777,8 @@ const DAILY_CACHE_KEY = "eq_daily_quote";
  */
 export function useDailyQuote(): Quote {
   const { prefs } = usePrefs();
-  const today = new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   const quote = useMemo((): Quote => {
     try {
@@ -913,7 +940,7 @@ export function WisdomCard({ quote, compact = false, noLink = false }: { quote: 
                 borderRadius: narrow ? 20 : 0,
                 color: DARK_TEXT, fontSize: 18, cursor: "pointer",
                 lineHeight: 1, padding: narrow ? "8px 12px" : "4px 8px",
-              }}>✕</button>
+              }}><UIIcon name="x" size={16} /></button>
 
             <div style={{ position: "relative" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
@@ -945,7 +972,7 @@ export function WisdomCard({ quote, compact = false, noLink = false }: { quote: 
                   cursor: "pointer", fontWeight: 700, fontSize: 13,
                   color: inLibrary ? color : DARK_DIM, transition: "all 0.15s",
                 }}>
-                <span style={{ fontSize: 14, lineHeight: 1 }}>{inLibrary ? "★" : "☆"}</span>
+                <UIIcon name="star" size={14} color={inLibrary ? color : DARK_DIM} style={{ fill: inLibrary ? color : "none" }} />
                 {inLibrary ? "In library" : "Add to library"}
               </button>
               <Link
@@ -958,7 +985,7 @@ export function WisdomCard({ quote, compact = false, noLink = false }: { quote: 
                   padding: "7px 14px",
                   border: `1px solid ${DARK_BDR}`, borderRadius: 20,
                 }}>
-                Library ↗
+                Library <UIIcon name="external" size={13} />
               </Link>
             </div>
           </div>
@@ -1007,7 +1034,7 @@ export function TraditionCard({ meta, active, onToggle }: {
           background: meta.color,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <span style={{ color: "#08101f", fontSize: 9, fontWeight: 900, lineHeight: 1 }}>✓</span>
+          <UIIcon name="checkMark" size={9} />
         </div>
       )}
       <meta.Icon size={26} color={show ? meta.color : "var(--text-muted)"} />

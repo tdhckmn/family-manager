@@ -120,7 +120,7 @@ function NavCard({ to, icon, label, desc, accent, isMobile }: {
             ))}
           </div>
         </div>
-        <div style={{ marginLeft: "auto", fontSize: 14, color: TEXT_DIM, opacity: hovered ? 0.7 : 0.2, transition: "opacity 0.2s", flexShrink: 0 }}>→</div>
+        <Icon name="chevronRight" size={14} style={{ marginLeft: "auto", opacity: hovered ? 0.7 : 0.2, transition: "opacity 0.2s", flexShrink: 0 }} />
       </div>
     </Link>
   );

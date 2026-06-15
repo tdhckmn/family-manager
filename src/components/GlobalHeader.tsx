@@ -15,9 +15,11 @@ const TEXT      = "var(--text)";
 const TEXT_DIM  = "var(--text-dim)";
 const DANGER    = "#c0566a";
 
-// Pages that render their own integrated gear, or are themselves a settings surface —
-// suppress the global gear there.
-const PAGES_WITH_OWN_GEAR = ["/app/finance", "/app/settings"];
+// Pages that render their own integrated gear, or embed GlobalHeader inline via PageShell.
+const PAGES_WITH_OWN_GEAR = [
+  "/app/finance", "/app/settings",
+  "/app/chores", "/app/calendar", "/app/focus", "/app/wisdom", "/app/maintenance",
+];
 
 /** Avatar + Google name/email block, shared across settings menus. */
 export function UserProfile({ user }: { user: User | null }) {
@@ -43,7 +45,7 @@ export function UserProfile({ user }: { user: User | null }) {
   );
 }
 
-export default function GlobalHeader() {
+export default function GlobalHeader({ inline = false }: { inline?: boolean }) {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [mdOpen, setMdOpen] = useState(false);
@@ -70,7 +72,7 @@ export default function GlobalHeader() {
   }, [open]);
 
   // Finance (and any future page) manages its own gear
-  if (PAGES_WITH_OWN_GEAR.includes(location.pathname)) return null;
+  if (!inline && PAGES_WITH_OWN_GEAR.includes(location.pathname)) return null;
   // A full-screen detail viewer is open — it has its own header controls.
   if (overlayOpen) return null;
 
@@ -82,7 +84,10 @@ export default function GlobalHeader() {
   return (
     <div
       ref={ref}
-      style={{
+      style={inline ? {
+        position: "relative",
+        fontFamily: "'Montserrat', sans-serif",
+      } : {
         position: "fixed",
         top: 14,
         right: 16,
@@ -251,7 +256,7 @@ export default function GlobalHeader() {
                   fontFamily: "'Montserrat', sans-serif", transition: "all 0.15s",
                 }}
               >
-                <span style={{ fontSize: 9 }}>{on ? "■" : "▶"}</span>
+                {on ? <Icon name="stop" size={10} /> : <Icon name="play" size={10} />}
                 {on ? "On" : "Off"}
               </button>
             </div>

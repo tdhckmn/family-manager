@@ -6,6 +6,7 @@ import { doc, updateDoc } from "firebase/firestore";
 import { useAuth } from "../auth";
 import { useHousehold, daysLeft, subIsActive } from "../household";
 import StarField from "../components/StarField";
+import { Icon } from "../components/Icon";
 
 const BG = "#06091a";
 const TEXT = "#dedad0";
@@ -35,7 +36,7 @@ export default function Subscribe() {
 
   // If they somehow land here with an active sub, send them home
   if (subIsActive(household.subStatus)) {
-    return <Link to="/app" style={{ color: JADE }}>Go to dashboard →</Link>;
+    return <Link to="/app" style={{ color: JADE, display: "inline-flex", alignItems: "center", gap: 4 }}>Go to dashboard <Icon name="chevronRight" size={13} /></Link>;
   }
 
   return (
@@ -65,7 +66,7 @@ export default function Subscribe() {
               "Your data stays private",
             ].map(item => (
               <li key={item} style={{ fontSize: 13, color: TEXT_DIM, padding: "5px 0", display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ color: JADE }}>✓</span> {item}
+                <Icon name="checkMark" size={13} color={JADE} /> {item}
               </li>
             ))}
           </ul>
@@ -75,7 +76,7 @@ export default function Subscribe() {
               href={`${STRIPE_LINK}?prefilled_email=${encodeURIComponent(user.email ?? "")}`}
               style={{ display: "block", background: JADE, border: "none", borderRadius: 12, color: "#0a1a12", fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 15, padding: "14px", cursor: "pointer", textDecoration: "none", marginBottom: 10 }}
             >
-              Subscribe with Stripe →
+              Subscribe with Stripe <Icon name="chevronRight" size={15} />
             </a>
           ) : (
             <div style={{ background: `${AMBER}15`, border: `1px solid ${AMBER}44`, borderRadius: 12, padding: "14px 16px", marginBottom: 10, textAlign: "left" }}>

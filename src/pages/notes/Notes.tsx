@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import ToolNav from "../../components/ToolNav";
+import { Icon } from "../../components/Icon";
 import { useHouseholdUid } from "../../household";
 import ReactMarkdown from "react-markdown";
 import {
@@ -231,10 +232,10 @@ export default function Notes() {
 
           {/* Header bar — right padding reserves room for the fixed global gear (top-right) */}
           <div style={{ padding: "14px 62px 14px 16px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-            <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+            <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 4 }}
               onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
               onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
-              ← Home
+              <Icon name="chevronLeft" size={13} /> Home
             </Link>
             <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
             <ToolNav current="notes" />
@@ -268,7 +269,7 @@ export default function Notes() {
                   />
                   <button onClick={addNote} style={{ ...btnStyle(JADE), padding: "7px 16px", fontSize: 13 }}>Add</button>
                   <button onClick={() => { setShowAdd(false); setAddingTitle(""); }}
-                    style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "7px 8px", fontSize: 16, lineHeight: 1 }}>✕</button>
+                    style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "7px 8px", fontSize: 16, lineHeight: 1, display: "flex", alignItems: "center" }}><Icon name="x" size={14} /></button>
                 </div>
               )}
 
@@ -319,7 +320,7 @@ export default function Notes() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                 <button onClick={backToList}
                   style={{ ...btnStyle("transparent"), color: TEXT_DIM, fontSize: 13, fontWeight: 600, padding: "8px 0", display: "flex", alignItems: "center", gap: 6 }}>
-                  ← Back
+                  <Icon name="chevronLeft" size={13} /> Back
                 </button>
                 {/* Action buttons in detail header */}
                 <div style={{ display: "flex", gap: 8 }}>
@@ -334,7 +335,7 @@ export default function Notes() {
                       {confirmDelete ? (
                         <>
                           <button onClick={deleteNote} style={{ ...btnStyle(DANGER), fontSize: 13, padding: "8px 14px" }}>Delete</button>
-                          <button onClick={() => setConfirmDelete(false)} style={{ ...btnStyle("transparent"), color: TEXT_DIM, border: `1px solid ${BORDER}`, fontSize: 13, padding: "8px 12px" }}>✕</button>
+                          <button onClick={() => setConfirmDelete(false)} style={{ ...btnStyle("transparent"), color: TEXT_DIM, border: `1px solid ${BORDER}`, fontSize: 13, padding: "8px 12px", display: "flex", alignItems: "center" }}><Icon name="x" size={14} /></button>
                         </>
                       ) : (
                         <button onClick={() => setConfirmDelete(true)} style={{ ...btnStyle("transparent"), color: TEXT_MUTED, border: `1px solid transparent`, fontSize: 13, padding: "8px 12px" }}>Delete</button>
@@ -401,10 +402,10 @@ export default function Notes() {
 
         {/* Header bar — right padding reserves room for the fixed global gear (top-right) */}
         <div style={{ padding: "14px 62px 14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 4 }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
-            ← Home
+            <Icon name="chevronLeft" size={13} /> Home
           </Link>
           <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
           <ToolNav current="notes" />
@@ -438,7 +439,7 @@ export default function Notes() {
                   style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 14, fontFamily: "'Montserrat', sans-serif" }}
                 />
                 <button onClick={addNote} style={{ ...btnStyle(JADE), padding: "4px 12px", fontSize: 12 }}>Add</button>
-                <button onClick={() => { setShowAdd(false); setAddingTitle(""); }} style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "4px 8px", fontSize: 12 }}>✕</button>
+                <button onClick={() => { setShowAdd(false); setAddingTitle(""); }} style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "4px 8px", fontSize: 12, display: "flex", alignItems: "center" }}><Icon name="x" size={14} /></button>
               </div>
             )}
 
@@ -540,7 +541,7 @@ function NoteItem({ note, selected, onSelect, onToggle }: {
         <button
           onClick={e => { e.stopPropagation(); onToggle?.(); }}
           style={{ flexShrink: 0, width: 18, height: 18, marginTop: 1, borderRadius: 5, border: `1.5px solid ${note.completed ? JADE : "var(--border-hi)"}`, background: note.completed ? JADE : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", padding: 0 }}>
-          {note.completed && <span style={{ color: "#06091a", fontSize: 11, lineHeight: 1, fontWeight: 700 }}>✓</span>}
+          {note.completed && <Icon name="checkMark" size={11} />}
         </button>
       )}
       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
@@ -570,7 +571,7 @@ function MobileNoteItem({ note, onSelect, onToggle }: {
         <button
           onClick={e => { e.stopPropagation(); onToggle?.(); }}
           style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 7, border: `2px solid ${note.completed ? JADE : "var(--border-hi)"}`, background: note.completed ? JADE : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
-          {note.completed && <span style={{ color: "#06091a", fontSize: 14, lineHeight: 1, fontWeight: 700 }}>✓</span>}
+          {note.completed && <Icon name="checkMark" size={14} />}
         </button>
       )}
 
@@ -649,7 +650,7 @@ function DetailPanel({
               {confirmDelete ? (
                 <>
                   <button onClick={onDeleteConfirm} style={{ ...btnStyle(DANGER), fontSize: 12, padding: "5px 12px" }}>Confirm</button>
-                  <button onClick={onDeleteCancel} style={{ ...btnStyle("transparent"), color: TEXT_DIM, border: `1px solid ${BORDER}`, fontSize: 12, padding: "5px 10px" }}>✕</button>
+                  <button onClick={onDeleteCancel} style={{ ...btnStyle("transparent"), color: TEXT_DIM, border: `1px solid ${BORDER}`, fontSize: 12, padding: "5px 10px", display: "flex", alignItems: "center" }}><Icon name="x" size={14} /></button>
                 </>
               ) : (
                 <button onClick={onDeleteRequest} style={{ ...btnStyle("transparent"), color: TEXT_MUTED, border: `1px solid transparent`, fontSize: 12, padding: "5px 10px", transition: "all 0.15s" }}

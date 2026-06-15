@@ -253,7 +253,7 @@ export default function Chores() {
                           onMouseEnter={e => { if (!checked) (e.currentTarget as HTMLButtonElement).style.background = SURFACE_HI; }}
                           onMouseLeave={e => { if (!checked) (e.currentTarget as HTMLButtonElement).style.background = "var(--surface)"; }}>
                           <span style={{ flexShrink: 0, width: 16, height: 16, marginTop: 1, borderRadius: 4, border: `1.5px solid ${checked ? JADE : "var(--border-hi)"}`, background: checked ? JADE : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            {checked && <span style={{ color: BG, fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+                            {checked && <Icon name="checkMark" size={10} />}
                           </span>
                           <span style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none", lineHeight: 1.35 }}>{c.name}</span>
@@ -455,7 +455,7 @@ function ChoreDetail({ chore, log, weekStart, todayIdx, assignees, people, onClo
                 <button key={dayIdx} onClick={() => onToggle(dayIdx)}
                   style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, cursor: "pointer", fontFamily: FONT, background: checked ? "rgba(93,184,138,0.08)" : SURFACE, border: `1px solid ${checked ? JADE + "40" : isToday ? JADE + "44" : BORDER}`, transition: "all 0.12s", textAlign: "left" }}>
                   <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, border: `2px solid ${checked ? JADE : "var(--border-hi)"}`, background: checked ? JADE : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {checked && <span style={{ color: BG, fontSize: 12, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                    {checked && <Icon name="checkMark" size={12} />}
                   </span>
                   <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>
                     {DAY_NAMES[dayIdx]}

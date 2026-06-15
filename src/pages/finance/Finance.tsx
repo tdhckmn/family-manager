@@ -115,10 +115,10 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, gap: 12, flexWrap: "wrap", rowGap: 10, boxSizing: "border-box" }}>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-        <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
+        <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 4 }}
           onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
           onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
-          ← Home
+          <Icon name="chevronLeft" size={13} /> Home
         </Link>
         <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
         <ToolNav current="finance" />
@@ -405,7 +405,7 @@ function MonthlyGoalsCard({ plan, save, monthKey, monthLabel }: {
           <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 10, background: "var(--surface)", border: `1px solid ${BORDER}` }}>
             <button onClick={() => toggle(g.id)}
               style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${g.completed ? JADE : "var(--border-hi)"}`, background: g.completed ? JADE : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
-              {g.completed && <span style={{ color: INK, fontSize: 11, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+              {g.completed && <Icon name="checkMark" size={11} />}
             </button>
             {editId === g.id ? (
               <input autoFocus value={editText} onChange={e => setEditText(e.target.value)}

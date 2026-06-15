@@ -4,9 +4,11 @@
 export type IconName =
   | "home" | "wallet" | "check" | "chart" | "calendar" | "list"
   | "shield" | "bag" | "flow" | "bank" | "droplet" | "card"
-  | "gear" | "chevronDown" | "external" | "plus" | "signout" | "book"
+  | "gear" | "chevronDown" | "chevronLeft" | "chevronRight" | "chevronUp"
+  | "external" | "plus" | "signout" | "book"
   | "utensils" | "star" | "clock" | "pencil" | "x"
   | "wrench" | "sparkles" | "repeat" | "trash" | "target"
+  | "play" | "stop" | "warning" | "checkMark" | "tv"
   | "sun" | "moon" | "cloud" | "cloudSun" | "cloudRain" | "cloudSnow" | "cloudLightning" | "cloudFog";
 
 export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.8, style }: {
@@ -50,6 +52,12 @@ export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.
       return <svg {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
     case "chevronDown":
       return <svg {...p}><path d="m6 9 6 6 6-6" /></svg>;
+    case "chevronLeft":
+      return <svg {...p}><path d="m15 18-6-6 6-6" /></svg>;
+    case "chevronRight":
+      return <svg {...p}><path d="m9 18 6-6-6-6" /></svg>;
+    case "chevronUp":
+      return <svg {...p}><path d="m18 15-6-6-6 6" /></svg>;
     case "external":
       return <svg {...p}><path d="M14 4h6v6" /><path d="M20 4 11 13" /><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5" /></svg>;
     case "plus":
@@ -94,5 +102,15 @@ export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.
       return <svg {...p}><path d="M7 15a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 15z" /><path d="M12 13l-2 4h3l-2 4" /></svg>;
     case "cloudFog":
       return <svg {...p}><path d="M7 13a4 4 0 0 1-.5-7.97 5.5 5.5 0 0 1 10.6 1.02A3.5 3.5 0 0 1 17 13z" /><path d="M6 17h12" /><path d="M8 21h10" /></svg>;
+    case "play":
+      return <svg {...p}><polygon points="5 3 19 12 5 21 5 3" /></svg>;
+    case "stop":
+      return <svg {...p}><rect x="4" y="4" width="16" height="16" rx="2" /></svg>;
+    case "warning":
+      return <svg {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>;
+    case "checkMark":
+      return <svg {...p}><polyline points="20 6 9 17 4 12" /></svg>;
+    case "tv":
+      return <svg {...p}><rect x="2" y="7" width="20" height="15" rx="2" /><polyline points="17 2 12 7 7 2" /></svg>;
   }
 }

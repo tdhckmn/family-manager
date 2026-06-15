@@ -76,37 +76,38 @@ export function NoiseProvider({ children }: { children: ReactNode }) {
     return actxRef.current;
   }
 
-  function startSource(type: NoiseType) {
+  async function startSource(type: NoiseType) {
     const c = getCtx();
-    c.resume();
+    await c.resume();
+    const buf = buildNoiseBuffer(c, type);
     const src = c.createBufferSource();
-    src.buffer = buildNoiseBuffer(c, type);
+    src.buffer = buf;
     src.loop = true;
     src.connect(gainRef.current!);
     src.start();
     sourceRef.current = src;
   }
 
-  function toggle() {
+  async function toggle() {
     if (on) {
       // silence — keep source running for instant resume
       if (gainRef.current) gainRef.current.gain.value = 0;
       setOn(false);
     } else {
-      if (!sourceRef.current) startSource(typeRef.current);
+      const c = getCtx();
+      await c.resume();
+      if (!sourceRef.current) await startSource(typeRef.current);
       if (gainRef.current) gainRef.current.gain.value = volRef.current;
-      getCtx().resume();
       setOn(true);
     }
   }
 
-  function changeType(t: NoiseType) {
+  async function changeType(t: NoiseType) {
     setType(t);
     if (on) {
-      // swap source buffer while playing
       try { sourceRef.current?.stop(); } catch { /* already stopped */ }
       sourceRef.current = null;
-      startSource(t);
+      await startSource(t);
       if (gainRef.current) gainRef.current.gain.value = volRef.current;
     }
   }
