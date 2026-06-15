@@ -7,7 +7,7 @@ import { db } from "../../firebase";
 import { useHouseholdUid } from "../../household";
 import { usePeople, personColor } from "../../usePeople";
 import { Icon, type IconName } from "../../components/Icon";
-import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import { WisdomCard, useDailyQuote, type Quote } from "../../components/Wisdom";
 import { usePrefs } from "../../prefs";
 import {
   PageShell, Pill, useIsMobile,
@@ -96,7 +96,7 @@ export default function Calendar() {
 
   const today = useMemo(() => new Date(), []);
   const showWisdom = prefs.wisdomPages.includes("calendar");
-  const quote = useMemo(() => quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes), [prefs.wisdomTraditions, prefs.disabledQuotes]);
+  const quote = useDailyQuote();
   const todayIdx = today.getDay();
   const wk = weekKey(today);
 
@@ -451,7 +451,7 @@ interface KioskProps {
   nothingToday: boolean;
   weather: WeatherData | null; unit: Unit;
   people: ReturnType<typeof usePeople>;
-  quote: ReturnType<typeof quoteOfDay>;
+  quote: Quote;
   showWisdom: boolean;
 }
 

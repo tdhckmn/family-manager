@@ -1,29 +1,49 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
-import StarField from "../../components/StarField";
 import {
-  WISDOM, TRADITION_META, TRADITION_ORDER, WisdomCard, quoteOfDay, AppIcon,
+  WISDOM, TRADITION_META, TRADITION_ORDER, WisdomCard, useDailyQuote, quoteKey,
+  isQuoteInLibrary, AppIcon,
   type TraditionId, type TraditionMeta, type Quote,
 } from "../../components/Wisdom";
 import { usePrefs } from "../../prefs";
 import {
-  BG, BORDER, BORDER_HI, TEXT, TEXT_DIM, TEXT_MUTED, FONT, JADE,
+  PageShell, BORDER, BORDER_HI, TEXT, TEXT_DIM, TEXT_MUTED, FONT, JADE,
 } from "../shared/kit";
 
-type SortKey = "tradition" | "author" | "text";
-
-function quoteKey(q: Quote): string {
-  return `${q.tradition}:${q.text.slice(0, 40)}`;
-}
+// Static totals per tradition (WISDOM never changes)
+const TRAD_TOTALS: Record<string, number> = Object.fromEntries(
+  TRADITION_ORDER.map(id => [id, WISDOM.filter(q => q.tradition === id).length])
+);
 
 export default function WisdomLibrary() {
   const { prefs, updatePrefs } = usePrefs();
   const [filter, setFilter] = useState<TraditionId | "all">("all");
-  const [sort, setSort] = useState<SortKey>("tradition");
   const [search, setSearch] = useState("");
   const [ponderIdx, setPonderIdx] = useState<number | null>(null);
 
-  const disabled = useMemo(() => new Set(prefs.disabledQuotes ?? []), [prefs.disabledQuotes]);
+  // Effective library count (accounting for all three states)
+  const libraryCount = useMemo(
+    () => WISDOM.filter(q => isQuoteInLibrary(q, prefs)).length,
+    [prefs]
+  );
+
+  // Per-tradition active count
+  const tradCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const id of TRADITION_ORDER) {
+      m[id] = WISDOM.filter(q => q.tradition === id && isQuoteInLibrary(q, prefs)).length;
+    }
+    return m;
+  }, [prefs]);
+
+  // Traditions sorted by selection percentage descending
+  const sortedTraditions = useMemo(() =>
+    [...TRADITION_ORDER].sort((a, b) => {
+      const aPct = (tradCounts[a] ?? 0) / (TRAD_TOTALS[a] || 1);
+      const bPct = (tradCounts[b] ?? 0) / (TRAD_TOTALS[b] || 1);
+      return bPct - aPct;
+    }),
+  [tradCounts]);
 
   const quotes = useMemo(() => {
     let qs = filter === "all" ? WISDOM : WISDOM.filter(q => q.tradition === filter);
@@ -31,64 +51,77 @@ export default function WisdomLibrary() {
       const s = search.toLowerCase();
       qs = qs.filter(q => q.text.toLowerCase().includes(s) || q.author.toLowerCase().includes(s));
     }
-    const sorted = [...qs];
-    if (sort === "tradition") {
-      sorted.sort((a, b) => TRADITION_ORDER.indexOf(a.tradition) - TRADITION_ORDER.indexOf(b.tradition));
-    } else if (sort === "author") {
-      sorted.sort((a, b) => a.author.localeCompare(b.author));
-    } else {
-      sorted.sort((a, b) => a.text.localeCompare(b.text));
-    }
-    return sorted;
-  }, [filter, sort, search]);
+    // Sort by tradition selection percentage (most selected first), stable within each tradition
+    return [...qs].sort((a, b) => {
+      const aPct = (tradCounts[a.tradition] ?? 0) / (TRAD_TOTALS[a.tradition] || 1);
+      const bPct = (tradCounts[b.tradition] ?? 0) / (TRAD_TOTALS[b.tradition] || 1);
+      return bPct - aPct;
+    });
+  }, [filter, search, tradCounts]);
 
   function toggleQuote(q: Quote) {
     const key = quoteKey(q);
-    const current = prefs.disabledQuotes ?? [];
-    updatePrefs({
-      disabledQuotes: disabled.has(key)
-        ? current.filter(k => k !== key)
-        : [...current, key],
-    });
+    const inLib = isQuoteInLibrary(q, prefs);
+    const tradOn = prefs.wisdomTraditions.includes(q.tradition);
+    const disabled = prefs.disabledQuotes ?? [];
+    const enabled  = prefs.enabledQuotes  ?? [];
+
+    if (inLib) {
+      if (tradOn) {
+        // In by default → explicitly disable
+        updatePrefs({
+          disabledQuotes: [...disabled.filter(k => k !== key), key],
+          enabledQuotes:  enabled.filter(k => k !== key),
+        });
+      } else {
+        // Explicitly included from off-tradition → remove
+        updatePrefs({ enabledQuotes: enabled.filter(k => k !== key) });
+      }
+    } else {
+      if (!tradOn) {
+        // Out by default → explicitly enable
+        updatePrefs({
+          enabledQuotes:  [...enabled.filter(k => k !== key), key],
+          disabledQuotes: disabled.filter(k => k !== key),
+        });
+      } else {
+        // Explicitly disabled from on-tradition → restore default (remove from disabledQuotes)
+        updatePrefs({ disabledQuotes: disabled.filter(k => k !== key) });
+      }
+    }
   }
 
-  const enabledTotal = WISDOM.filter(q => !disabled.has(quoteKey(q))).length;
+  function toggleTradition(id: TraditionId) {
+    const active = tradCounts[id] ?? 0;
+    if (active === 0) {
+      // Nothing selected → turn ON: add to rotation, clear any exclusions
+      updatePrefs({
+        wisdomTraditions: [...prefs.wisdomTraditions, id],
+        disabledQuotes: (prefs.disabledQuotes ?? []).filter(k => !k.startsWith(id + ":")),
+      });
+    } else {
+      // Something selected → turn OFF: remove from rotation, clear all individual overrides
+      updatePrefs({
+        wisdomTraditions: prefs.wisdomTraditions.filter(t => t !== id),
+        enabledQuotes:  (prefs.enabledQuotes  ?? []).filter(k => !k.startsWith(id + ":")),
+        disabledQuotes: (prefs.disabledQuotes ?? []).filter(k => !k.startsWith(id + ":")),
+      });
+    }
+  }
+
   const ponder = ponderIdx !== null ? quotes[ponderIdx] : null;
-  const dailyQuote = quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes);
+  const dailyQuote = useDailyQuote();
 
   return (
-    <div style={{ background: BG, minHeight: "100vh", fontFamily: FONT, color: TEXT, position: "relative" }}>
-      <StarField />
-      <div style={{ position: "relative", zIndex: 1 }}>
+    <PageShell tool="wisdom" maxWidth={800} headerExtra={
+      <span style={{ fontSize: 12, color: TEXT_DIM, fontWeight: 600 }}>
+        {libraryCount} / {WISDOM.length} in library
+      </span>
+    }>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-        <div style={{ padding: "14px 62px 14px 20px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0 }}
-            onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
-            onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
-            ← Home
-          </Link>
-          <div style={{ width: 1, height: 14, background: BORDER, flexShrink: 0 }} />
-          <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT }}>Wisdom Library</span>
-          <span style={{ marginLeft: "auto", fontSize: 12, color: TEXT_DIM, fontWeight: 600 }}>
-            {enabledTotal} / {WISDOM.length} enabled
-          </span>
-        </div>
-
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 20px 80px", boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 20 }}>
-
-          {/* Daily wisdom + rotation controls */}
-          <DailyWisdomSection
-            quote={dailyQuote}
-            activeTraditions={prefs.wisdomTraditions}
-            onToggle={(id) => {
-              const current = prefs.wisdomTraditions;
-              updatePrefs({
-                wisdomTraditions: current.includes(id)
-                  ? current.filter(t => t !== id)
-                  : [...current, id],
-              });
-            }}
-          />
+          {/* Daily wisdom */}
+          <WisdomCard quote={dailyQuote} compact noLink />
 
           {/* Section divider */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "8px 0 4px" }}>
@@ -99,66 +132,53 @@ export default function WisdomLibrary() {
             <div style={{ flex: 1, height: 1, background: BORDER }} />
           </div>
 
-          {/* Context panel — mission when all selected, tradition detail when one is active */}
+          {/* Context panel */}
           {filter === "all"
             ? <AllTraditionsPanel />
             : (
               <TraditionDetailPanel
                 meta={TRADITION_META[filter]}
-                quoteCount={quotes.length}
+                tradId={filter}
+                quoteCount={WISDOM.filter(q => q.tradition === filter).length}
+                activeCount={tradCounts[filter] ?? 0}
+                onToggle={() => toggleTradition(filter)}
                 onClear={() => setFilter("all")}
               />
             )
           }
 
-          {/* Tradition selector cards (compact) */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))",
-            gap: 8,
-          }}>
+          {/* Tradition selector cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(88px, 1fr))", gap: 8 }}>
             <AllCard
               selected={filter === "all"}
-              count={WISDOM.length}
+              libraryCount={libraryCount}
+              totalCount={WISDOM.length}
               onSelect={() => setFilter("all")}
             />
-            {TRADITION_ORDER.map(id => (
+            {sortedTraditions.map(id => (
               <TraditionSelectorCard
                 key={id}
                 meta={TRADITION_META[id]}
                 selected={filter === id}
+                tradOn={prefs.wisdomTraditions.includes(id)}
+                activeCount={tradCounts[id] ?? 0}
+                totalCount={TRAD_TOTALS[id]}
                 onSelect={() => setFilter(filter === id ? "all" : id)}
               />
             ))}
           </div>
 
-          {/* Sort + search */}
-          <div style={{ display: "flex", gap: 10 }}>
-            <select
-              value={sort}
-              onChange={e => setSort(e.target.value as SortKey)}
-              style={{
-                background: "var(--surface)", border: `1px solid ${BORDER}`, borderRadius: 8,
-                color: TEXT, fontFamily: FONT, fontSize: 12, fontWeight: 700,
-                padding: "8px 28px 8px 12px", cursor: "pointer", flexShrink: 0,
-                appearance: "none", outline: "none",
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23777'/%3E%3C/svg%3E")`,
-                backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center",
-              }}>
-              <option value="tradition">By tradition</option>
-              <option value="author">By author</option>
-              <option value="text">A – Z</option>
-            </select>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search quotes…"
-              style={{
-                flex: 1, background: "var(--input-bg)", border: `1px solid ${BORDER}`, borderRadius: 8,
-                color: TEXT, fontFamily: FONT, fontSize: 13, padding: "8px 12px", outline: "none",
-              }}
-            />
-          </div>
+          {/* Search */}
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search quotes…"
+            style={{
+              width: "100%", boxSizing: "border-box",
+              background: "var(--input-bg)", border: `1px solid ${BORDER}`, borderRadius: 8,
+              color: TEXT, fontFamily: FONT, fontSize: 13, padding: "8px 12px", outline: "none",
+            }}
+          />
 
           <div style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 600 }}>
             {quotes.length} quote{quotes.length !== 1 ? "s" : ""}
@@ -167,17 +187,14 @@ export default function WisdomLibrary() {
           {/* Quote cards */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {quotes.map((q, i) => {
-              const meta = TRADITION_META[q.tradition];
               const key = quoteKey(q);
-              const off = disabled.has(key);
-              const tradOff = !prefs.wisdomTraditions.includes(q.tradition);
+              const inLib = isQuoteInLibrary(q, prefs);
               return (
                 <QuoteCard
                   key={key}
                   quote={q}
-                  meta={meta}
-                  off={off}
-                  tradOff={tradOff}
+                  meta={TRADITION_META[q.tradition]}
+                  inLibrary={inLib}
                   onToggle={() => toggleQuote(q)}
                   onPonder={() => setPonderIdx(i)}
                 />
@@ -190,20 +207,20 @@ export default function WisdomLibrary() {
             )}
           </div>
 
-        </div>
-      </div>
-
       {ponder && (
         <PonderOverlay
           quote={ponder}
+          inLibrary={isQuoteInLibrary(ponder, prefs)}
           hasPrev={ponderIdx! > 0}
           hasNext={ponderIdx! < quotes.length - 1}
           onClose={() => setPonderIdx(null)}
           onPrev={() => setPonderIdx(i => Math.max(0, i! - 1))}
           onNext={() => setPonderIdx(i => Math.min(quotes.length - 1, i! + 1))}
+          onToggle={() => toggleQuote(ponder)}
         />
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 }
 
@@ -212,10 +229,8 @@ function AllTraditionsPanel() {
     <div style={{
       background: "rgba(var(--accent-rgb), 0.06)",
       border: "1px solid rgba(var(--accent-rgb), 0.22)",
-      borderRadius: 20,
-      padding: "28px 32px",
-      position: "relative",
-      overflow: "hidden",
+      borderRadius: 20, padding: "28px 32px",
+      position: "relative", overflow: "hidden",
     }}>
       <div style={{
         position: "absolute", inset: 0,
@@ -251,64 +266,9 @@ function AllTraditionsPanel() {
   );
 }
 
-function DailyWisdomSection({ quote, activeTraditions, onToggle }: {
-  quote: Quote;
-  activeTraditions: string[];
-  onToggle: (id: TraditionId) => void;
-}) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <WisdomCard quote={quote} compact noLink />
-      <div style={{ padding: "0 2px" }}>
-        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1.6, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 8 }}>
-          Daily rotation
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {TRADITION_ORDER.map(id => (
-            <RotationPill
-              key={id}
-              meta={TRADITION_META[id]}
-              active={activeTraditions.includes(id)}
-              onToggle={() => onToggle(id)}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
-function RotationPill({ meta, active, onToggle }: {
-  meta: TraditionMeta; active: boolean; onToggle: () => void;
-}) {
-  const [hov, setHov] = useState(false);
-  const { color, Icon, label } = meta;
-  const lit = active || hov;
-
-  return (
-    <button
-      onClick={onToggle}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 5,
-        padding: "4px 10px 4px 7px",
-        background: active ? `${color}18` : hov ? "var(--surface-hi)" : "var(--surface)",
-        border: `1px solid ${active ? color + "55" : hov ? color + "33" : BORDER}`,
-        borderRadius: 20, cursor: "pointer", fontFamily: FONT,
-        transition: "all 0.15s",
-      }}
-    >
-      <Icon size={12} color={lit ? color : TEXT_MUTED} />
-      <span style={{ fontSize: 10.5, fontWeight: 700, color: lit ? color : TEXT_DIM, transition: "color 0.15s" }}>
-        {label}
-      </span>
-    </button>
-  );
-}
-
-function AllCard({ selected, count, onSelect }: {
-  selected: boolean; count: number; onSelect: () => void;
+function AllCard({ selected, libraryCount, totalCount, onSelect }: {
+  selected: boolean; libraryCount: number; totalCount: number; onSelect: () => void;
 }) {
   const [hov, setHov] = useState(false);
   const active = selected || hov;
@@ -331,15 +291,18 @@ function AllCard({ selected, count, onSelect }: {
       <div style={{ fontSize: 22, lineHeight: 1, color: active ? JADE : TEXT_MUTED, fontWeight: 900, userSelect: "none" }}>✦</div>
       <div>
         <div style={{ fontSize: 10, fontWeight: 800, color: active ? JADE : TEXT, textAlign: "center", lineHeight: 1.2, marginBottom: 1 }}>All</div>
-        <div style={{ fontSize: 8.5, color: TEXT_MUTED, textAlign: "center" }}>{count}</div>
+        <div style={{ fontSize: 8.5, color: TEXT_MUTED, textAlign: "center" }}>{libraryCount}/{totalCount}</div>
       </div>
     </button>
   );
 }
 
-function TraditionSelectorCard({ meta, selected, onSelect }: {
+function TraditionSelectorCard({ meta, selected, tradOn, activeCount, totalCount, onSelect }: {
   meta: (typeof TRADITION_META)[TraditionId];
   selected: boolean;
+  tradOn: boolean;
+  activeCount: number;
+  totalCount: number;
   onSelect: () => void;
 }) {
   const [hov, setHov] = useState(false);
@@ -358,7 +321,7 @@ function TraditionSelectorCard({ meta, selected, onSelect }: {
         border: `1.5px solid ${selected ? color + "66" : hov ? color + "33" : BORDER}`,
         borderRadius: 11, cursor: "pointer", transition: "all 0.18s",
         boxShadow: selected ? `0 2px 14px ${color}20` : "none",
-        fontFamily: FONT, position: "relative",
+        fontFamily: FONT, position: "relative", opacity: tradOn || activeCount > 0 ? 1 : 0.55,
       }}
     >
       {selected && (
@@ -376,17 +339,30 @@ function TraditionSelectorCard({ meta, selected, onSelect }: {
         <div style={{ fontSize: 10, fontWeight: 800, color: active ? color : TEXT, textAlign: "center", lineHeight: 1.2, marginBottom: 1, transition: "color 0.18s" }}>
           {label}
         </div>
-        <div style={{ fontSize: 8.5, color: TEXT_MUTED, textAlign: "center", lineHeight: 1.3 }}>
-          {tagline}
+        <div style={{ fontSize: 8.5, color: TEXT_MUTED, textAlign: "center" }}>
+          {activeCount}/{totalCount}
         </div>
       </div>
     </button>
   );
 }
 
-function TraditionDetailPanel({ meta, quoteCount, onClear }: {
+function interestLevel(activeCount: number, totalCount: number): string {
+  if (totalCount === 0 || activeCount === 0) return "Unexplored";
+  const pct = activeCount / totalCount;
+  if (pct <= 0.20) return "Curious";
+  if (pct <= 0.40) return "Exploring";
+  if (pct <= 0.60) return "Interested";
+  if (pct <= 0.80) return "Inspired";
+  return "Devoted";
+}
+
+function TraditionDetailPanel({ meta, tradId, quoteCount, activeCount, onToggle, onClear }: {
   meta: (typeof TRADITION_META)[TraditionId];
+  tradId: TraditionId;
   quoteCount: number;
+  activeCount: number;
+  onToggle: () => void;
   onClear: () => void;
 }) {
   const { color, Icon, label, tagline, subtitle, description } = meta;
@@ -395,10 +371,8 @@ function TraditionDetailPanel({ meta, quoteCount, onClear }: {
     <div style={{
       background: `${color}0b`,
       border: `1px solid ${color}33`,
-      borderRadius: 20,
-      padding: "28px 32px",
-      position: "relative",
-      overflow: "hidden",
+      borderRadius: 20, padding: "28px 32px",
+      position: "relative", overflow: "hidden",
     }}>
       <div style={{
         position: "absolute", inset: 0,
@@ -425,10 +399,7 @@ function TraditionDetailPanel({ meta, quoteCount, onClear }: {
           <Icon size={54} color={color} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: 2.2, textTransform: "uppercase",
-            color, opacity: 0.8, marginBottom: 4,
-          }}>
+          <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2.2, textTransform: "uppercase", color, opacity: 0.8, marginBottom: 4 }}>
             {tagline}
           </div>
           <div style={{ fontSize: 22, fontWeight: 900, color: TEXT, marginBottom: 3, letterSpacing: -0.3, lineHeight: 1.1 }}>
@@ -437,25 +408,45 @@ function TraditionDetailPanel({ meta, quoteCount, onClear }: {
           <div style={{ fontSize: 11, color, fontWeight: 600, marginBottom: 16, opacity: 0.8, letterSpacing: 0.3 }}>
             {subtitle}
           </div>
-          <p style={{
-            margin: "0 0 14px", fontSize: 13.5, lineHeight: 1.78, color: TEXT_DIM,
-          }}>
+          <p style={{ margin: "0 0 18px", fontSize: 13.5, lineHeight: 1.78, color: TEXT_DIM }}>
             {description}
           </p>
-          <div style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 600 }}>
-            {quoteCount} quote{quoteCount !== 1 ? "s" : ""} in this collection
-          </div>
+          {(() => {
+            const level = interestLevel(activeCount, quoteCount);
+            const engaged = activeCount > 0;
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <button
+                  onClick={onToggle}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "6px 14px", borderRadius: 20, cursor: "pointer", fontFamily: FONT,
+                    fontWeight: 700, fontSize: 12, transition: "all 0.15s",
+                    background: engaged ? `${color}18` : "transparent",
+                    border: `1.5px solid ${engaged ? color + "66" : BORDER}`,
+                    color: engaged ? color : TEXT_MUTED,
+                  }}
+                  title={engaged ? "Remove all from library" : "Add all to library"}
+                >
+                  <span style={{ fontSize: 9 }}>{engaged ? "●" : "○"}</span>
+                  {level}
+                </button>
+                <span style={{ fontSize: 12, color: TEXT_MUTED, fontWeight: 600 }}>
+                  {activeCount} of {quoteCount} in your library
+                </span>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
   );
 }
 
-function QuoteCard({ quote, meta, off, tradOff, onToggle, onPonder }: {
+function QuoteCard({ quote, meta, inLibrary, onToggle, onPonder }: {
   quote: Quote;
   meta: (typeof TRADITION_META)[TraditionId];
-  off: boolean;
-  tradOff: boolean;
+  inLibrary: boolean;
   onToggle: () => void;
   onPonder: () => void;
 }) {
@@ -468,15 +459,14 @@ function QuoteCard({ quote, meta, off, tradOff, onToggle, onPonder }: {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        background: "var(--surface)",
-        border: `1px solid ${hov && !off ? color + "55" : off ? BORDER : BORDER_HI}`,
+        background: inLibrary ? "var(--surface)" : "transparent",
+        border: `1px solid ${hov ? (inLibrary ? color + "55" : color + "22") : inLibrary ? BORDER_HI : BORDER}`,
         borderRadius: 14, padding: "14px 16px",
-        opacity: off ? 0.42 : 1,
-        transition: "opacity 0.2s, border-color 0.15s",
+        transition: "border-color 0.15s, background 0.15s",
         position: "relative", overflow: "hidden",
         cursor: "pointer",
       }}>
-      {!off && (
+      {inLibrary && (
         <div style={{
           position: "absolute", inset: 0,
           background: `radial-gradient(ellipse 80% 60% at 50% 50%, ${color}07, transparent 70%)`,
@@ -485,36 +475,31 @@ function QuoteCard({ quote, meta, off, tradOff, onToggle, onPonder }: {
       )}
       <div style={{ position: "relative" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-          <Icon size={14} color={off ? TEXT_MUTED : color} />
+          <Icon size={14} color={inLibrary ? color : TEXT_MUTED} />
           <span style={{
             fontSize: 9, fontWeight: 700, letterSpacing: 1.8,
-            textTransform: "uppercase", color: off ? TEXT_MUTED : color, opacity: 0.85,
+            textTransform: "uppercase", color: inLibrary ? color : TEXT_MUTED, opacity: 0.85,
           }}>
             {tagline}
           </span>
-          {tradOff && !off && (
-            <span style={{ fontSize: 9, color: TEXT_MUTED, fontWeight: 600, marginLeft: 4 }}>
-              · tradition off
-            </span>
-          )}
           <div style={{ flex: 1 }} />
           <button
             onClick={e => { e.stopPropagation(); onToggle(); }}
+            title={inLibrary ? "Remove from library" : "Add to library"}
             style={{
-              background: off ? "transparent" : `${color}1a`,
-              border: `1px solid ${off ? BORDER : color + "44"}`,
-              borderRadius: 20, padding: "3px 10px",
-              cursor: "pointer", fontFamily: FONT,
-              fontSize: 10, fontWeight: 700,
-              color: off ? TEXT_MUTED : color,
+              background: "transparent", border: "none",
+              padding: "2px 4px", cursor: "pointer",
+              fontSize: 15, lineHeight: 1,
+              color: inLibrary ? color : TEXT_MUTED,
+              opacity: inLibrary ? 1 : 0.65,
               transition: "all 0.15s",
             }}>
-            {off ? "off" : "on"}
+            {inLibrary ? "★" : "☆"}
           </button>
         </div>
         <p style={{
           fontSize: 13, lineHeight: 1.65,
-          color: off ? TEXT_MUTED : TEXT,
+          color: TEXT_DIM,
           fontStyle: "italic", margin: "0 0 6px",
         }}>
           "{quote.text}"
@@ -527,9 +512,9 @@ function QuoteCard({ quote, meta, off, tradOff, onToggle, onPonder }: {
   );
 }
 
-function PonderOverlay({ quote, hasPrev, hasNext, onClose, onPrev, onNext }: {
-  quote: Quote; hasPrev: boolean; hasNext: boolean;
-  onClose: () => void; onPrev: () => void; onNext: () => void;
+function PonderOverlay({ quote, inLibrary, hasPrev, hasNext, onClose, onPrev, onNext, onToggle }: {
+  quote: Quote; inLibrary: boolean; hasPrev: boolean; hasNext: boolean;
+  onClose: () => void; onPrev: () => void; onNext: () => void; onToggle: () => void;
 }) {
   const meta = TRADITION_META[quote.tradition];
   const { color, Icon, tagline } = meta;
@@ -602,7 +587,24 @@ function PonderOverlay({ quote, hasPrev, hasNext, onClose, onPrev, onNext }: {
           </p>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 28, position: "relative" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 28, position: "relative" }}>
+          <button
+            onClick={e => { e.stopPropagation(); onToggle(); }}
+            title={inLibrary ? "Remove from library" : "Add to library"}
+            style={{
+              background: inLibrary ? `${color}20` : "transparent",
+              border: `1.5px solid ${inLibrary ? color + "66" : DARK_BDR}`,
+              borderRadius: 20, padding: "6px 14px",
+              display: "inline-flex", alignItems: "center", gap: 6,
+              cursor: "pointer", fontFamily: FONT, fontWeight: 700, fontSize: 12,
+              color: inLibrary ? color : DARK_DIM,
+              transition: "all 0.15s",
+            }}>
+            <span style={{ fontSize: 14, lineHeight: 1 }}>{inLibrary ? "★" : "☆"}</span>
+            {inLibrary ? "In library" : "Add to library"}
+          </button>
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, position: "relative" }}>
           <button
             onClick={onPrev}
             disabled={!hasPrev}

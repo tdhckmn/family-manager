@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import StarField from "../../components/StarField";
-import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import { WisdomCard, useDailyQuote } from "../../components/Wisdom";
 import { usePrefs } from "../../prefs";
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ export default function Notes() {
   const isMobile = useIsMobile();
   const { prefs } = usePrefs();
   const showWisdom = prefs.wisdomPages.includes("notes");
-  const todayQuote = quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes);
+  const todayQuote = useDailyQuote();
 
   const addInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);

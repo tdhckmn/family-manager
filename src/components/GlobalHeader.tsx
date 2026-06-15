@@ -7,7 +7,7 @@ import MarkdownHelp from "./MarkdownHelp";
 import { isOwnerEmail } from "../household";
 import { useOverlayOpen } from "../overlay";
 import { usePrefs } from "../prefs";
-import { useNoise } from "../noise";
+import { useNoise, NOISE_OPTIONS } from "../noise";
 
 const BG_PANEL  = "var(--panel)";
 const BORDER    = "var(--border)";
@@ -52,7 +52,11 @@ export default function GlobalHeader() {
   const onNotes = location.pathname === "/app/notes";
   const overlayOpen = useOverlayOpen();
   const { prefs, updatePrefs } = usePrefs();
-  const { on, noiseType, toggle } = useNoise();
+  const { on, noiseType, toggle, changeType } = useNoise();
+  function cycleNoise() {
+    const idx = NOISE_OPTIONS.findIndex(n => n.type === noiseType);
+    changeType(NOISE_OPTIONS[(idx + 1) % NOISE_OPTIONS.length].type);
+  }
 
   useEffect(() => onAuthStateChanged(auth, setUser), []);
 
@@ -154,42 +158,6 @@ export default function GlobalHeader() {
               <Icon name="gear" size={15} /> Settings
             </Link>
 
-            {/* Focus + noise controls — always visible */}
-            <div style={{ padding: "6px 16px 10px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
-                <span style={{ fontSize: 15, lineHeight: 1, color: TEXT_DIM }}>◎</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: TEXT, flex: 1 }}>Focus</span>
-                <Link
-                  to="/app/focus"
-                  onClick={() => setOpen(false)}
-                  title="Open Focus"
-                  style={{ fontSize: 13, color: TEXT_DIM, textDecoration: "none", lineHeight: 1, padding: "2px 4px" }}
-                  onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = TEXT}
-                  onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = TEXT_DIM}
-                >↗</Link>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <button
-                  onClick={toggle}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "5px 10px", borderRadius: 7,
-                    border: `1px solid ${on ? "var(--accent)" : BORDER}`,
-                    background: on ? "rgba(var(--accent-rgb),0.12)" : "var(--surface)",
-                    color: on ? "var(--accent)" : TEXT_DIM,
-                    fontSize: 11, fontWeight: 700, cursor: "pointer",
-                    fontFamily: "'Montserrat', sans-serif", transition: "all 0.15s",
-                  }}
-                >
-                  <span style={{ fontSize: 9 }}>{on ? "■" : "▶"}</span>
-                  {on ? "On" : "Off"}
-                </button>
-                <span style={{ fontSize: 11, color: TEXT_DIM, textTransform: "capitalize" }}>
-                  {noiseType} noise
-                </span>
-              </div>
-            </div>
-
             {isOwnerEmail(user?.email) && (
               <Link
                 to="/app/admin"
@@ -260,6 +228,32 @@ export default function GlobalHeader() {
                 </div>
               </div>
               <WeatherZipRow zip={prefs.weatherZip} onZip={z => updatePrefs({ weatherZip: z })} />
+            </div>
+
+            {/* Noise toggle */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px" }}>
+              <Icon name="moon" size={14} color={TEXT_DIM} />
+              <button
+                onClick={cycleNoise}
+                style={{ flex: 1, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "'Montserrat', sans-serif", fontSize: 12, color: TEXT_DIM, fontWeight: 600, textTransform: "capitalize" }}
+                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = TEXT}
+                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM}
+              >{noiseType} noise</button>
+              <button
+                onClick={toggle}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "3px 10px", borderRadius: 7,
+                  border: `1px solid ${on ? "var(--accent)" : BORDER}`,
+                  background: on ? "rgba(var(--accent-rgb),0.12)" : "var(--surface)",
+                  color: on ? "var(--accent)" : TEXT_DIM,
+                  fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  fontFamily: "'Montserrat', sans-serif", transition: "all 0.15s",
+                }}
+              >
+                <span style={{ fontSize: 9 }}>{on ? "■" : "▶"}</span>
+                {on ? "On" : "Off"}
+              </button>
             </div>
 
             <div style={{ height: 1, background: "var(--border)", margin: "4px 0" }} />

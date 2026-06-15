@@ -8,19 +8,23 @@ const BORDER = "var(--border)";
 const BLUE = "#5b8fd4";
 const LAV  = "#a78bfa";
 
-export type ToolKey = "calendar" | "finance" | "notes" | "chores" | "food" | "maintenance";
+export type ToolKey = "calendar" | "finance" | "notes" | "chores" | "food" | "maintenance" | "focus" | "wisdom";
 
 const YELLOW = "#e8c84a";
 const ORANGE = "#e07a3c";
 const PINK   = "#e070a8";
+const TEAL   = "#46b6ad";
+const GOLD   = "#d4a45b";
 
 const TOOLS: { key: ToolKey; to: string; label: string; accent: string; icon: string }[] = [
-  { key: "calendar",    to: "/app/calendar",    label: "Today",    accent: YELLOW, icon: "calendar" },
-  { key: "finance",     to: "/app/finance",     label: "Finances", accent: "#5db88a",       icon: "wallet" },
-  { key: "notes",       to: "/app/notes",       label: "Notes",    accent: BLUE,   icon: "check"  },
-  { key: "chores",      to: "/app/chores",      label: "Chores",   accent: PINK,   icon: "sparkles" },
-  { key: "food",        to: "/app/food",        label: "Meals",    accent: LAV,    icon: "book" },
-  { key: "maintenance", to: "/app/maintenance", label: "Home",     accent: ORANGE, icon: "wrench" },
+  { key: "calendar",    to: "/app/calendar",    label: "Today",    accent: YELLOW,   icon: "calendar" },
+  { key: "finance",     to: "/app/finance",     label: "Finances", accent: "#5db88a", icon: "wallet" },
+  { key: "notes",       to: "/app/notes",       label: "Notes",    accent: BLUE,     icon: "check"  },
+  { key: "chores",      to: "/app/chores",      label: "Chores",   accent: PINK,     icon: "sparkles" },
+  { key: "food",        to: "/app/food",        label: "Meals",    accent: LAV,      icon: "book" },
+  { key: "maintenance", to: "/app/maintenance", label: "Home",     accent: ORANGE,   icon: "wrench" },
+  { key: "focus",       to: "/app/focus",       label: "Focus",    accent: TEAL,     icon: "moon" },
+  { key: "wisdom",      to: "/app/wisdom",      label: "Wisdom",   accent: GOLD,     icon: "star" },
 ];
 
 function useIsMobile(maxWidth = 640): boolean {
@@ -114,8 +118,8 @@ export default function ToolNav({ current }: { current: ToolKey }) {
           background: "var(--panel)", border: `1px solid ${BORDER}`,
           borderRadius: 14, padding: 8,
           boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
-          display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6,
-          minWidth: 260,
+          display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6,
+          minWidth: 340,
         }}>
           {tools.map(t => {
             const active = t.key === current;

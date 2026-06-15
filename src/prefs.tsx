@@ -9,6 +9,7 @@ export interface AppPrefs {
   wisdomTraditions: string[];
   wisdomPages: string[];
   disabledQuotes: string[];
+  enabledQuotes: string[];
   tempUnit: "F" | "C";
   weatherZip: string;
   appIcon: string; // "" = auto (tradition-based)
@@ -21,6 +22,7 @@ export const DEFAULT_PREFS: AppPrefs = {
   wisdomTraditions: ["Stoic", "Taoist"],
   wisdomPages: ["home", "notes"],
   disabledQuotes: [],
+  enabledQuotes: [],
   tempUnit: "F",
   weatherZip: "",
   appIcon: "mountain",

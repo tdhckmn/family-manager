@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { WisdomCard, quoteOfDay, AppIcon } from "../components/Wisdom";
+import { WisdomCard, useDailyQuote, AppIcon } from "../components/Wisdom";
 import { Icon } from "../components/Icon";
 import StarField from "../components/StarField";
 import { usePrefs } from "../prefs";
@@ -24,7 +24,7 @@ function useIsMobile(breakpoint = 640) {
 export default function Home() {
   const { prefs } = usePrefs();
   const isMobile = useIsMobile();
-  const quote = quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes);
+  const quote = useDailyQuote();
   const accent = prefs.accentColor;
   const showWisdom = prefs.wisdomPages.includes("home");
 
@@ -68,7 +68,9 @@ export default function Home() {
           <NavCard to="/app/notes"      icon={<Icon name="check"    size={24} />} label="Notes"        desc="Markdown notes · Tasks · Journaling"    accent="#5b8fd4" isMobile={isMobile} />
           <NavCard to="/app/chores"     icon={<Icon name="sparkles" size={24} />} label="Chores"       desc="Weekly board · Assignments · Tracking"  accent="#e070a8" isMobile={isMobile} />
           <NavCard to="/app/food"       icon={<Icon name="book"     size={24} />} label="Meal Planner" desc="Weekly meals · Recipes · Shopping"       accent="#a78bfa" isMobile={isMobile} />
-          <NavCard to="/app/maintenance" icon={<Icon name="wrench"  size={24} />} label="Home Care"   desc="Maintenance · Overdue · Reminders"      accent="#e07a3c" isMobile={isMobile} />
+          <NavCard to="/app/maintenance" icon={<Icon name="wrench"  size={24} />} label="Home Care"    desc="Maintenance · Overdue · Reminders"        accent="#e07a3c" isMobile={isMobile} />
+          <NavCard to="/app/focus"      icon={<Icon name="moon"    size={24} />} label="Focus"         desc="Breathing exercises · Focus noise"         accent="#46b6ad" isMobile={isMobile} />
+          <NavCard to="/app/wisdom"     icon={<Icon name="star"    size={24} />} label="Wisdom"        desc="Quote library · Traditions · Daily wisdom"  accent="#d4a45b" isMobile={isMobile} />
         </div>
       </div>
     </div>

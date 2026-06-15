@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
-import StarField from "../../components/StarField";
-import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
 import { usePrefs } from "../../prefs";
 import { useNoise, NOISE_OPTIONS } from "../../noise";
-import { BG, BORDER, TEXT, TEXT_DIM, TEXT_MUTED, FONT } from "../shared/kit";
+import { PageShell, BORDER, TEXT, TEXT_DIM, TEXT_MUTED, FONT } from "../shared/kit";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -306,29 +303,13 @@ function BreathingSection({ accent }: { accent: string }) {
 export default function Focus() {
   const { prefs } = usePrefs();
   const accent = prefs.accentColor;
-  const showWisdom = prefs.wisdomPages.includes("focus");
-  const dailyQuote = quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes);
 
   return (
-    <div style={{ background: BG, minHeight: "100vh", fontFamily: FONT, color: TEXT, position: "relative" }}>
-      <StarField />
-      <div style={{ position: "relative", zIndex: 1 }}>
-        <div style={{ padding: "14px 62px 14px 20px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s" }}
-            onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
-            onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
-            ← Home
-          </Link>
-          <div style={{ width: 1, height: 14, background: BORDER, flexShrink: 0 }} />
-          <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT }}>Focus</span>
-        </div>
-
-        <div style={{ maxWidth: 640, margin: "0 auto", padding: "24px 20px 80px", display: "flex", flexDirection: "column", gap: 20 }}>
-          {showWisdom && <WisdomCard quote={dailyQuote} compact noLink />}
-          <NoiseSection accent={accent} />
-          <BreathingSection accent={accent} />
-        </div>
+    <PageShell tool="focus" maxWidth={640}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <NoiseSection accent={accent} />
+        <BreathingSection accent={accent} />
       </div>
-    </div>
+    </PageShell>
   );
 }
