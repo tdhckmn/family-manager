@@ -1,9 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-<circle cx="50" cy="50" r="45" fill="#1a5c3e"/>
-  <path d="M50,5 A45,45,0,0,1,50,95 Z" fill="#5db88a"/>
-  <circle cx="50" cy="27.5" r="22.5" fill="#5db88a"/>
-  <circle cx="50" cy="72.5" r="22.5" fill="#1a5c3e"/>
-  <circle cx="50" cy="27.5" r="7.5" fill="#1a5c3e"/>
-  <circle cx="50" cy="72.5" r="7.5" fill="#5db88a"/>
-  <circle cx="50" cy="50" r="45" fill="none" stroke="#5db88a" stroke-width="2"/>
+  <!-- Background -->
+  <circle cx="50" cy="50" r="50" fill="#06091a"/>
+  <!-- Far right peak (behind) — rounded tip -->
+  <path d="M52,80 L70,38 Q74,32 78,38 L96,80 Z" fill="#1a3a5a"/>
+  <!-- Main center peak — rounded tip -->
+  <path d="M15,80 L44,22 Q50,9 56,22 L85,80 Z" fill="#5db88a"/>
+  <!-- Snow cap — follows the curved peak -->
+  <path d="M44,22 Q50,9 56,22 L53,29 L47,29 Z" fill="#dedad0" opacity="0.88"/>
+  <!-- Horizon line -->
+  <line x1="8" y1="82" x2="92" y2="82" stroke="#5db88a" stroke-width="3.5" stroke-linecap="round" opacity="0.4"/>
 </svg>

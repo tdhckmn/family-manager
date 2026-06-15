@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { signInWithPopup, onAuthStateChanged } from "firebase/auth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { auth, googleProvider } from "../firebase";
 import StarField from "../components/StarField";
+import EquanimityScene from "../components/EquanimityScene";
 
 const BG = "#06091a";
 const TEXT = "#dedad0";
@@ -30,13 +31,15 @@ export default function Landing() {
   const [signingIn, setSigningIn] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+
   useEffect(() => onAuthStateChanged(auth, u => setLoggedIn(!!u)), []);
 
-  // Already signed in → straight into the app. Otherwise sign in, then enter.
   async function handleSignIn() {
-    if (loggedIn) { navigate("/app"); return; }
+    if (loggedIn) { navigate(returnTo ?? "/app"); return; }
     setSigningIn(true);
-    try { await signInWithPopup(auth, googleProvider); navigate("/app"); }
+    try { await signInWithPopup(auth, googleProvider); navigate(returnTo ?? "/app"); }
     catch (err) { console.error("Sign-in failed:", err); setSigningIn(false); }
   }
 
@@ -59,7 +62,7 @@ export default function Landing() {
       {/* Hero */}
       <section style={{ position: "relative", zIndex: 5, textAlign: "center", padding: "72px 24px 80px", maxWidth: 700, margin: "0 auto" }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase", color: JADE, opacity: 0.8, marginBottom: 16 }}>
-          Stoic · Taoist · Household
+          Household Management · Daily Wisdom
         </div>
         <h1 style={{ fontSize: "clamp(38px, 8vw, 64px)", fontWeight: 800, margin: "0 0 20px", letterSpacing: -1, lineHeight: 1.05 }}>
           Run your household
@@ -67,7 +70,7 @@ export default function Landing() {
           <span style={{ color: JADE }}>with calm clarity.</span>
         </h1>
         <p style={{ fontSize: 18, color: TEXT_DIM, margin: "0 0 40px", lineHeight: 1.6, maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>
-          Budget, meals, chores, and home maintenance — all in one private family workspace. No clutter, no ads, no noise.
+          Budget, meals, chores, and home maintenance — all in one private family workspace. No clutter, no ads, no noise, no tracking.
         </p>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <button
@@ -79,6 +82,13 @@ export default function Landing() {
             {signingIn ? "Signing in…" : loggedIn ? "Open app" : "Start free trial"}
           </button>
           <div style={{ fontSize: 12, color: TEXT_DIM, opacity: 0.7 }}>14 days free · $4/month after · Cancel anytime</div>
+        </div>
+      </section>
+
+      {/* Scene visual */}
+      <section style={{ position: "relative", zIndex: 5, maxWidth: 1040, margin: "0 auto 72px", padding: "0 24px" }}>
+        <div style={{ borderRadius: 20, overflow: "hidden", border: `1px solid rgba(255,255,255,0.07)`, boxShadow: "0 0 80px rgba(93,184,138,0.10), 0 24px 64px rgba(0,0,0,0.5)" }}>
+          <EquanimityScene />
         </div>
       </section>
 

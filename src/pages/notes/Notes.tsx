@@ -67,11 +67,11 @@ function DueBadge({ iso }: { iso: string }) {
 const BG = "var(--bg)";
 const SURFACE = "var(--surface)";
 const SURFACE_HOVER = "var(--surface-hi)";
-const SURFACE_SELECTED = "rgba(var(--accent-rgb),0.10)";
+const SURFACE_SELECTED = "rgba(91,143,212,0.10)";
 const BORDER = "var(--border)";
-const BORDER_ACCENT = "rgba(var(--accent-rgb),0.35)";
-const JADE = "var(--accent)";
-const JADE_DIM = "var(--accent)";
+const BORDER_ACCENT = "rgba(91,143,212,0.35)";
+const JADE = "#5b8fd4";
+const JADE_DIM = "#5b8fd4";
 const TEXT = "var(--text)";
 const TEXT_DIM = "var(--text-dim)";
 const TEXT_MUTED = "var(--text-muted)";

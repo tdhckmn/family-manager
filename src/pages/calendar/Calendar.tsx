@@ -17,6 +17,7 @@ import {
   JADE, BLUE, PINK, AMBER, TEAL, LAV, YELLOW, DANGER, FONT,
 } from "../shared/kit";
 import { useWeather, weatherInfo, temp, type Unit, type DayWeather, type WeatherData } from "./weather";
+import GCalSection from "./GCalSection";
 
 const TODAY_HI_BG = "rgba(232,200,74,0.07)";   // yellow wash for the current day
 const TODAY_HI_BORDER = YELLOW + "55";
@@ -378,6 +379,8 @@ export default function Calendar() {
               ))}
             </Section>
           )}
+
+          <GCalSection />
         </div>
       ) : (
         // ── Week view ──

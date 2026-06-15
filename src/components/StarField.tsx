@@ -10,6 +10,14 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+function darken(hex: string, factor: number): string {
+  const h = hex.replace("#", "");
+  const r = Math.round(parseInt(h.slice(0, 2), 16) * factor);
+  const g = Math.round(parseInt(h.slice(2, 4), 16) * factor);
+  const b = Math.round(parseInt(h.slice(4, 6), 16) * factor);
+  return `#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}`;
+}
+
 /**
  * Ambient page background: soft corner gradients + twinkling stars.
  * Fixed, non-interactive, sits behind page content (zIndex 0).
@@ -33,6 +41,8 @@ export default function StarField({ count = 45 }: { count?: number }) {
 
   if (theme === "light") return null;
 
+  const dim = darken(accent, 0.55);
+
   const orbs = [
     {
       size: 700,
@@ -41,20 +51,15 @@ export default function StarField({ count = 45 }: { count?: number }) {
     },
     {
       size: 600,
-      background: "radial-gradient(circle, rgba(91,143,212,0.38) 0%, rgba(91,143,212,0.10) 40%, transparent 70%)",
+      background: `radial-gradient(circle, ${hexToRgba(dim, 0.45)} 0%, ${hexToRgba(dim, 0.12)} 40%, transparent 70%)`,
       bottom: "-15%", right: "-5%", delay: "-3s", duration: "11s",
-    },
-    {
-      size: 500,
-      background: "radial-gradient(circle, rgba(70,182,173,0.30) 0%, transparent 70%)",
-      top: "40%", left: "45%", delay: "-6s", duration: "13s",
     },
   ];
 
   return (
     <>
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
-        background: `radial-gradient(ellipse 55% 35% at 10% 0%, ${hexToRgba(accent, 0.18)} 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 90% 100%, rgba(20,40,80,0.22) 0%, transparent 60%)` }} />
+        background: `radial-gradient(ellipse 55% 35% at 10% 0%, ${hexToRgba(accent, 0.18)} 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 90% 100%, ${hexToRgba(dim, 0.18)} 0%, transparent 60%)` }} />
 
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }} aria-hidden>
         {orbs.map((o, i) => (

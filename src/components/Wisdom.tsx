@@ -20,6 +20,7 @@ export interface TraditionMeta {
   subtitle: string;
   color: string;
   Icon: React.FC<{ size: number; color: string }>;
+  description: string;
 }
 
 // ── SVG Symbol Components ─────────────────────────────────────────────────────
@@ -40,13 +41,75 @@ function StoicIcon({ size, color }: { size: number; color: string }) {
 function YinYangIcon({ size, color }: { size: number; color: string }) {
   return (
     <svg viewBox="0 0 100 100" width={size} height={size} style={{ display: "block" }}>
-      <circle cx="50" cy="50" r="45" fill="rgba(0,0,0,0.42)"/>
-      <path d="M50,5 A45,45,0,0,1,50,95 Z" fill={color}/>
-      <circle cx="50" cy="27.5" r="22.5" fill={color}/>
-      <circle cx="50" cy="72.5" r="22.5" fill="rgba(0,0,0,0.42)"/>
-      <circle cx="50" cy="27.5" r="7.5" fill="rgba(0,0,0,0.42)"/>
-      <circle cx="50" cy="72.5" r="7.5" fill={color}/>
-      <circle cx="50" cy="50" r="45" fill="none" stroke={color} strokeWidth="1.5" opacity="0.55"/>
+      <circle cx="50" cy="50" r="44" fill="none" stroke={color} strokeWidth="4" opacity="0.85"/>
+      <path d="M50,6 A22,22,0,0,1,50,50 A22,22,0,0,0,50,94" fill="none" stroke={color} strokeWidth="4" opacity="0.85"/>
+      <circle cx="50" cy="28" r="6.5" fill={color} opacity="0.9"/>
+      <circle cx="50" cy="72" r="6.5" fill="none" stroke={color} strokeWidth="3.5" opacity="0.8"/>
+    </svg>
+  );
+}
+
+function MountainIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      {/* Secondary peak — rounded tip */}
+      <path d="M52,80 L70,38 Q74,32 78,38 L96,80"
+        stroke={color} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" opacity="0.55"/>
+      {/* Main peak — rounded tip, gentle curves */}
+      <path d="M16,80 L44,22 Q50,9 56,22 L84,80"
+        stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9"/>
+      <line x1="6" y1="82" x2="94" y2="82" stroke={color} strokeWidth="4" strokeLinecap="round" opacity="0.45"/>
+    </svg>
+  );
+}
+
+function WaveIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M5,35 C15,18 25,18 35,35 C45,52 55,52 65,35 C75,18 85,18 95,35"
+        stroke={color} strokeWidth="5.5" strokeLinecap="round" opacity="0.9"/>
+      <path d="M5,55 C15,38 25,38 35,55 C45,72 55,72 65,55 C75,38 85,38 95,55"
+        stroke={color} strokeWidth="4" strokeLinecap="round" opacity="0.6"/>
+      <path d="M5,72 C15,57 25,57 35,72 C45,87 55,87 65,72 C75,57 85,57 95,72"
+        stroke={color} strokeWidth="2.5" strokeLinecap="round" opacity="0.35"/>
+    </svg>
+  );
+}
+
+function InfinityIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M50,50 C42,36 30,28 20,30 C10,32 6,42 6,50 C6,58 10,68 20,70 C30,72 42,64 50,50 C58,36 70,28 80,30 C90,32 94,42 94,50 C94,58 90,68 80,70 C70,72 58,64 50,50"
+        stroke={color} strokeWidth="6.5" strokeLinecap="round" opacity="0.9"/>
+    </svg>
+  );
+}
+
+function LeafIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M50,92 C28,72 22,52 22,36 C22,18 34,8 50,8 C66,8 78,18 78,36 C78,52 72,72 50,92 Z"
+        stroke={color} strokeWidth="4.5" strokeLinejoin="round" opacity="0.9"/>
+      <line x1="50" y1="92" x2="50" y2="12" stroke={color} strokeWidth="3" strokeLinecap="round" opacity="0.6"/>
+      <line x1="50" y1="52" x2="30" y2="38" stroke={color} strokeWidth="2.5" strokeLinecap="round" opacity="0.5"/>
+      <line x1="50" y1="66" x2="70" y2="52" stroke={color} strokeWidth="2.5" strokeLinecap="round" opacity="0.5"/>
+    </svg>
+  );
+}
+
+let _moonUid = 0;
+
+function MoonIcon({ size, color }: { size: number; color: string }) {
+  const [maskId] = useState(() => `mn_${++_moonUid}`);
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} style={{ display: "block" }}>
+      <defs>
+        <mask id={maskId}>
+          <rect width="100" height="100" fill="white"/>
+          <circle cx="64" cy="42" r="32" fill="black"/>
+        </mask>
+      </defs>
+      <circle cx="48" cy="50" r="36" fill={color} mask={`url(#${maskId})`} opacity="0.9"/>
     </svg>
   );
 }
@@ -205,60 +268,98 @@ export const TRADITION_META: Record<TraditionId, TraditionMeta> = {
   Stoic: {
     id: "Stoic", label: "Stoicism", tagline: "The Stoics",
     subtitle: "Roman Virtue · Inner Fortitude", color: "#c47858", Icon: StoicIcon,
+    description: "Born in Athens and refined by Roman thinkers like Marcus Aurelius, Epictetus, and Seneca, Stoicism teaches that virtue is the only true good. By distinguishing what lies within our control — our thoughts, intentions, and responses — from everything outside it, the Stoics built a philosophy of unshakeable inner freedom. Through daily reflection and service to the whole, the Stoic seeks not to escape difficulty but to meet it with equanimity.",
   },
   Taoist: {
     id: "Taoist", label: "Taoism", tagline: "The Tao",
     subtitle: "Ancient Balance · Wu Wei", color: "#46b6ad", Icon: YinYangIcon,
+    description: "The Tao Te Ching, attributed to the sage Lao Tzu in ancient China, is one of the most translated and revered texts in human history. Taoism honors the Tao — the ineffable Way underlying all existence — and teaches Wu Wei, the art of non-striving action that moves with the grain of nature rather than against it. In stillness, simplicity, and surrender to what is, the Taoist discovers that the universe offers everything freely to those who cease grasping.",
   },
   Islam: {
     id: "Islam", label: "Islam", tagline: "Al-Islam",
     subtitle: "Divine Wisdom · The Straight Path", color: "#4aaa80", Icon: CrescentStarIcon,
+    description: "One of the world's great monotheistic faiths, Islam calls all of humanity to submission to the One God through righteous action, prayer, gratitude, and service. The Prophet Muhammad (peace be upon him) brought a message of universal mercy, moral clarity, and justice that transformed the ancient world. The Quran and the Hadith together illuminate a path of compassion, mindful devotion, and accountability that guides more than a billion people today.",
   },
   Christian: {
     id: "Christian", label: "Christianity", tagline: "The Way",
     subtitle: "Sacred Light · Love Thy Neighbor", color: "#d4a45b", Icon: CrossIcon,
+    description: "Rooted in the life and teachings of Jesus of Nazareth, Christianity proclaims a God of infinite love who calls all people toward grace, forgiveness, and transformation. The Sermon on the Mount offers history's most radical ethical teaching: love your enemies, care for the vulnerable, seek the kingdom within. Christianity has inspired two millennia of art, scholarship, hospitals, and acts of compassion that continue to shape the world.",
   },
   Jewish: {
     id: "Jewish", label: "Judaism", tagline: "The Torah",
     subtitle: "Ancient Covenant · Tikkun Olam", color: "#5b8fd4", Icon: StarOfDavidIcon,
+    description: "One of humanity's oldest living traditions, Judaism emerged from the covenant between God and Abraham and the revelation at Sinai, and has endured through extraordinary trials with unbroken vitality. The Torah, Talmud, and rabbinic commentary form a vast ocean of ethical and spiritual wisdom still actively interpreted today. Concepts like Teshuvah (return and repentance), Tikkun Olam (repairing the world), and Tzedakah (righteous generosity) remain among history's most profound guides for living justly and lovingly.",
   },
   Buddhist: {
     id: "Buddhist", label: "Buddhism", tagline: "The Dharma",
     subtitle: "The Middle Way · Noble Truths", color: "#a78bfa", Icon: DharmaWheelIcon,
+    description: "Founded by Siddhartha Gautama in ancient India, Buddhism offers a clear-eyed path to liberation from suffering through wisdom, ethical conduct, and meditative practice. The Four Noble Truths diagnose the human condition with compassionate precision, and the Eightfold Path offers a complete way of life — right understanding, intention, speech, action, livelihood, effort, mindfulness, and concentration. Buddhism has flourished across Asia in many forms, each adapting the Dharma to new cultures while preserving its essential liberating insight.",
   },
   Hindu: {
     id: "Hindu", label: "Hinduism", tagline: "Sanatana Dharma",
     subtitle: "Upanishads · Bhagavad Gita", color: "#f4844a", Icon: LotusIcon,
+    description: "Hinduism is the world's oldest living spiritual tradition — a vast tapestry of philosophy, devotion, and practice spanning more than four thousand years. From the Upanishadic insight Tat Tvam Asi (That art thou) to the ethical clarity of the Bhagavad Gita's call to selfless action, it explores the deepest questions of existence with unparalleled richness. Multiple paths — Jnana (knowledge), Bhakti (devotion), Karma (action), and Raja (meditation) — honor the full diversity of human temperament on the journey toward the infinite Self.",
   },
   Sufi: {
     id: "Sufi", label: "Sufism", tagline: "The Mystics",
     subtitle: "Rumi · Divine Love · Annihilation", color: "#d478a8", Icon: SufiStarIcon,
+    description: "Sufism is the mystical heart of Islam, a tradition of ardent lovers seeking union with the Divine through love, beauty, and the dissolution of the separate self. The great poets Rumi, Hafiz, Ibn Arabi, and Al-Ghazali mapped the soul's interior journey with astonishing depth and beauty. Through music, poetry, contemplative practice, and the guidance of a teacher, Sufism invites the discovery that love is not merely a path to the Divine — it is the Divine itself, endlessly present and endlessly seeking.",
   },
   Confucian: {
     id: "Confucian", label: "Confucianism", tagline: "The Analects",
     subtitle: "Virtue · Ritual · Benevolence", color: "#74b862", Icon: ScrollIcon,
+    description: "Founded by Kong Qiu (Confucius) in 5th-century BCE China, Confucianism is a philosophy of human relationships, moral cultivation, and social harmony that has shaped East Asian civilization for 2,500 years. Through the cultivation of Ren (benevolence), Li (ritual propriety), Yi (righteousness), and Zhi (wisdom), Confucius taught that a just and harmonious society grows from individuals who first discipline and develop themselves. The Analects remain among the most widely studied ethical texts in human history.",
   },
   Sikh: {
     id: "Sikh", label: "Sikhism", tagline: "Waheguru",
     subtitle: "Guru Granth Sahib · Seva", color: "#4ab4d4", Icon: KhandaIcon,
+    description: "Founded by Guru Nanak in 15th-century Punjab, Sikhism is a path of devotion to the One God (Waheguru), service to all people (Seva), and honest, courageous living. The Guru Granth Sahib — a living scripture containing the wisdom of ten Gurus alongside saints from other traditions — is revered as the eternal living Guru. Sikhism's emphasis on universal equality, the community kitchen (langar) that feeds all regardless of caste or creed, and fearless compassion have made it one of humanity's most beautiful spiritual democracies.",
   },
   Zen: {
     id: "Zen", label: "Zen", tagline: "Just This",
     subtitle: "Direct Experience · No-Mind", color: "#8cb0a0", Icon: EnsoIcon,
+    description: "Born from the meeting of Buddhism with Chinese Taoism, Zen cuts through conceptual elaboration to point directly at the reality of this moment. Through zazen (sitting meditation), koans (paradoxical teaching questions), and the guidance of a realized teacher, Zen dismantles the habitual mind until ordinary experience shines with extraordinary clarity. 'Before enlightenment, chop wood, carry water; after enlightenment, chop wood, carry water' — Zen finds the sacred in the everyday, and the everyday in the sacred.",
   },
   Existentialist: {
     id: "Existentialist", label: "Existentialism", tagline: "Existence First",
     subtitle: "Frankl · Camus · Authentic Being", color: "#9898c0", Icon: HorizonIcon,
+    description: "Existentialism arose to confront the deepest questions of human freedom, meaning, and responsibility with unflinching honesty. Thinkers like Kierkegaard, Sartre, Camus, and Viktor Frankl refused comfortable consolations, insisting that meaning is not given but created through authentic choice and committed action. Far from despairing, existentialism is a radical affirmation of human dignity — the recognition that even in the most extreme circumstances, the freedom to choose one's response remains.",
   },
   Norse: {
     id: "Norse", label: "Norse / Havamal", tagline: "Havamal",
     subtitle: "Odin's Wisdom · The High One", color: "#8090a8", Icon: ValknuttIcon,
+    description: "The Havamal ('Sayings of the High One') is a collection of ancient Norse wisdom attributed to Odin, the Allfather, preserved in the 13th-century Poetic Edda. It offers hard-won counsel on friendship, hospitality, caution, and the pursuit of wisdom — earned through experience, hardship, and honest self-reflection rather than inherited doctrine. The Norse worldview honored courage in the face of fate, loyalty to kin and community, and the lasting worth of a life lived with integrity and purpose.",
   },
 };
 
 export const TRADITION_ORDER: TraditionId[] = [
-  "Stoic", "Taoist", "Islam", "Christian", "Jewish", "Buddhist",
-  "Hindu", "Sufi", "Confucian", "Sikh", "Zen", "Existentialist", "Norse",
+  "Buddhist", "Christian", "Confucian", "Existentialist", "Hindu",
+  "Islam", "Jewish", "Norse", "Sikh", "Stoic", "Sufi", "Taoist", "Zen",
+];
+
+// ── App icon registry ─────────────────────────────────────────────────────────
+
+export interface AppIconEntry {
+  id: string;
+  label: string;
+  Icon: React.FC<{ size: number; color: string }>;
+}
+
+export const PEACEFUL_ICONS: AppIconEntry[] = [
+  { id: "mountain", label: "Mountains", Icon: MountainIcon },
+  { id: "wave", label: "Wave", Icon: WaveIcon },
+  { id: "infinity", label: "Infinity", Icon: InfinityIcon },
+  { id: "leaf", label: "Leaf", Icon: LeafIcon },
+  { id: "moon", label: "Moon", Icon: MoonIcon },
+];
+
+export const APP_ICON_REGISTRY: AppIconEntry[] = [
+  ...PEACEFUL_ICONS,
+  ...TRADITION_ORDER.map(id => ({
+    id,
+    label: TRADITION_META[id].label,
+    Icon: TRADITION_META[id].Icon,
+  })),
 ];
 
 // ── Quotes ────────────────────────────────────────────────────────────────────
@@ -302,33 +403,33 @@ export const WISDOM: Quote[] = [
   { text: "When I let go of what I am, I become what I might be.", author: "Lao Tzu", tradition: "Taoist" },
   { text: "Doing nothing is better than being busy doing nothing.", author: "Lao Tzu", tradition: "Taoist" },
   { text: "The flame that burns twice as bright burns half as long.", author: "Lao Tzu", tradition: "Taoist" },
-  { text: "He who conquers others is strong; he who conquers himself is mighty.", author: "Lao Tzu", tradition: "Taoist" },
+  { text: "Those who conquer others are strong; those who conquer themselves are mighty.", author: "Lao Tzu", tradition: "Taoist" },
   { text: "The usefulness of a pot comes from its emptiness.", author: "Lao Tzu", tradition: "Taoist" },
   { text: "Return is the movement of the Tao. Yielding is the way of the Tao.", author: "Lao Tzu", tradition: "Taoist" },
   { text: "Water is soft and yielding, yet it wears away the hardest stone.", author: "Lao Tzu", tradition: "Taoist" },
   { text: "The Tao that can be told is not the eternal Tao.", author: "Lao Tzu", tradition: "Taoist" },
 
   // ── Islam ─────────────────────────────────────────────────────────────────
-  { text: "The best of people are those who bring the most benefit to others.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "Speak good, or remain silent.", author: "Prophet Muhammad", tradition: "Islam" },
+  { text: "The best of people are those who bring the most benefit to others.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "Speak good, or remain silent.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
   { text: "God does not burden a soul beyond what it can bear.", author: "Quran 2:286", tradition: "Islam" },
-  { text: "Wealth is not in having many possessions, but in being content with what one has.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "The strong are not those who overpower others, but those who master themselves in anger.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "Be in this world as a stranger or a traveler passing through.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "Make things easy, and do not make them difficult.", author: "Prophet Muhammad", tradition: "Islam" },
+  { text: "Wealth is not in having many possessions, but in being content with what one has.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "The strong are not those who overpower others, but those who master themselves in anger.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "Be in this world as a stranger or a traveler passing through.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "Make things easy, and do not make them difficult.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
   { text: "Verily, with hardship comes ease.", author: "Quran 94:5–6", tradition: "Islam" },
-  { text: "Whoever is not grateful to people is not grateful to God.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "God is beautiful and loves beauty.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "Every act of kindness is a charity.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "None of you truly believes until he wishes for his brother what he wishes for himself.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "The best of you are those best to their families.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "Take benefit of five before five: your youth before your old age, your health before your sickness, your wealth before your poverty, your free time before your preoccupation, and your life before your death.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "Be mindful of God, and God will protect you.", author: "Prophet Muhammad", tradition: "Islam" },
-  { text: "God does not look at your forms or wealth, but rather He looks at your hearts and actions.", author: "Prophet Muhammad", tradition: "Islam" },
+  { text: "Whoever is not grateful to people is not grateful to God.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "God is beautiful and loves beauty.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "Every act of kindness is a charity.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "None of you truly believes until you wish for others what you wish for yourself.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "The best of you are those best to their families.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "Take benefit of five before five: your youth before your old age, your health before your sickness, your wealth before your poverty, your free time before your preoccupation, and your life before your death.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "Be mindful of God, and God will protect you.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
+  { text: "God does not look at your forms or wealth, but rather He looks at your hearts and actions.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
   { text: "If you are grateful, I will surely increase you in favor.", author: "Quran 14:7", tradition: "Islam" },
-  { text: "Whoever removes a worldly hardship from a believer, God will remove one of his hardships on the Day of Resurrection.", author: "Prophet Muhammad", tradition: "Islam" },
+  { text: "Whoever removes a worldly hardship from a believer, God will remove one of their hardships on the Day of Resurrection.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
   { text: "Do not lose hope, nor be sad.", author: "Quran 3:139", tradition: "Islam" },
-  { text: "Tie your camel, then put your trust in God.", author: "Prophet Muhammad", tradition: "Islam" },
+  { text: "Tie your camel, then put your trust in God.", author: "Prophet Muhammad (pbuh)", tradition: "Islam" },
 
   // ── Christian ─────────────────────────────────────────────────────────────
   { text: "Do to others as you would have them do to you.", author: "Jesus (Luke 6:31)", tradition: "Christian" },
@@ -343,10 +444,10 @@ export const WISDOM: Quote[] = [
   { text: "Blessed are the poor in spirit, for theirs is the kingdom of heaven.", author: "Jesus (Matthew 5:3)", tradition: "Christian" },
   { text: "Blessed are the merciful, for they shall receive mercy.", author: "Jesus (Matthew 5:7)", tradition: "Christian" },
   { text: "Blessed are the pure in heart, for they shall see God.", author: "Jesus (Matthew 5:8)", tradition: "Christian" },
-  { text: "Blessed are the peacemakers, for they shall be called sons of God.", author: "Jesus (Matthew 5:9)", tradition: "Christian" },
+  { text: "Blessed are the peacemakers, for they shall be called children of God.", author: "Jesus (Matthew 5:9)", tradition: "Christian" },
   { text: "You are the light of the world. A city set on a hill cannot be hidden.", author: "Jesus (Matthew 5:14)", tradition: "Christian" },
   { text: "Love your enemies and pray for those who persecute you.", author: "Jesus (Matthew 5:44)", tradition: "Christian" },
-  { text: "Why do you see the speck in your brother's eye, but do not notice the log that is in your own eye?", author: "Jesus (Matthew 7:3)", tradition: "Christian" },
+  { text: "Why do you see the speck in your neighbor's eye, but do not notice the log in your own eye?", author: "Jesus (Matthew 7:3)", tradition: "Christian" },
   { text: "Come to me, all who labor and are heavy laden, and I will give you rest.", author: "Jesus (Matthew 11:28)", tradition: "Christian" },
   { text: "The greatest among you shall be your servant.", author: "Jesus (Matthew 23:11)", tradition: "Christian" },
   { text: "The kingdom of God is within you.", author: "Jesus (Luke 17:21)", tradition: "Christian" },
@@ -396,7 +497,7 @@ export const WISDOM: Quote[] = [
   { text: "A person is what their desire is. As is their desire, so is their intention. As is their intention, so is their deed. As is their deed, so is their destiny.", author: "Brihadaranyaka Upanishad 4.4.5", tradition: "Hindu" },
   { text: "The Self is everywhere. It shines through all eyes, breathes through all breath, speaks through all voices.", author: "Upanishads", tradition: "Hindu" },
   { text: "Do your duty without attachment, and you will reach the Highest.", author: "Bhagavad Gita", tradition: "Hindu" },
-  { text: "As the rivers flowing east and west merge in the sea and become one with it, the wise man sheds individual being and merges with the Infinite.", author: "Chandogya Upanishad", tradition: "Hindu" },
+  { text: "As the rivers flowing east and west merge in the sea and become one with it, the wise soul sheds individual being and merges with the Infinite.", author: "Chandogya Upanishad", tradition: "Hindu" },
 
   // ── Sufi ──────────────────────────────────────────────────────────────────
   { text: "Out beyond ideas of wrongdoing and rightdoing, there is a field. I'll meet you there.", author: "Rumi", tradition: "Sufi" },
@@ -412,15 +513,15 @@ export const WISDOM: Quote[] = [
 
   // ── Confucian ─────────────────────────────────────────────────────────────
   { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius", tradition: "Confucian" },
-  { text: "The man who moves a mountain begins by carrying away small stones.", author: "Confucius", tradition: "Confucian" },
+  { text: "One who moves a mountain begins by carrying away small stones.", author: "Confucius", tradition: "Confucian" },
   { text: "Life is really simple, but we insist on making it complicated.", author: "Confucius", tradition: "Confucian" },
-  { text: "The superior man is modest in his speech, but exceeds in his actions.", author: "Confucius", tradition: "Confucian" },
+  { text: "The wise are modest in speech but exceed in their actions.", author: "Confucius", tradition: "Confucian" },
   { text: "To learn without thinking is labor lost; to think without learning is dangerous.", author: "Confucius, Analects 2:15", tradition: "Confucian" },
   { text: "When you know a thing, to hold that you know it; when you do not know it, to allow that you do not know it — this is knowledge.", author: "Confucius", tradition: "Confucian" },
   { text: "Hold faithfulness and sincerity as first principles.", author: "Confucius, Analects 1:8", tradition: "Confucian" },
-  { text: "The man of virtue, wishing to be established himself, seeks also to establish others.", author: "Confucius, Analects 6:28", tradition: "Confucian" },
+  { text: "One of virtue, wishing to be established, seeks also to establish others.", author: "Confucius, Analects 6:28", tradition: "Confucian" },
   { text: "I daily examine myself on three points: whether in transacting business for others I may have been unfaithful; whether in intercourse with friends I may have been insincere; whether I may have failed to master and practice my teacher's instructions.", author: "Confucius, Analects 1:4", tradition: "Confucian" },
-  { text: "The gem cannot be polished without friction, nor man perfected without trials.", author: "Chinese proverb", tradition: "Confucian" },
+  { text: "The gem cannot be polished without friction, nor anyone perfected without trials.", author: "Chinese proverb", tradition: "Confucian" },
 
   // ── Sikh ──────────────────────────────────────────────────────────────────
   { text: "Speak only that which will bring you honor.", author: "Guru Nanak", tradition: "Sikh" },
@@ -430,7 +531,7 @@ export const WISDOM: Quote[] = [
   { text: "The world is a garden; the Lord is the gardener. He cherishes all — none neglected.", author: "Guru Granth Sahib", tradition: "Sikh" },
   { text: "Recognize the divine light within all, and do not ask about caste; in the next world there is no caste.", author: "Guru Nanak", tradition: "Sikh" },
   { text: "True it is in the beginning; true through all ages; true it is even now; true it shall ever be.", author: "Guru Nanak, Mul Mantar", tradition: "Sikh" },
-  { text: "Let no one be proud of their birth; he alone is truly born who is devoted to God.", author: "Guru Granth Sahib", tradition: "Sikh" },
+  { text: "Let no one be proud of their birth; they alone are truly born who are devoted to the Divine.", author: "Guru Granth Sahib", tradition: "Sikh" },
   { text: "Whatever you sow, so shall you reap — this is the law written in the human heart.", author: "Guru Granth Sahib", tradition: "Sikh" },
   { text: "Do not practice exploitation; this is the commandment of the Sat Guru.", author: "Guru Granth Sahib", tradition: "Sikh" },
 
@@ -454,18 +555,18 @@ export const WISDOM: Quote[] = [
   { text: "Life can only be understood backwards; but it must be lived forwards.", author: "Søren Kierkegaard", tradition: "Existentialist" },
   { text: "Anxiety is the dizziness of freedom.", author: "Søren Kierkegaard", tradition: "Existentialist" },
   { text: "We are our choices.", author: "Jean-Paul Sartre", tradition: "Existentialist" },
-  { text: "Everything can be taken from a man but one thing: the last of the human freedoms — to choose one's attitude in any given set of circumstances, to choose one's own way.", author: "Viktor Frankl", tradition: "Existentialist" },
+  { text: "Everything can be taken from a person but one thing: the last of the human freedoms — to choose one's attitude in any given set of circumstances, to choose one's own way.", author: "Viktor Frankl", tradition: "Existentialist" },
   { text: "I rebel; therefore I exist.", author: "Albert Camus", tradition: "Existentialist" },
-  { text: "Man is condemned to be free; because once thrown into the world, he is responsible for everything he does.", author: "Jean-Paul Sartre", tradition: "Existentialist" },
+  { text: "We are condemned to be free; once thrown into the world, each person is responsible for everything they do.", author: "Jean-Paul Sartre", tradition: "Existentialist" },
 
   // ── Norse ─────────────────────────────────────────────────────────────────
-  { text: "Cattle die, kinsmen die, even you yourself will die; but the fame of a good man never dies.", author: "Havamal 76", tradition: "Norse" },
-  { text: "A man should be moderately wise, not over-wise; he lives the happiest who knows enough.", author: "Havamal 54", tradition: "Norse" },
-  { text: "No man should call himself clever; it is enough if he is not a fool.", author: "Havamal", tradition: "Norse" },
-  { text: "Better to rise early than to have no life; a wakeful man wins wealth and wisdom.", author: "Havamal", tradition: "Norse" },
-  { text: "The brave man often enough will survive where the coward perishes.", author: "Havamal", tradition: "Norse" },
+  { text: "Cattle die, kinsmen die, even you yourself will die; but the fame of good deeds never dies.", author: "Havamal 76", tradition: "Norse" },
+  { text: "One should be moderately wise, not over-wise; happiest are those who know enough.", author: "Havamal 54", tradition: "Norse" },
+  { text: "No one should call themselves clever; it is enough not to be a fool.", author: "Havamal", tradition: "Norse" },
+  { text: "Better to rise early than to have no life; a wakeful soul wins wealth and wisdom.", author: "Havamal", tradition: "Norse" },
+  { text: "The brave will often enough survive where the coward perishes.", author: "Havamal", tradition: "Norse" },
   { text: "Praise a day when it is evening, a sword when it has been tried, ice when you have crossed it.", author: "Havamal 81", tradition: "Norse" },
-  { text: "Words that a man speaks to another come back, mostly, to plague him.", author: "Havamal", tradition: "Norse" },
+  { text: "Words that one speaks to another come back, mostly, to plague them.", author: "Havamal", tradition: "Norse" },
   { text: "It is better to fight and fall than to live without hope.", author: "Volsunga Saga", tradition: "Norse" },
   { text: "Wisdom is the best burden for any journey.", author: "Norse proverb", tradition: "Norse" },
   { text: "Give counsel to thyself; look to thyself first before you speak.", author: "Havamal", tradition: "Norse" },
@@ -492,8 +593,12 @@ export function quoteOfDay(enabledTraditions?: string[], disabledQuotes?: string
 
 // ── AppIcon — dynamic home-page symbol ────────────────────────────────────────
 
-/** Shows the active tradition's icon when exactly one is selected; otherwise yin-yang. */
-export function AppIcon({ size, color, traditions }: { size: number; color: string; traditions: string[] }) {
+/** Shows the configured icon, or auto-selects based on traditions. */
+export function AppIcon({ size, color, traditions, appIcon }: { size: number; color: string; traditions: string[]; appIcon?: string }) {
+  if (appIcon) {
+    const entry = APP_ICON_REGISTRY.find(e => e.id === appIcon);
+    if (entry) return <entry.Icon size={size} color={color} />;
+  }
   if (traditions.length === 1) {
     const meta = TRADITION_META[traditions[0] as TraditionId];
     if (meta) return <meta.Icon size={size} color={color} />;
@@ -559,37 +664,37 @@ export function TraditionCard({ meta, active, onToggle }: {
       onMouseLeave={() => setHovered(false)}
       style={{
         position: "relative",
-        padding: "16px 14px 14px",
+        padding: "10px 8px 9px",
         background: active ? `${meta.color}14` : hovered ? "var(--surface-hi)" : "var(--surface)",
         border: `1.5px solid ${active ? meta.color + "55" : hovered ? "var(--border-hi)" : "var(--border)"}`,
-        borderRadius: 14,
+        borderRadius: 10,
         cursor: "pointer",
         textAlign: "left",
         fontFamily: "'Montserrat', sans-serif",
         transition: "all 0.18s",
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 6,
         width: "100%",
-        boxShadow: active ? `0 4px 24px ${meta.color}18` : "none",
+        boxShadow: active ? `0 2px 14px ${meta.color}15` : "none",
       }}
     >
       {active && (
         <div style={{
-          position: "absolute", top: 8, right: 8,
-          width: 17, height: 17, borderRadius: "50%",
+          position: "absolute", top: 6, right: 6,
+          width: 14, height: 14, borderRadius: "50%",
           background: meta.color,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <span style={{ color: "#08101f", fontSize: 10, fontWeight: 900, lineHeight: 1 }}>✓</span>
+          <span style={{ color: "#08101f", fontSize: 9, fontWeight: 900, lineHeight: 1 }}>✓</span>
         </div>
       )}
-      <meta.Icon size={36} color={show ? meta.color : "var(--text-muted)"} />
+      <meta.Icon size={26} color={show ? meta.color : "var(--text-muted)"} />
       <div>
-        <div style={{ fontSize: 12, fontWeight: 800, color: show ? meta.color : "var(--text)", marginBottom: 2, transition: "color 0.18s" }}>
+        <div style={{ fontSize: 10.5, fontWeight: 800, color: show ? meta.color : "var(--text)", marginBottom: 1, transition: "color 0.18s", lineHeight: 1.2 }}>
           {meta.tagline}
         </div>
-        <div style={{ fontSize: 10, color: "var(--text-muted)", lineHeight: 1.4 }}>
+        <div style={{ fontSize: 9, color: "var(--text-muted)", lineHeight: 1.35 }}>
           {meta.subtitle}
         </div>
       </div>
