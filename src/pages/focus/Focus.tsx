@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { usePrefs } from "../../prefs";
 import { useNoise, NOISE_OPTIONS } from "../../noise";
 import { PageShell, BORDER, TEXT, TEXT_DIM, TEXT_MUTED, FONT } from "../shared/kit";
+import AffirmationsSection from "./AffirmationsSection";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -309,6 +310,7 @@ export default function Focus() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <NoiseSection accent={accent} />
         <BreathingSection accent={accent} />
+        <AffirmationsSection accent={accent} />
       </div>
     </PageShell>
   );
