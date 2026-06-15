@@ -6,7 +6,7 @@ import { useState, useEffect, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import StarField from "../../components/StarField";
 import ToolNav, { type ToolKey } from "../../components/ToolNav";
-import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import { WisdomCard, useDailyQuote } from "../../components/Wisdom";
 import { usePrefs } from "../../prefs";
 
 // ── Palette ─────────────────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ export function PageShell({ tool, maxWidth = 900, children, headerExtra }: {
 }) {
   const { prefs } = usePrefs();
   const showWisdom = prefs.wisdomPages.includes(tool);
-  const wisdomQuote = showWisdom ? quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes) : null;
+  const dailyQuote = useDailyQuote();
 
   return (
     <div style={{ background: BG, minHeight: "100vh", fontFamily: FONT, color: TEXT, position: "relative" }}>
@@ -163,9 +163,9 @@ export function PageShell({ tool, maxWidth = 900, children, headerExtra }: {
           {headerExtra && <div style={{ flexShrink: 0 }}>{headerExtra}</div>}
         </div>
         <div style={{ maxWidth, margin: "0 auto", width: "100%", padding: "24px 20px 80px", boxSizing: "border-box" }}>
-          {showWisdom && wisdomQuote && (
+          {showWisdom && (
             <div style={{ marginBottom: 20 }}>
-              <WisdomCard quote={wisdomQuote} compact />
+              <WisdomCard quote={dailyQuote} compact />
             </div>
           )}
           {children}

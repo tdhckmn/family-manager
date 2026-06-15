@@ -19,7 +19,7 @@ import { useHouseholdUid } from "../../household";
 import { usePeople } from "../../usePeople";
 import StarField from "../../components/StarField";
 import { UserProfile } from "../../components/GlobalHeader";
-import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import { WisdomCard, useDailyQuote } from "../../components/Wisdom";
 import { usePrefs } from "../../prefs";
 import {
   IncomeSection, FixedExpensesSection, SavingsSection, WantsSection,
@@ -449,6 +449,7 @@ export default function Finance() {
   const uid = useHouseholdUid();
   const people = usePeople();
   const { prefs } = usePrefs();
+  const dailyQuote = useDailyQuote();
   const [plan, setPlan] = useState<FinancePlan>(DEFAULT_PLAN);
 
   const isMobile = useIsMobile();
@@ -615,7 +616,7 @@ export default function Finance() {
         {/* Daily wisdom */}
         {prefs.wisdomPages.includes("finance") && (
           <div style={{ marginBottom: 16 }}>
-            <WisdomCard quote={quoteOfDay(prefs.wisdomTraditions)} compact />
+            <WisdomCard quote={dailyQuote} compact />
           </div>
         )}
 

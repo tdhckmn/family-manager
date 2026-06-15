@@ -1,7 +1,8 @@
 // Shared wisdom module — traditions, quotes, SVG icons, WisdomCard, AppIcon, TraditionCard.
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { usePrefs } from "../prefs";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -337,6 +338,123 @@ export const TRADITION_ORDER: TraditionId[] = [
   "Islam", "Jewish", "Norse", "Sikh", "Stoic", "Sufi", "Taoist", "Zen",
 ];
 
+// ── Zodiac icons ──────────────────────────────────────────────────────────────
+
+function AriesIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M50,82 L50,46 Q38,16 16,28 Q8,36 14,48" stroke={color} strokeWidth="5.5" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <path d="M50,46 Q62,16 84,28 Q92,36 86,48" stroke={color} strokeWidth="5.5" strokeLinecap="round" fill="none" opacity="0.9"/>
+    </svg>
+  );
+}
+
+function TaurusIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <circle cx="50" cy="64" r="24" stroke={color} strokeWidth="5" opacity="0.9"/>
+      <path d="M26,48 Q26,18 50,18 Q74,18 74,48" stroke={color} strokeWidth="5.5" strokeLinecap="round" fill="none" opacity="0.85"/>
+    </svg>
+  );
+}
+
+function GeminiIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <line x1="16" y1="18" x2="84" y2="18" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.9"/>
+      <line x1="16" y1="82" x2="84" y2="82" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.9"/>
+      <line x1="34" y1="18" x2="34" y2="82" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.85"/>
+      <line x1="66" y1="18" x2="66" y2="82" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.85"/>
+    </svg>
+  );
+}
+
+function CancerIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M50,46 Q70,46 70,30 Q70,14 50,14 Q34,14 30,26" stroke={color} strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <path d="M50,54 Q30,54 30,70 Q30,86 50,86 Q66,86 70,74" stroke={color} strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.9"/>
+    </svg>
+  );
+}
+
+function LeoIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <circle cx="38" cy="58" r="22" stroke={color} strokeWidth="5" opacity="0.9"/>
+      <path d="M60,58 Q78,58 78,40 Q78,22 60,20 Q50,20 44,28" stroke={color} strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.85"/>
+    </svg>
+  );
+}
+
+function VirgoIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M14,80 L14,38 Q14,18 28,18 Q42,18 42,38 L42,80" stroke={color} strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <path d="M42,38 Q42,18 58,18 Q72,18 72,38 L72,70 Q72,90 88,86" stroke={color} strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.85"/>
+    </svg>
+  );
+}
+
+function LibraIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M22,52 Q22,26 50,26 Q78,26 78,52" stroke={color} strokeWidth="5.5" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <line x1="12" y1="58" x2="88" y2="58" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.9"/>
+      <line x1="12" y1="76" x2="88" y2="76" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.8"/>
+    </svg>
+  );
+}
+
+function ScorpioIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M10,80 L10,38 Q10,18 26,18 Q42,18 42,38 L42,80" stroke={color} strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <path d="M42,38 Q42,18 58,18 Q74,18 74,38 L74,64" stroke={color} strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.85"/>
+      <line x1="74" y1="64" x2="90" y2="80" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.9"/>
+      <polyline points="78,80 90,80 90,68" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.9"/>
+    </svg>
+  );
+}
+
+function SagittariusIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <line x1="18" y1="82" x2="82" y2="18" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.9"/>
+      <polyline points="54,18 82,18 82,46" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.9"/>
+      <line x1="24" y1="52" x2="76" y2="52" stroke={color} strokeWidth="4.5" strokeLinecap="round" opacity="0.65"/>
+    </svg>
+  );
+}
+
+function CapricornIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M12,18 L42,68 L72,18" stroke={color} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity="0.9"/>
+      <path d="M72,18 Q90,18 90,40 Q90,60 72,60 Q54,60 54,78 Q54,92 70,92" stroke={color} strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.85"/>
+    </svg>
+  );
+}
+
+function AquariusIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M10,36 Q22,22 34,36 Q46,50 58,36 Q70,22 90,36" stroke={color} strokeWidth="5.5" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <path d="M10,62 Q22,48 34,62 Q46,76 58,62 Q70,48 90,62" stroke={color} strokeWidth="5.5" strokeLinecap="round" fill="none" opacity="0.85"/>
+    </svg>
+  );
+}
+
+function PiscesIcon({ size, color }: { size: number; color: string }) {
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} fill="none" style={{ display: "block" }}>
+      <path d="M64,12 Q90,12 90,50 Q90,88 64,88" stroke={color} strokeWidth="5.5" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <path d="M36,12 Q10,12 10,50 Q10,88 36,88" stroke={color} strokeWidth="5.5" strokeLinecap="round" fill="none" opacity="0.9"/>
+      <line x1="16" y1="50" x2="84" y2="50" stroke={color} strokeWidth="5" strokeLinecap="round" opacity="0.8"/>
+    </svg>
+  );
+}
+
 // ── App icon registry ─────────────────────────────────────────────────────────
 
 export interface AppIconEntry {
@@ -353,6 +471,21 @@ export const PEACEFUL_ICONS: AppIconEntry[] = [
   { id: "moon", label: "Moon", Icon: MoonIcon },
 ];
 
+export const ZODIAC_ICONS: AppIconEntry[] = [
+  { id: "zodiac-aries",       label: "Aries",       Icon: AriesIcon },
+  { id: "zodiac-taurus",      label: "Taurus",      Icon: TaurusIcon },
+  { id: "zodiac-gemini",      label: "Gemini",      Icon: GeminiIcon },
+  { id: "zodiac-cancer",      label: "Cancer",      Icon: CancerIcon },
+  { id: "zodiac-leo",         label: "Leo",         Icon: LeoIcon },
+  { id: "zodiac-virgo",       label: "Virgo",       Icon: VirgoIcon },
+  { id: "zodiac-libra",       label: "Libra",       Icon: LibraIcon },
+  { id: "zodiac-scorpio",     label: "Scorpio",     Icon: ScorpioIcon },
+  { id: "zodiac-sagittarius", label: "Sagittarius", Icon: SagittariusIcon },
+  { id: "zodiac-capricorn",   label: "Capricorn",   Icon: CapricornIcon },
+  { id: "zodiac-aquarius",    label: "Aquarius",    Icon: AquariusIcon },
+  { id: "zodiac-pisces",      label: "Pisces",      Icon: PiscesIcon },
+];
+
 export const APP_ICON_REGISTRY: AppIconEntry[] = [
   ...PEACEFUL_ICONS,
   ...TRADITION_ORDER.map(id => ({
@@ -360,6 +493,7 @@ export const APP_ICON_REGISTRY: AppIconEntry[] = [
     label: TRADITION_META[id].label,
     Icon: TRADITION_META[id].Icon,
   })),
+  ...ZODIAC_ICONS,
 ];
 
 // ── Quotes ────────────────────────────────────────────────────────────────────
@@ -580,15 +714,70 @@ export function getDayOfYear(): number {
   return Math.floor((now.getTime() - start.getTime()) / 86_400_000);
 }
 
+export function quoteKey(q: Quote): string {
+  return `${q.tradition}:${q.text.slice(0, 40)}`;
+}
+
+export function isQuoteInLibrary(
+  q: Quote,
+  prefs: { wisdomTraditions: string[]; disabledQuotes: string[]; enabledQuotes?: string[] }
+): boolean {
+  const key = quoteKey(q);
+  if ((prefs.enabledQuotes ?? []).includes(key)) return true;
+  if ((prefs.disabledQuotes ?? []).includes(key)) return false;
+  return (prefs.wisdomTraditions ?? []).includes(q.tradition);
+}
+
 /** Quote of the day filtered to enabled traditions + non-disabled quotes (falls back to full set). */
-export function quoteOfDay(enabledTraditions?: string[], disabledQuotes?: string[]): Quote {
+export function quoteOfDay(enabledTraditions?: string[], disabledQuotes?: string[], enabledQuotes?: string[]): Quote {
   const disabledSet = new Set(disabledQuotes ?? []);
-  const pool = (enabledTraditions?.length
-    ? WISDOM.filter(q => enabledTraditions.includes(q.tradition))
-    : WISDOM
-  ).filter(q => !disabledSet.has(`${q.tradition}:${q.text.slice(0, 40)}`));
+  const enabledSet  = new Set(enabledQuotes ?? []);
+  const pool = WISDOM.filter(q => {
+    const key = quoteKey(q);
+    if (enabledSet.has(key))   return true;
+    if (disabledSet.has(key))  return false;
+    return enabledTraditions?.length ? enabledTraditions.includes(q.tradition) : true;
+  });
   const src = pool.length ? pool : WISDOM;
   return src[getDayOfYear() % src.length];
+}
+
+const DAILY_CACHE_KEY = "eq_daily_quote";
+
+/**
+ * Returns today's quote, stable throughout the day.
+ * Replaces the cached quote only if it's been removed from the library.
+ */
+export function useDailyQuote(): Quote {
+  const { prefs } = usePrefs();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const quote = useMemo((): Quote => {
+    try {
+      const raw = localStorage.getItem(DAILY_CACHE_KEY);
+      if (raw) {
+        const cached = JSON.parse(raw) as { date: string; key: string };
+        if (cached.date === today) {
+          const q = WISDOM.find(w => quoteKey(w) === cached.key);
+          if (q && isQuoteInLibrary(q, prefs)) return q;
+        }
+      }
+    } catch {}
+    return quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes, prefs.enabledQuotes);
+  }, [prefs, today]);
+
+  useEffect(() => {
+    const key = quoteKey(quote);
+    try {
+      const raw = localStorage.getItem(DAILY_CACHE_KEY);
+      const cached = raw ? JSON.parse(raw) as { date: string; key: string } : null;
+      if (cached?.date !== today || cached?.key !== key) {
+        localStorage.setItem(DAILY_CACHE_KEY, JSON.stringify({ date: today, key }));
+      }
+    } catch {}
+  }, [quote, today]);
+
+  return quote;
 }
 
 // ── AppIcon — dynamic home-page symbol ────────────────────────────────────────
@@ -612,39 +801,164 @@ export function WisdomCard({ quote, compact = false, noLink = false }: { quote: 
   const meta = TRADITION_META[quote.tradition] ?? TRADITION_META.Stoic;
   const { color, Icon, tagline } = meta;
   const [hov, setHov] = useState(false);
+  const [pondering, setPondering] = useState(false);
+  const [narrow, setNarrow] = useState(() => window.innerWidth < 600);
+  const { prefs, updatePrefs } = usePrefs();
 
-  const card = (
-    <div
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
-      style={{
-        background: "var(--surface)",
-        border: `1px solid ${hov && !noLink ? color + "55" : "var(--border)"}`,
-        borderRadius: 16, padding: compact ? "14px 18px" : "22px 28px",
-        position: "relative", overflow: "hidden",
-        cursor: noLink ? "default" : "pointer",
-        transition: "border-color 0.15s",
-      }}>
-      <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 80% 60% at 50% 50%, ${color}09 0%, transparent 70%)`, pointerEvents: "none" }} />
-      <div style={{ position: "relative" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: compact ? 8 : 12 }}>
-          <Icon size={compact ? 15 : 19} color={color} />
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color, opacity: 0.85 }}>
-            {tagline}
-          </span>
+  useEffect(() => {
+    const h = () => setNarrow(window.innerWidth < 600);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+
+  useEffect(() => {
+    if (!pondering) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setPondering(false); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [pondering]);
+
+  function toggleQuote() {
+    const key = quoteKey(quote);
+    const inLib = isQuoteInLibrary(quote, prefs);
+    const tradOn = prefs.wisdomTraditions.includes(quote.tradition);
+    const disabled = prefs.disabledQuotes ?? [];
+    const enabled  = prefs.enabledQuotes  ?? [];
+    if (inLib) {
+      if (tradOn) updatePrefs({ disabledQuotes: [...disabled.filter(k => k !== key), key], enabledQuotes: enabled.filter(k => k !== key) });
+      else        updatePrefs({ enabledQuotes: enabled.filter(k => k !== key) });
+    } else {
+      if (!tradOn) updatePrefs({ enabledQuotes: [...enabled.filter(k => k !== key), key], disabledQuotes: disabled.filter(k => k !== key) });
+      else         updatePrefs({ disabledQuotes: disabled.filter(k => k !== key) });
+    }
+  }
+
+  const inLibrary = isQuoteInLibrary(quote, prefs);
+  const DARK_BG  = "#0d1120";
+  const DARK_TEXT = "#e2ddd4";
+  const DARK_DIM  = "#8a8899";
+  const DARK_BDR  = "rgba(255,255,255,0.10)";
+
+  return (
+    <>
+      <div
+        onClick={noLink ? undefined : () => setPondering(true)}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={{
+          background: "var(--surface)",
+          border: `1px solid ${hov && !noLink ? color + "55" : "var(--border)"}`,
+          borderRadius: 16, padding: compact ? "14px 18px" : "22px 28px",
+          position: "relative", overflow: "hidden",
+          cursor: noLink ? "default" : "pointer",
+          transition: "border-color 0.15s",
+        }}>
+        <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 80% 60% at 50% 50%, ${color}09 0%, transparent 70%)`, pointerEvents: "none" }} />
+        <div style={{ position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: compact ? 8 : 12 }}>
+            <Icon size={compact ? 15 : 19} color={color} />
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color, opacity: 0.85 }}>
+              {tagline}
+            </span>
+          </div>
+          <p style={{ fontSize: compact ? 13 : 15, lineHeight: 1.65, color: "var(--text)", fontStyle: "italic", margin: 0, maxWidth: 760 }}>
+            "{quote.text}"
+          </p>
+          <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 8, marginBottom: 0, fontWeight: 600 }}>
+            — {quote.author}
+          </p>
         </div>
-        <p style={{ fontSize: compact ? 13 : 15, lineHeight: 1.65, color: "var(--text)", fontStyle: "italic", margin: 0, maxWidth: 760 }}>
-          "{quote.text}"
-        </p>
-        <p style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 8, marginBottom: 0, fontWeight: 600 }}>
-          — {quote.author}
-        </p>
       </div>
-    </div>
-  );
 
-  if (noLink) return card;
-  return <Link to="/app/wisdom" style={{ textDecoration: "none", display: "block" }}>{card}</Link>;
+      {pondering && (
+        <div
+          onClick={() => setPondering(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 2000,
+            background: narrow ? DARK_BG : "rgba(3,5,20,0.94)",
+            backdropFilter: narrow ? undefined : "blur(12px)",
+            display: "flex",
+            alignItems: narrow ? "stretch" : "center",
+            justifyContent: narrow ? "stretch" : "center",
+            padding: narrow ? 0 : 24,
+          }}>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={narrow ? {
+              flex: 1, display: "flex", flexDirection: "column", justifyContent: "center",
+              background: DARK_BG, padding: "60px 28px 52px", position: "relative",
+            } : {
+              maxWidth: 640, width: "100%", position: "relative",
+              background: DARK_BG, border: `1px solid ${color}40`,
+              borderRadius: 24, padding: "48px 40px 36px",
+              boxShadow: `0 0 80px ${color}22`,
+            }}>
+            <div style={{
+              position: "absolute", inset: 0, borderRadius: narrow ? 0 : 24,
+              background: `radial-gradient(ellipse 60% 50% at 50% 40%, ${color}12, transparent 70%)`,
+              pointerEvents: "none",
+            }} />
+
+            <button
+              onClick={() => setPondering(false)}
+              style={{
+                position: "absolute", top: narrow ? 20 : 14, right: narrow ? 20 : 14,
+                background: "transparent", border: "none",
+                color: DARK_DIM, fontSize: 20, cursor: "pointer",
+                lineHeight: 1, padding: "4px 8px",
+              }}>✕</button>
+
+            <div style={{ position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
+                <Icon size={narrow ? 22 : 20} color={color} />
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color, opacity: 0.85 }}>
+                  {tagline}
+                </span>
+              </div>
+              <blockquote style={{
+                margin: 0, padding: 0,
+                fontSize: narrow ? "clamp(18px, 5.5vw, 26px)" : "clamp(16px, 3vw, 22px)",
+                lineHeight: 1.72, color: DARK_TEXT, fontStyle: "italic", fontWeight: 500,
+              }}>
+                "{quote.text}"
+              </blockquote>
+              <p style={{ fontSize: narrow ? 15 : 14, color: DARK_DIM, marginTop: 20, marginBottom: 0, fontWeight: 700 }}>
+                — {quote.author}
+              </p>
+            </div>
+
+            <div style={{ position: "relative", marginTop: 28, display: "flex", alignItems: "center", gap: 10 }}>
+              <button
+                onClick={toggleQuote}
+                style={{
+                  background: inLibrary ? `${color}20` : "transparent",
+                  border: `1.5px solid ${inLibrary ? color + "66" : DARK_BDR}`,
+                  borderRadius: 20, padding: "7px 16px",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  cursor: "pointer", fontWeight: 700, fontSize: 13,
+                  color: inLibrary ? color : DARK_DIM, transition: "all 0.15s",
+                }}>
+                <span style={{ fontSize: 14, lineHeight: 1 }}>{inLibrary ? "★" : "☆"}</span>
+                {inLibrary ? "In library" : "Add to library"}
+              </button>
+              <Link
+                to="/app/wisdom"
+                onClick={() => setPondering(false)}
+                style={{
+                  marginLeft: "auto", fontSize: 13, fontWeight: 700,
+                  color: DARK_DIM, textDecoration: "none",
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  padding: "7px 14px",
+                  border: `1px solid ${DARK_BDR}`, borderRadius: 20,
+                }}>
+                Library ↗
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 // ── TraditionCard — Civ6-inspired selector card ───────────────────────────────

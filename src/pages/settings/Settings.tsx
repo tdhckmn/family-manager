@@ -14,7 +14,7 @@ import {
 } from "../shared/kit";
 import { useGCal, fetchCalendars, type GCalCalendar } from "../../gcal";
 import { usePrefs } from "../../prefs";
-import { TRADITION_META, TRADITION_ORDER, TraditionCard, APP_ICON_REGISTRY } from "../../components/Wisdom";
+import { APP_ICON_REGISTRY } from "../../components/Wisdom";
 
 const ACCENT_PRESETS = [
   { color: "#5db88a", label: "Jade" },
@@ -486,39 +486,27 @@ export default function Settings() {
 
           {/* Wisdom */}
           <Panel title="Wisdom" icon={<Icon name="book" size={15} />} accent={prefs.accentColor}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: TEXT_DIM, marginBottom: 10 }}>Traditions</div>
-            <div style={{ fontSize: 12, color: TEXT_DIM, marginBottom: 14, lineHeight: 1.5 }}>
-              Choose which traditions to draw daily wisdom from. Select at least one.
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 20 }}>
-              {TRADITION_ORDER.map(id => {
-                const meta = TRADITION_META[id];
-                const active = prefs.wisdomTraditions.includes(id);
-                return (
-                  <TraditionCard
-                    key={id}
-                    meta={meta}
-                    active={active}
-                    onToggle={() => {
-                      const next = active
-                        ? prefs.wisdomTraditions.filter(t => t !== id)
-                        : [...prefs.wisdomTraditions, id];
-                      if (next.length > 0) updatePrefs({ wisdomTraditions: next });
-                    }}
-                  />
-                );
-              })}
-            </div>
+            <Link
+              to="/app/wisdom"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "12px 16px", borderRadius: 12,
+                background: `${prefs.accentColor}0e`,
+                border: `1px solid ${prefs.accentColor}33`,
+                textDecoration: "none", marginBottom: 20,
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = `${prefs.accentColor}18`; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = `${prefs.accentColor}0e`; }}
+            >
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: prefs.accentColor, marginBottom: 2 }}>Wisdom Library</div>
+                <div style={{ fontSize: 11, color: TEXT_DIM }}>Curate traditions and individual quotes</div>
+              </div>
+              <span style={{ fontSize: 16, color: prefs.accentColor, opacity: 0.7 }}>↗</span>
+            </Link>
 
-            <div style={{ height: 1, background: BORDER, marginBottom: 16 }} />
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: TEXT_DIM }}>Show On</div>
-              <Link to="/app/wisdom" style={{ fontSize: 12, fontWeight: 700, color: prefs.accentColor, textDecoration: "none", opacity: 0.8 }}
-                onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
-                onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.8"}>
-                Browse library →
-              </Link>
-            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: TEXT_DIM, marginBottom: 10 }}>Show On</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {PAGE_OPTIONS.map(({ key, label, desc }) => {
                 const active = prefs.wisdomPages.includes(key);

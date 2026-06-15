@@ -7,7 +7,7 @@ import ToolNav from "../../components/ToolNav";
 import { Icon, type IconName } from "../../components/Icon";
 import { useHouseholdUid } from "../../household";
 import { useOverlay } from "../../overlay";
-import { WisdomCard, quoteOfDay } from "../../components/Wisdom";
+import { WisdomCard, useDailyQuote } from "../../components/Wisdom";
 import { usePrefs } from "../../prefs";
 
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
@@ -198,6 +198,7 @@ function PlanEntryRow({ meal, label, onView, onEdit, onRemove }: { meal: Meal; l
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function FoodPlanner() {
   const { prefs } = usePrefs();
+  const dailyQuote = useDailyQuote();
   const [data, setData] = useState<AppData>(SEED_DATA);
   const [view, setView] = useState("planner");
   const [plannerView, setPlannerView] = useState<"list" | "calendar">("calendar");
@@ -459,7 +460,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
         <div style={{ padding: "28px 24px 60px", maxWidth: 1100, margin: "0 auto" }}>
           {prefs.wisdomPages.includes("food") && (
             <div style={{ marginBottom: 20 }}>
-              <WisdomCard quote={quoteOfDay(prefs.wisdomTraditions)} compact />
+              <WisdomCard quote={dailyQuote} compact />
             </div>
           )}
 
