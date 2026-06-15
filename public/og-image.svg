@@ -1,169 +1,52 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#020510"/>
-      <stop offset="60%" stop-color="#050c22"/>
-      <stop offset="100%" stop-color="#07152e"/>
-    </linearGradient>
-    <radialGradient id="moonGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#c8d8e8" stop-opacity="0.28"/>
-      <stop offset="100%" stop-color="#c8d8e8" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="horizonGlow" cx="50%" cy="85%" r="65%">
-      <stop offset="0%" stop-color="#5db88a" stop-opacity="0.22"/>
-      <stop offset="55%" stop-color="#5db88a" stop-opacity="0.05"/>
+    <radialGradient id="peakGlow" cx="50%" cy="14%" r="38%">
+      <stop offset="0%" stop-color="#5db88a" stop-opacity="0.18"/>
       <stop offset="100%" stop-color="#5db88a" stop-opacity="0"/>
     </radialGradient>
-    <mask id="moonMask">
-      <rect width="1200" height="630" fill="white"/>
-      <circle cx="998" cy="95" r="56" fill="black"/>
-    </mask>
   </defs>
 
-  <!-- Sky -->
-  <rect width="1200" height="630" fill="url(#sky)"/>
-  <rect width="1200" height="630" fill="url(#horizonGlow)"/>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#06091a"/>
+  <rect width="1200" height="630" fill="url(#peakGlow)"/>
 
   <!-- Stars -->
-  <circle cx="55" cy="38" r="1.2" fill="#dedad0" opacity="0.8"/>
-  <circle cx="130" cy="22" r="0.9" fill="#dedad0" opacity="0.65"/>
-  <circle cx="195" cy="58" r="1.4" fill="#dedad0" opacity="0.85"/>
-  <circle cx="280" cy="30" r="1" fill="#dedad0" opacity="0.7"/>
-  <circle cx="355" cy="15" r="1.3" fill="#dedad0" opacity="0.9"/>
-  <circle cx="440" cy="50" r="0.8" fill="#dedad0" opacity="0.6"/>
-  <circle cx="520" cy="28" r="1.5" fill="#dedad0" opacity="0.8"/>
-  <circle cx="600" cy="65" r="1.1" fill="#dedad0" opacity="0.7"/>
-  <circle cx="680" cy="22" r="1.3" fill="#dedad0" opacity="0.85"/>
-  <circle cx="760" cy="48" r="0.9" fill="#dedad0" opacity="0.65"/>
-  <circle cx="840" cy="18" r="1.4" fill="#dedad0" opacity="0.9"/>
-  <circle cx="75" cy="120" r="1" fill="#dedad0" opacity="0.65"/>
-  <circle cx="160" cy="105" r="1.2" fill="#dedad0" opacity="0.75"/>
-  <circle cx="245" cy="135" r="0.8" fill="#dedad0" opacity="0.6"/>
-  <circle cx="330" cy="115" r="1.3" fill="#dedad0" opacity="0.8"/>
-  <circle cx="415" cy="140" r="1" fill="#dedad0" opacity="0.7"/>
-  <circle cx="500" cy="95" r="1.1" fill="#dedad0" opacity="0.65"/>
-  <circle cx="565" cy="140" r="1.4" fill="#dedad0" opacity="0.8"/>
-  <circle cx="635" cy="115" r="0.9" fill="#dedad0" opacity="0.7"/>
-  <circle cx="710" cy="145" r="1.2" fill="#dedad0" opacity="0.75"/>
-  <circle cx="785" cy="110" r="0.8" fill="#dedad0" opacity="0.6"/>
-  <circle cx="38" cy="195" r="1.1" fill="#dedad0" opacity="0.65"/>
-  <circle cx="118" cy="178" r="1.3" fill="#dedad0" opacity="0.75"/>
-  <circle cx="210" cy="200" r="0.9" fill="#dedad0" opacity="0.6"/>
-  <circle cx="300" cy="185" r="1.2" fill="#dedad0" opacity="0.8"/>
-  <circle cx="390" cy="205" r="1" fill="#dedad0" opacity="0.65"/>
-  <circle cx="480" cy="175" r="1.4" fill="#dedad0" opacity="0.8"/>
-  <circle cx="1060" cy="35" r="1.2" fill="#dedad0" opacity="0.8"/>
-  <circle cx="1110" cy="68" r="0.9" fill="#dedad0" opacity="0.65"/>
-  <circle cx="1155" cy="28" r="1.5" fill="#dedad0" opacity="0.9"/>
-  <circle cx="1185" cy="95" r="1" fill="#dedad0" opacity="0.7"/>
-  <circle cx="1025" cy="115" r="1.3" fill="#dedad0" opacity="0.75"/>
-  <circle cx="1070" cy="150" r="0.8" fill="#dedad0" opacity="0.6"/>
-  <circle cx="1130" cy="140" r="1.4" fill="#dedad0" opacity="0.8"/>
-  <circle cx="1175" cy="185" r="1" fill="#dedad0" opacity="0.7"/>
-  <circle cx="875" cy="155" r="1.2" fill="#dedad0" opacity="0.75"/>
-  <circle cx="940" cy="120" r="0.9" fill="#dedad0" opacity="0.65"/>
-  <circle cx="995" cy="175" r="1.1" fill="#dedad0" opacity="0.7"/>
+  <circle cx="120" cy="55"  r="1.5" fill="#dedad0" opacity="0.7"/>
+  <circle cx="210" cy="30"  r="1.1" fill="#dedad0" opacity="0.55"/>
+  <circle cx="335" cy="62"  r="1.3" fill="#dedad0" opacity="0.65"/>
+  <circle cx="455" cy="42"  r="0.9" fill="#dedad0" opacity="0.5"/>
+  <circle cx="540" cy="22"  r="1.2" fill="#dedad0" opacity="0.6"/>
+  <circle cx="660" cy="48"  r="1.0" fill="#dedad0" opacity="0.55"/>
+  <circle cx="745" cy="28"  r="1.4" fill="#dedad0" opacity="0.7"/>
+  <circle cx="865" cy="60"  r="1.1" fill="#dedad0" opacity="0.6"/>
+  <circle cx="980" cy="38"  r="1.3" fill="#dedad0" opacity="0.65"/>
+  <circle cx="1065" cy="22" r="1.0" fill="#dedad0" opacity="0.5"/>
+  <circle cx="1150" cy="55" r="1.5" fill="#dedad0" opacity="0.7"/>
+  <circle cx="180" cy="110" r="1.0" fill="#dedad0" opacity="0.45"/>
+  <circle cx="390" cy="95"  r="1.2" fill="#dedad0" opacity="0.5"/>
+  <circle cx="820" cy="105" r="1.1" fill="#dedad0" opacity="0.45"/>
+  <circle cx="1030" cy="90" r="1.3" fill="#dedad0" opacity="0.5"/>
 
-  <!-- Moon -->
-  <circle cx="972" cy="112" r="92" fill="url(#moonGlow)"/>
-  <circle cx="972" cy="112" r="54" fill="#e0dcd0" opacity="0.88" mask="url(#moonMask)"/>
+  <!-- Mountain icon: scale 4×, centered at x=600, peak at y=90 -->
+  <!-- translate(400, 50) scale(4) applied to original 100×100 art -->
+  <g transform="translate(400,50) scale(4)">
+    <!-- Far peak -->
+    <polygon points="74,36 96,80 52,80" fill="#1a3a5a"/>
+    <!-- Main peak -->
+    <polygon points="50,10 84,80 16,80" fill="#5db88a"/>
+    <!-- Snow cap -->
+    <polygon points="50,10 56,28 44,28" fill="#dedad0" opacity="0.88"/>
+    <!-- Horizon line -->
+    <line x1="8" y1="82" x2="92" y2="82" stroke="#5db88a" stroke-width="3.5" stroke-linecap="round" opacity="0.4"/>
+  </g>
 
-  <!-- Far mountains -->
-  <path d="M0,430 L0,268 L72,240 L148,286 L228,218 L315,268 L408,192 L505,248 L608,178 L708,224 L812,182 L912,238 L1012,172 L1110,228 L1200,192 L1200,430 Z" fill="#0a1630" opacity="0.95"/>
-
-  <!-- Mid mountains -->
-  <path d="M0,495 L0,365 L95,335 L178,385 L285,305 L382,368 L492,290 L602,338 L714,298 L835,368 L942,318 L1055,368 L1155,328 L1200,352 L1200,495 Z" fill="#071020" opacity="0.97"/>
-
-  <!-- Near hills -->
-  <path d="M0,548 Q80,518 180,530 Q320,546 468,505 Q618,464 775,512 Q935,562 1090,514 Q1152,500 1200,524 L1200,548 Z" fill="#050c1a"/>
-
-  <!-- Mid trees (background layer) -->
-  <polygon points="89,502 131,502 110,482" fill="#040e1e"/>
-    <polygon points="95,487 125,487 110,469" fill="#040e1e"/>
-    <polygon points="100,474 120,474 110,450" fill="#040e1e"/>
-    <polygon points="217,500 253,500 235,483" fill="#040e1e"/>
-    <polygon points="222,487 248,487 235,471" fill="#040e1e"/>
-    <polygon points="226,476 244,476 235,454" fill="#040e1e"/>
-    <polygon points="348,503 392,503 370,482" fill="#040e1e"/>
-    <polygon points="354,488 386,488 370,468" fill="#040e1e"/>
-    <polygon points="360,474 380,474 370,448" fill="#040e1e"/>
-    <polygon points="486,500 524,500 505,482" fill="#040e1e"/>
-    <polygon points="491,487 519,487 505,470" fill="#040e1e"/>
-    <polygon points="496,475 514,475 505,452" fill="#040e1e"/>
-    <polygon points="622,502 668,502 645,480" fill="#040e1e"/>
-    <polygon points="628,486 662,486 645,465" fill="#040e1e"/>
-    <polygon points="634,471 656,471 645,444" fill="#040e1e"/>
-    <polygon points="765,500 805,500 785,481" fill="#040e1e"/>
-    <polygon points="771,486 800,486 785,469" fill="#040e1e"/>
-    <polygon points="776,474 795,474 785,450" fill="#040e1e"/>
-    <polygon points="906,502 950,502 928,481" fill="#040e1e"/>
-    <polygon points="912,486 944,486 928,467" fill="#040e1e"/>
-    <polygon points="917,472 939,472 928,446" fill="#040e1e"/>
-    <polygon points="1046,500 1084,500 1065,482" fill="#040e1e"/>
-    <polygon points="1051,487 1079,487 1065,470" fill="#040e1e"/>
-    <polygon points="1056,475 1074,475 1065,452" fill="#040e1e"/>
-
-  <!-- Near trees (foreground) -->
-  <polygon points="-3,540 67,540 32,507" fill="#030b18"/>
-    <polygon points="6,515 58,515 32,485" fill="#030b18"/>
-    <polygon points="15,493 49,493 32,452" fill="#030b18"/>
-    <polygon points="45,540 131,540 88,499" fill="#030b18"/>
-    <polygon points="57,510 119,510 88,472" fill="#030b18"/>
-    <polygon points="67,483 109,483 88,432" fill="#030b18"/>
-    <polygon points="117,540 179,540 148,510" fill="#030b18"/>
-    <polygon points="125,518 171,518 148,491" fill="#030b18"/>
-    <polygon points="133,499 163,499 148,462" fill="#030b18"/>
-    <polygon points="167,540 245,540 206,503" fill="#030b18"/>
-    <polygon points="178,513 234,513 206,478" fill="#030b18"/>
-    <polygon points="187,488 225,488 206,442" fill="#030b18"/>
-    <polygon points="243,540 297,540 270,514" fill="#030b18"/>
-    <polygon points="250,521 290,521 270,497" fill="#030b18"/>
-    <polygon points="257,504 283,504 270,472" fill="#030b18"/>
-    <polygon points="301,540 375,540 338,505" fill="#030b18"/>
-    <polygon points="311,514 365,514 338,482" fill="#030b18"/>
-    <polygon points="321,491 355,491 338,448" fill="#030b18"/>
-    <polygon points="376,540 440,540 408,510" fill="#030b18"/>
-    <polygon points="385,518 431,518 408,490" fill="#030b18"/>
-    <polygon points="393,498 423,498 408,460" fill="#030b18"/>
-    <polygon points="453,540 511,540 482,513" fill="#030b18"/>
-    <polygon points="461,520 503,520 482,495" fill="#030b18"/>
-    <polygon points="468,502 496,502 482,468" fill="#030b18"/>
-    <polygon points="518,540 598,540 558,502" fill="#030b18"/>
-    <polygon points="529,512 587,512 558,477" fill="#030b18"/>
-    <polygon points="539,487 577,487 558,440" fill="#030b18"/>
-    <polygon points="602,540 670,540 636,508" fill="#030b18"/>
-    <polygon points="612,516 660,516 636,487" fill="#030b18"/>
-    <polygon points="620,495 652,495 636,456" fill="#030b18"/>
-    <polygon points="684,540 744,540 714,512" fill="#030b18"/>
-    <polygon points="693,519 735,519 714,493" fill="#030b18"/>
-    <polygon points="700,501 728,501 714,466" fill="#030b18"/>
-    <polygon points="754,540 830,540 792,504" fill="#030b18"/>
-    <polygon points="764,513 820,513 792,480" fill="#030b18"/>
-    <polygon points="774,489 810,489 792,444" fill="#030b18"/>
-    <polygon points="840,540 896,540 868,513" fill="#030b18"/>
-    <polygon points="848,520 888,520 868,496" fill="#030b18"/>
-    <polygon points="855,503 881,503 868,470" fill="#030b18"/>
-    <polygon points="906,540 978,540 942,506" fill="#030b18"/>
-    <polygon points="916,515 968,515 942,483" fill="#030b18"/>
-    <polygon points="925,492 959,492 942,450" fill="#030b18"/>
-    <polygon points="985,540 1051,540 1018,509" fill="#030b18"/>
-    <polygon points="994,517 1042,517 1018,488" fill="#030b18"/>
-    <polygon points="1002,497 1034,497 1018,458" fill="#030b18"/>
-    <polygon points="1051,540 1129,540 1090,503" fill="#030b18"/>
-    <polygon points="1062,513 1118,513 1090,478" fill="#030b18"/>
-    <polygon points="1071,488 1109,488 1090,442" fill="#030b18"/>
-    <polygon points="1126,540 1184,540 1155,512" fill="#030b18"/>
-    <polygon points="1134,520 1176,520 1155,494" fill="#030b18"/>
-    <polygon points="1141,501 1169,501 1155,467" fill="#030b18"/>
-    <polygon points="1158,540 1232,540 1195,505" fill="#030b18"/>
-    <polygon points="1168,514 1222,514 1195,482" fill="#030b18"/>
-    <polygon points="1178,491 1212,491 1195,448" fill="#030b18"/>
-
-  <!-- Ground -->
-  <rect y="540" width="1200" height="90" fill="#030814"/>
-
-  <!-- Branding — lower left, above the treeline on the left gap -->
-  <text x="64" y="474" font-family="Georgia, 'Times New Roman', serif" font-size="48" font-weight="bold" fill="#dedad0" opacity="0.92" letter-spacing="2">Equanimity</text>
-  <text x="66" y="508" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#8a9eb0" opacity="0.82" letter-spacing="0.5">Household management for a steady mind.</text>
+  <!-- Branding -->
+  <text x="600" y="484" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="58" font-weight="bold" letter-spacing="4"
+        fill="#dedad0" opacity="0.92">Equanimity</text>
+  <text x="600" y="528" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="20" letter-spacing="0.5"
+        fill="#8a9eb0" opacity="0.78">Household management for a steady mind</text>
 </svg>

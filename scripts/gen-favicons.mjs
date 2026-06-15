@@ -36,6 +36,8 @@ const APPLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
   <line x1="8" y1="82" x2="92" y2="82" stroke="#5db88a" stroke-width="3.5" stroke-linecap="round" opacity="0.4"/>
 </svg>`;
 
+const OG_SVG = fs.readFileSync(path.join(PUBLIC, "og-image.svg"), "utf8");
+
 const ICONS = [
   { file: "favicon-16.png",        svg: BASE_SVG,     size: 16  },
   { file: "favicon-32.png",        svg: BASE_SVG,     size: 32  },
@@ -53,3 +55,9 @@ for (const { file, svg, size } of ICONS) {
   fs.writeFileSync(path.join(PUBLIC, file), pngBuffer);
   console.log(`✓ ${file} (${size}×${size})`);
 }
+
+// OG image — fixed 1200×630
+const ogResvg = new Resvg(OG_SVG, { fitTo: { mode: "width", value: 1200 } });
+const ogPng = ogResvg.render().asPng();
+fs.writeFileSync(path.join(PUBLIC, "og-image.png"), ogPng);
+console.log("✓ og-image.png (1200×630)");

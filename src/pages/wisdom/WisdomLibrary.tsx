@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useOverlay } from "../../overlay";
 import {
   WISDOM, TRADITION_META, TRADITION_ORDER, WisdomCard, useDailyQuote, quoteKey,
   isQuoteInLibrary, AppIcon,
@@ -7,7 +8,7 @@ import {
 } from "../../components/Wisdom";
 import { usePrefs } from "../../prefs";
 import {
-  PageShell, BORDER, BORDER_HI, TEXT, TEXT_DIM, TEXT_MUTED, FONT, JADE,
+  PageShell, BORDER, BORDER_HI, TEXT, TEXT_DIM, TEXT_MUTED, FONT, JADE, useIsMobile,
 } from "../shared/kit";
 
 // Static totals per tradition (WISDOM never changes)
@@ -17,6 +18,7 @@ const TRAD_TOTALS: Record<string, number> = Object.fromEntries(
 
 export default function WisdomLibrary() {
   const { prefs, updatePrefs } = usePrefs();
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<TraditionId | "all">("all");
   const [search, setSearch] = useState("");
   const [ponderIdx, setPonderIdx] = useState<number | null>(null);
@@ -114,9 +116,18 @@ export default function WisdomLibrary() {
 
   return (
     <PageShell tool="wisdom" maxWidth={800} headerExtra={
-      <span style={{ fontSize: 12, color: TEXT_DIM, fontWeight: 600 }}>
-        {libraryCount} / {WISDOM.length} in library
-      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 12, color: TEXT_DIM, fontWeight: 600 }}>
+          {libraryCount} / {WISDOM.length} in library
+        </span>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8,
+            color: TEXT_DIM, fontSize: 14, cursor: "pointer", lineHeight: 1,
+            padding: "4px 9px", fontFamily: FONT,
+          }}>✕</button>
+      </div>
     }>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
@@ -518,6 +529,9 @@ function PonderOverlay({ quote, inLibrary, hasPrev, hasNext, onClose, onPrev, on
 }) {
   const meta = TRADITION_META[quote.tradition];
   const { color, Icon, tagline } = meta;
+  const narrow = useIsMobile(600);
+
+  useOverlay(narrow);
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -539,35 +553,46 @@ function PonderOverlay({ quote, inLibrary, hasPrev, hasNext, onClose, onPrev, on
       onClick={onClose}
       style={{
         position: "fixed", inset: 0, zIndex: 2000,
-        background: "rgba(3,5,20,0.94)", backdropFilter: "blur(12px)",
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+        background: narrow ? DARK_BG : "rgba(3,5,20,0.94)",
+        backdropFilter: narrow ? undefined : "blur(12px)",
+        display: "flex",
+        alignItems: narrow ? "stretch" : "center",
+        justifyContent: narrow ? "stretch" : "center",
+        padding: narrow ? 0 : 24,
       }}>
       <div
         onClick={e => e.stopPropagation()}
-        style={{
+        style={narrow ? {
+          flex: 1, display: "flex", flexDirection: "column", justifyContent: "center",
+          background: DARK_BG, padding: "60px 28px 52px", position: "relative",
+        } : {
           maxWidth: 640, width: "100%", position: "relative",
           background: DARK_BG, border: `1px solid ${color}40`,
           borderRadius: 24, padding: "48px 40px 36px",
           boxShadow: `0 0 80px ${color}22`,
         }}>
         <div style={{
-          position: "absolute", inset: 0, borderRadius: 24,
-          background: `radial-gradient(ellipse 60% 50% at 50% 50%, ${color}12, transparent 70%)`,
+          position: "absolute", inset: 0, borderRadius: narrow ? 0 : 24,
+          background: `radial-gradient(ellipse 60% 50% at 50% 40%, ${color}12, transparent 70%)`,
           pointerEvents: "none",
         }} />
 
         <button
           onClick={onClose}
           style={{
-            position: "absolute", top: 14, right: 14,
-            background: "transparent", border: "none",
-            color: DARK_DIM, fontSize: 18, cursor: "pointer",
-            lineHeight: 1, padding: "4px 8px",
+            position: narrow ? "fixed" : "absolute",
+            top: narrow ? 20 : 14, right: narrow ? 20 : 14,
+            zIndex: 2001,
+            background: narrow ? "rgba(255,255,255,0.08)" : "transparent",
+            border: narrow ? "1px solid rgba(255,255,255,0.12)" : "none",
+            borderRadius: narrow ? 20 : 0,
+            color: DARK_TEXT, fontSize: 18, cursor: "pointer",
+            lineHeight: 1, padding: narrow ? "8px 12px" : "4px 8px",
           }}>✕</button>
 
         <div style={{ position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
-            <Icon size={20} color={color} />
+            <Icon size={narrow ? 22 : 20} color={color} />
             <span style={{
               fontSize: 10, fontWeight: 700, letterSpacing: 2,
               textTransform: "uppercase", color, opacity: 0.85,
@@ -577,56 +602,56 @@ function PonderOverlay({ quote, inLibrary, hasPrev, hasNext, onClose, onPrev, on
           </div>
           <blockquote style={{
             margin: 0, padding: 0,
-            fontSize: "clamp(16px, 3vw, 22px)", lineHeight: 1.72,
-            color: DARK_TEXT, fontStyle: "italic", fontWeight: 500,
+            fontSize: narrow ? "clamp(18px, 5.5vw, 26px)" : "clamp(16px, 3vw, 22px)",
+            lineHeight: 1.72, color: DARK_TEXT, fontStyle: "italic", fontWeight: 500,
           }}>
             "{quote.text}"
           </blockquote>
-          <p style={{ fontSize: 14, color: DARK_DIM, marginTop: 20, marginBottom: 0, fontWeight: 700 }}>
+          <p style={{ fontSize: narrow ? 15 : 14, color: DARK_DIM, marginTop: 20, marginBottom: 0, fontWeight: 700 }}>
             — {quote.author}
           </p>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 28, position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", marginTop: 28, position: "relative", gap: 10 }}>
           <button
             onClick={e => { e.stopPropagation(); onToggle(); }}
             title={inLibrary ? "Remove from library" : "Add to library"}
             style={{
               background: inLibrary ? `${color}20` : "transparent",
               border: `1.5px solid ${inLibrary ? color + "66" : DARK_BDR}`,
-              borderRadius: 20, padding: "6px 14px",
+              borderRadius: 20, padding: "7px 16px",
               display: "inline-flex", alignItems: "center", gap: 6,
-              cursor: "pointer", fontFamily: FONT, fontWeight: 700, fontSize: 12,
+              cursor: "pointer", fontFamily: FONT, fontWeight: 700, fontSize: 13,
               color: inLibrary ? color : DARK_DIM,
               transition: "all 0.15s",
             }}>
             <span style={{ fontSize: 14, lineHeight: 1 }}>{inLibrary ? "★" : "☆"}</span>
             {inLibrary ? "In library" : "Add to library"}
           </button>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, position: "relative" }}>
-          <button
-            onClick={onPrev}
-            disabled={!hasPrev}
-            style={{
-              background: "transparent",
-              border: `1px solid ${hasPrev ? DARK_BDR : "transparent"}`,
-              borderRadius: 8,
-              color: hasPrev ? DARK_DIM : "transparent",
-              fontFamily: FONT, fontWeight: 700, fontSize: 12,
-              padding: "7px 14px", cursor: hasPrev ? "pointer" : "default",
-            }}>← Prev</button>
-          <button
-            onClick={onNext}
-            disabled={!hasNext}
-            style={{
-              background: "transparent",
-              border: `1px solid ${hasNext ? DARK_BDR : "transparent"}`,
-              borderRadius: 8,
-              color: hasNext ? DARK_DIM : "transparent",
-              fontFamily: FONT, fontWeight: 700, fontSize: 12,
-              padding: "7px 14px", cursor: hasNext ? "pointer" : "default",
-            }}>Next →</button>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button
+              onClick={onPrev}
+              disabled={!hasPrev}
+              style={{
+                background: "transparent",
+                border: `1px solid ${hasPrev ? DARK_BDR : "transparent"}`,
+                borderRadius: 8,
+                color: hasPrev ? DARK_DIM : "transparent",
+                fontFamily: FONT, fontWeight: 700, fontSize: 12,
+                padding: "7px 14px", cursor: hasPrev ? "pointer" : "default",
+              }}>← Prev</button>
+            <button
+              onClick={onNext}
+              disabled={!hasNext}
+              style={{
+                background: "transparent",
+                border: `1px solid ${hasNext ? DARK_BDR : "transparent"}`,
+                borderRadius: 8,
+                color: hasNext ? DARK_DIM : "transparent",
+                fontFamily: FONT, fontWeight: 700, fontSize: 12,
+                padding: "7px 14px", cursor: hasNext ? "pointer" : "default",
+              }}>Next →</button>
+          </div>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { usePrefs } from "../prefs";
+import { useOverlay } from "../overlay";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -818,6 +819,8 @@ export function WisdomCard({ quote, compact = false, noLink = false }: { quote: 
     return () => window.removeEventListener("keydown", handler);
   }, [pondering]);
 
+  useOverlay(pondering && narrow);
+
   function toggleQuote() {
     const key = quoteKey(quote);
     const inLib = isQuoteInLibrary(quote, prefs);
@@ -902,10 +905,14 @@ export function WisdomCard({ quote, compact = false, noLink = false }: { quote: 
             <button
               onClick={() => setPondering(false)}
               style={{
-                position: "absolute", top: narrow ? 20 : 14, right: narrow ? 20 : 14,
-                background: "transparent", border: "none",
-                color: DARK_DIM, fontSize: 20, cursor: "pointer",
-                lineHeight: 1, padding: "4px 8px",
+                position: narrow ? "fixed" : "absolute",
+                top: narrow ? 20 : 14, right: narrow ? 20 : 14,
+                zIndex: 2001,
+                background: narrow ? "rgba(255,255,255,0.08)" : "transparent",
+                border: narrow ? "1px solid rgba(255,255,255,0.12)" : "none",
+                borderRadius: narrow ? 20 : 0,
+                color: DARK_TEXT, fontSize: 18, cursor: "pointer",
+                lineHeight: 1, padding: narrow ? "8px 12px" : "4px 8px",
               }}>✕</button>
 
             <div style={{ position: "relative" }}>
