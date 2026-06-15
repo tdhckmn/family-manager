@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { AFFIRMATION_CATEGORIES, type AffirmationCategory } from "../../affirmations";
 import { BORDER, TEXT, TEXT_DIM, TEXT_MUTED, FONT, useIsMobile } from "../shared/kit";
+import { Icon } from "../../components/Icon";
 
 // ── Category selector card ─────────────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ function PonderOverlay({ text, category, hasPrev, hasNext, accent, onClose, onPr
             color: DARK_DIM, fontSize: 20, cursor: "pointer",
             lineHeight: 1, padding: "4px 8px",
           }}
-        >✕</button>
+        ><Icon name="x" size={16} /></button>
 
         <div style={{ position: "relative" }}>
           <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2.2, textTransform: "uppercase", color: accent, opacity: 0.75, marginBottom: 6 }}>
@@ -123,7 +124,7 @@ function PonderOverlay({ text, category, hasPrev, hasNext, accent, onClose, onPr
               fontFamily: FONT, fontWeight: 700, fontSize: 12,
               padding: "7px 14px", cursor: hasPrev ? "pointer" : "default",
             }}
-          >← Prev</button>
+          ><Icon name="chevronLeft" size={14} /> Prev</button>
           <button
             onClick={onNext}
             disabled={!hasNext}
@@ -134,7 +135,7 @@ function PonderOverlay({ text, category, hasPrev, hasNext, accent, onClose, onPr
               fontFamily: FONT, fontWeight: 700, fontSize: 12,
               padding: "7px 14px", cursor: hasNext ? "pointer" : "default",
             }}
-          >Next →</button>
+          >Next <Icon name="chevronRight" size={14} /></button>
         </div>
       </div>
     </div>,

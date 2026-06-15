@@ -4,6 +4,7 @@ import { onAuthStateChanged, signInWithPopup, User } from "firebase/auth";
 import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { auth, db, googleProvider } from "../../firebase";
 import StarField from "../../components/StarField";
+import { Icon } from "../../components/Icon";
 
 const BG = "#06091a";
 const TEXT = "#dedad0";
@@ -109,7 +110,7 @@ export default function Join() {
               </button>
             </>
           ) : status === "success" ? (
-            <div style={{ color: JADE, fontSize: 16, fontWeight: 700 }}>✓ Joined! Redirecting…</div>
+            <div style={{ color: JADE, fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Icon name="checkMark" size={16} color={JADE} /> Joined! Redirecting…</div>
           ) : (
             <>
               <input
@@ -136,7 +137,7 @@ export default function Join() {
 
         <div style={{ marginTop: 20, fontSize: 12, color: TEXT_DIM }}>
           Don't have an invite code?{" "}
-          <Link to="/" style={{ color: JADE, textDecoration: "none" }}>Start your own trial →</Link>
+          <Link to="/" style={{ color: JADE, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>Start your own trial <Icon name="chevronRight" size={13} /></Link>
         </div>
       </div>
     </div>

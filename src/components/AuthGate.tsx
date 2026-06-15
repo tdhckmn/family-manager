@@ -178,7 +178,7 @@ function PersonPickerScreen({ people, onPick }: { people: HouseholdPerson[]; onP
     <div style={{ background: BG, minHeight: "100vh", fontFamily: "'Montserrat',sans-serif", color: TEXT, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <StarField />
       <div style={{ position: "relative", background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 20, padding: "40px 48px", maxWidth: 360, width: "90%", textAlign: "center" }}>
-        <div style={{ fontSize: 24, marginBottom: 6 }}>☯</div>
+
         <div style={{ fontSize: 18, fontWeight: 800, color: TEXT, marginBottom: 6 }}>Who are you?</div>
         <div style={{ fontSize: 13, color: TEXT_DIM, marginBottom: 28, lineHeight: 1.5 }}>Select your name so the app knows who's using it.</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

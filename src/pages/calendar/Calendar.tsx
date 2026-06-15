@@ -346,7 +346,7 @@ export default function Calendar() {
                   onMouseLeave={ev => (ev.currentTarget as HTMLAnchorElement).style.borderColor = BORDER}>
                   {e.label && <Pill color={LAV}>{e.label}</Pill>}
                   <span style={{ fontSize: 14, color: TEXT, flex: 1 }}>{mealName(e.mealId)}</span>
-                  <span style={{ fontSize: 12, color: TEXT_MUTED, opacity: 0.5 }}>→</span>
+                  <Icon name="chevronRight" size={12} color={TEXT_MUTED} style={{ opacity: 0.5 }} />
                 </Link>
               ))}
             </Section>
@@ -523,7 +523,7 @@ function KioskView({ dateLine, todayChores, log, todayIdx, dueNotes, todayMeals,
                 <button key={c.id} onClick={() => onToggleChore(c.id)}
                   style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 12, background: checked ? "rgba(93,184,138,0.1)" : "rgba(255,255,255,0.04)", border: `1px solid ${checked ? JADE + "44" : "rgba(255,255,255,0.07)"}`, cursor: "pointer", fontFamily: FONT, textAlign: "left", transition: "all 0.12s" }}>
                   <span style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${checked ? JADE : "rgba(255,255,255,0.2)"}`, background: checked ? JADE : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {checked && <span style={{ color: "#06091a", fontSize: 13, fontWeight: 800 }}>✓</span>}
+                    {checked && <Icon name="checkMark" size={13} />}
                   </span>
                   <span style={{ fontSize: 16, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>{c.name}</span>
                   {c.assignedTo && <span style={{ fontSize: 13, color: personColor(people.find(p => p.name === c.assignedTo), c.assignedTo), marginLeft: "auto", fontWeight: 700 }}>{c.assignedTo}</span>}
@@ -642,7 +642,7 @@ function Section({ icon, accent, title, right, to, children }: {
 function CheckBox({ on, color }: { on: boolean; color: string }) {
   return (
     <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${on ? color : "var(--border-hi)"}`, background: on ? color : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {on && <span style={{ color: BG, fontSize: 11, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+      {on && <Icon name="checkMark" size={11} />}
     </span>
   );
 }

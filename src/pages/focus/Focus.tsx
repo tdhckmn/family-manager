@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { usePrefs } from "../../prefs";
 import { useNoise, NOISE_OPTIONS } from "../../noise";
 import { PageShell, BORDER, TEXT, TEXT_DIM, TEXT_MUTED, FONT } from "../shared/kit";
+import { Icon } from "../../components/Icon";
 import AffirmationsSection from "./AffirmationsSection";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ function NoiseSection({ accent }: { accent: string }) {
           fontWeight: 800, fontSize: 13,
           color: on ? "#06091a" : TEXT, transition: "all 0.15s",
         }}>
-          <span style={{ fontSize: 10 }}>{on ? "■" : "▶"}</span>
+          {on ? <Icon name="stop" size={10} /> : <Icon name="play" size={10} />}
           {on ? "On" : "Off"}
         </button>
 
@@ -129,7 +129,7 @@ function NoiseSection({ accent }: { accent: string }) {
 
       {on && (
         <div style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ color: accent, fontSize: 8 }}>●</span>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: accent, display: "inline-block", flexShrink: 0 }} />
           {NOISE_OPTIONS.find(n => n.type === noiseType)?.label} noise · playing
         </div>
       )}
@@ -301,9 +301,10 @@ function BreathingSection({ accent }: { accent: string }) {
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
+const FOCUS_ACCENT = "#46b6ad";
+
 export default function Focus() {
-  const { prefs } = usePrefs();
-  const accent = prefs.accentColor;
+  const accent = FOCUS_ACCENT;
 
   return (
     <PageShell tool="focus" maxWidth={640}>

@@ -211,10 +211,10 @@ export default function Settings() {
       <StarField />
       <div style={{ position: "relative", zIndex: 1 }}>
         <div style={{ padding: "14px 20px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
-          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0 }}
+          <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
-            ← Home
+            <Icon name="chevronLeft" size={13} /> Home
           </Link>
           <div style={{ width: 1, height: 14, background: BORDER, flexShrink: 0 }} />
           <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT }}>Settings</span>
@@ -324,7 +324,7 @@ export default function Settings() {
                         {isOwner && (
                           <>
                             <button onClick={() => { setEditingPersonId(person.id); setEditingPersonName(person.name); }}
-                              style={{ background: "transparent", border: "none", color: TEXT_DIM, cursor: "pointer", fontSize: 13, padding: "2px 6px", lineHeight: 1 }}>✎</button>
+                              style={{ background: "transparent", border: "none", color: TEXT_DIM, cursor: "pointer", fontSize: 13, padding: "2px 6px", lineHeight: 1, display: "flex", alignItems: "center" }}><Icon name="pencil" size={13} /></button>
                             <button onClick={() => deletePerson(person.id)}
                               style={{ background: "transparent", border: "none", color: DANGER, cursor: "pointer", fontSize: 18, padding: "2px 4px", lineHeight: 1, opacity: 0.5 }}>×</button>
                           </>
@@ -503,7 +503,7 @@ export default function Settings() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: prefs.accentColor, marginBottom: 2 }}>Wisdom Library</div>
                 <div style={{ fontSize: 11, color: TEXT_DIM }}>Curate traditions and individual quotes</div>
               </div>
-              <span style={{ fontSize: 16, color: prefs.accentColor, opacity: 0.7 }}>↗</span>
+              <Icon name="external" size={14} color={prefs.accentColor} style={{ opacity: 0.7 }} />
             </Link>
 
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase", color: TEXT_DIM, marginBottom: 10 }}>Show On</div>
@@ -535,7 +535,7 @@ export default function Settings() {
                       display: "flex", alignItems: "center", justifyContent: "center",
                       transition: "all 0.15s",
                     }}>
-                      {active && <span style={{ color: INK, fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                      {active && <Icon name="checkMark" size={11} />}
                     </div>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: active ? prefs.accentColor : TEXT }}>{label}</div>
@@ -591,7 +591,7 @@ export default function Settings() {
             </p>
             <Link to="/app/focus"
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, background: prefs.accentColor, color: INK, textDecoration: "none", fontFamily: FONT, fontWeight: 800, fontSize: 13 }}>
-              Open Focus →
+              Open Focus <Icon name="chevronRight" size={13} />
             </Link>
           </Panel>
 
@@ -615,7 +615,7 @@ export default function Settings() {
             <div style={{ marginTop: 10 }}>
               <a href={kioskUrl} target="_blank" rel="noreferrer"
                 style={{ fontSize: 12, color: YELLOW, textDecoration: "none", fontWeight: 600 }}>
-                Open kiosk view ↗
+                Open kiosk view <Icon name="external" size={14} />
               </a>
             </div>
           </Panel>
@@ -733,7 +733,7 @@ function GCalSettingsPanel() {
                       display: "flex", alignItems: "center", justifyContent: "center",
                       transition: "all 0.15s",
                     }}>
-                      {on && <span style={{ color: "#fff", fontSize: 11, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                      {on && <Icon name="checkMark" size={11} color="#fff" />}
                     </span>
                     <span style={{ width: 10, height: 10, borderRadius: "50%", background: cal.backgroundColor, flexShrink: 0 }} />
                     <span style={{ fontSize: 13, fontWeight: 700, color: on ? TEXT : TEXT_DIM, flex: 1 }}>
@@ -795,7 +795,7 @@ function ThemeOption({ label, value, current, onPick, swatchBg, swatchSurface, s
         <span style={{ fontSize: 13, fontWeight: 800, color: active ? JADE : TEXT }}>{label}</span>
         {active && (
           <span style={{ width: 18, height: 18, borderRadius: "50%", background: JADE, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ color: INK, fontSize: 11, fontWeight: 800, lineHeight: 1 }}>✓</span>
+            <Icon name="checkMark" size={11} />
           </span>
         )}
       </div>

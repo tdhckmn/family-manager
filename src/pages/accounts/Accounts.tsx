@@ -236,7 +236,7 @@ function AccountModal({ account, mappings, onSave, onDelete, onClose }: {
                       background: active ? rc.color : "transparent",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
-                      {active && <span style={{ color: "#06091a", fontSize: 13, fontWeight: 800, lineHeight: 1 }}>✓</span>}
+                      {active && <Icon name="checkMark" size={13} />}
                     </span>
                   </button>
                 );
@@ -336,10 +336,10 @@ export default function Accounts() {
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
-          <Link to="/app/finance" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, transition: "opacity 0.15s" }}
+          <Link to="/app/finance" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 4 }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
-            ← Planner
+            <Icon name="chevronLeft" size={13} /> Planner
           </Link>
           <div style={{ width: 1, height: 14, background: "var(--border)" }} />
           <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15, fontWeight: 800, color: TEXT, letterSpacing: -0.3 }}>
@@ -358,7 +358,7 @@ export default function Accounts() {
 
           {unmappedRoles.length > 0 && accounts.length > 0 && (
             <div style={{ fontSize: 12, color: AMBER, fontWeight: 600, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-              ⚠️ {unmappedRoles.map(r => r.label).join(", ")} {unmappedRoles.length === 1 ? "is" : "are"} not mapped to any account yet.
+              <Icon name="warning" size={14} /> {unmappedRoles.map(r => r.label).join(", ")} {unmappedRoles.length === 1 ? "is" : "are"} not mapped to any account yet.
             </div>
           )}
 

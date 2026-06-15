@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   FinancePlan, IncomeSource, FixedExpense, SinkingFund, BankAccount, PaycheckSplit, SplitType,
   AccountMappings, BudgetTargets,
@@ -15,6 +16,53 @@ import { Nudge, AccountFlow, AccountKind } from "./nudges";
 import { Icon } from "../../components/Icon";
 import { HouseholdPerson } from "../../household";
 import { personColor } from "../../usePeople";
+import { useOverlay } from "../../overlay";
+
+// ── Finance edit overlay ─────────────────────────────────────────────────────
+
+function FinanceEditOverlay({ title, onClose, children }: {
+  title: string; onClose: () => void; children: React.ReactNode;
+}) {
+  useOverlay();
+  useEffect(() => {
+    function h(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  return createPortal(
+    <div style={{
+      position: "fixed", inset: 0, background: "var(--bg, #06091a)", zIndex: 50, overflowY: "auto",
+      fontFamily: "'Montserrat',sans-serif", color: TEXT,
+    }}>
+      <div style={{
+        position: "sticky", top: 0, zIndex: 10,
+        background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)",
+        borderBottom: `1px solid ${BORDER}`,
+        display: "flex", alignItems: "center", padding: "0 16px",
+        minHeight: 56, gap: 12, boxSizing: "border-box",
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            background: "none", border: `1px solid ${BORDER}`, borderRadius: 8,
+            cursor: "pointer", color: TEXT_DIM, padding: "6px 10px",
+            display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0,
+            fontFamily: "'Montserrat',sans-serif", fontSize: 16,
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; }}
+        ><Icon name="x" size={16} /></button>
+        <span style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: 15, color: TEXT }}>{title}</span>
+        <div style={{ width: 38, flexShrink: 0 }} />
+      </div>
+      <div style={{ padding: "24px 20px 80px", maxWidth: 600, margin: "0 auto" }}>
+        {children}
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 // ── Section header total (amount/mo + % of income) ──────────────────────────
 
@@ -64,12 +112,12 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
   year: number; month: number; totalIncome: number; bankAccounts: BankAccount[];
   people?: HouseholdPerson[];
 }) {
-  const [editId, setEditId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [overlayId, setOverlayId] = useState<string | null>(null);
+  const [overlayAdding, setOverlayAdding] = useState(false);
   const blank = { id: "", name: "", owner: people[0]?.name ?? "Self", amount: 0, frequency: "biweekly" as IncomeFrequency, referenceDate: "", splits: [] as PaycheckSplit[] };
   const [draft, setDraft] = useState(blank);
 
-  function openAdd() { setDraft({ ...blank, id: uid() }); setAdding(true); setEditId(null); }
+  function openAdd() { setDraft({ ...blank, id: uid() }); setOverlayAdding(true); setOverlayId(null); }
 
   function openEdit(src: IncomeSource) {
     // Migrate legacy destinationAccountId → splits on open
@@ -79,8 +127,8 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
         ? [{ order: 1, type: "balance" as SplitType, accountId: src.destinationAccountId }]
         : [];
     setDraft({ ...src, amount: src.amount as unknown as number, splits });
-    setEditId(src.id);
-    setAdding(false);
+    setOverlayId(src.id);
+    setOverlayAdding(false);
   }
 
   function buildSource(): IncomeSource {
@@ -94,17 +142,17 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
   function commitAdd() {
     if (!draft.name || !draft.amount) return;
     save({ ...plan, incomeSources: [...plan.incomeSources, buildSource()] });
-    setAdding(false);
+    setOverlayAdding(false);
   }
 
   function commitEdit() {
     save({ ...plan, incomeSources: plan.incomeSources.map(s => s.id === draft.id ? buildSource() : s) });
-    setEditId(null);
+    setOverlayId(null);
   }
 
   function remove(id: string) {
     save({ ...plan, incomeSources: plan.incomeSources.filter(s => s.id !== id) });
-    if (editId === id) setEditId(null);
+    setOverlayId(null);
   }
 
   const sorted = [...plan.incomeSources]
@@ -119,16 +167,12 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
       title={`${MONTH_NAMES[month]} Income`}
       action={totalIncome > 0 ? <span style={{ fontSize: 16, fontWeight: 800, color: JADE }}>{fmt(totalIncome)}</span> : undefined}
     >
-      {sorted.length === 0 && !adding && (
+      {sorted.length === 0 && !overlayAdding && (
         <div style={{ color: TEXT_MUTED, fontSize: 13, fontStyle: "italic", textAlign: "center", padding: "16px 0" }}>Add income sources to get started — recurring paychecks or one-time checks.</div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
         {sorted.map(src => {
-          const isEditing = editId === src.id;
-          if (isEditing) {
-            return <div key={src.id}><IncomeForm draft={draft} setDraft={setDraft} bankAccounts={bankAccounts} people={people} onSave={commitEdit} onCancel={() => setEditId(null)} onDelete={() => remove(src.id)} /></div>;
-          }
           const isOneTime = src.frequency === "onetime";
           const checks = countPaydays(year, month, src.frequency, src.referenceDate);
           const total = src.amount * checks;
@@ -143,7 +187,7 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
             : effectiveSplits.length === 1
               ? (() => {
                   const a = bankAccounts.find(a => a.id === effectiveSplits[0].accountId);
-                  return <span style={{ color: TEXT_MUTED }}> · → {a ? displayName(a) : "unknown"}</span>;
+                  return <span style={{ color: TEXT_MUTED }}> · <Icon name="chevronRight" size={11} /> {a ? displayName(a) : "unknown"}</span>;
                 })()
               : <span style={{ color: TEXT_MUTED }}> · {effectiveSplits.length} splits</span>;
 
@@ -179,14 +223,20 @@ export function IncomeSection({ plan, save, year, month, totalIncome, bankAccoun
         })}
       </div>
 
-      {adding && (
-        <div style={{ marginTop: 14, padding: "14px", background: "rgba(93,184,138,0.05)", border: `1px solid ${JADE}30`, borderRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: JADE, marginBottom: 12 }}>New Income Source</div>
-          <IncomeForm draft={draft} setDraft={setDraft} bankAccounts={bankAccounts} people={people} onSave={commitAdd} onCancel={() => setAdding(false)} />
-        </div>
-      )}
-
       <button onClick={openAdd} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Income Source</button>
+      {(overlayId || overlayAdding) && (
+        <FinanceEditOverlay
+          title={overlayAdding ? "New Income Source" : "Edit Income Source"}
+          onClose={() => { setOverlayId(null); setOverlayAdding(false); }}
+        >
+          <IncomeForm
+            draft={draft} setDraft={setDraft} bankAccounts={bankAccounts} people={people}
+            onSave={overlayAdding ? commitAdd : commitEdit}
+            onCancel={() => { setOverlayId(null); setOverlayAdding(false); }}
+            onDelete={overlayId ? () => remove(overlayId) : undefined}
+          />
+        </FinanceEditOverlay>
+      )}
     </Card>
   );
 }
@@ -289,8 +339,8 @@ function SplitEditor({ splits, onChange, bankAccounts, perCheck }: {
             </select>
 
             {/* Reorder */}
-            <button onClick={() => move(idx, -1)} disabled={idx === 0} style={{ background: "transparent", border: "none", color: idx === 0 ? TEXT_MUTED : TEXT_DIM, cursor: idx === 0 ? "default" : "pointer", fontSize: 12, padding: "2px 3px", fontFamily: "'Montserrat',sans-serif" }}>↑</button>
-            <button onClick={() => move(idx, 1)} disabled={idx === splits.length - 1} style={{ background: "transparent", border: "none", color: idx === splits.length - 1 ? TEXT_MUTED : TEXT_DIM, cursor: idx === splits.length - 1 ? "default" : "pointer", fontSize: 12, padding: "2px 3px", fontFamily: "'Montserrat',sans-serif" }}>↓</button>
+            <button onClick={() => move(idx, -1)} disabled={idx === 0} style={{ background: "transparent", border: "none", color: idx === 0 ? TEXT_MUTED : TEXT_DIM, cursor: idx === 0 ? "default" : "pointer", fontSize: 12, padding: "2px 3px", fontFamily: "'Montserrat',sans-serif", display: "flex", alignItems: "center" }}><Icon name="chevronUp" size={13} /></button>
+            <button onClick={() => move(idx, 1)} disabled={idx === splits.length - 1} style={{ background: "transparent", border: "none", color: idx === splits.length - 1 ? TEXT_MUTED : TEXT_DIM, cursor: idx === splits.length - 1 ? "default" : "pointer", fontSize: 12, padding: "2px 3px", fontFamily: "'Montserrat',sans-serif", display: "flex", alignItems: "center" }}><Icon name="chevronDown" size={13} /></button>
 
             {/* Remove */}
             <button onClick={() => remove(idx)} style={{ background: "transparent", border: "none", color: DANGER, fontSize: 14, cursor: "pointer", fontFamily: "'Montserrat',sans-serif", padding: "2px 3px" }}>×</button>
@@ -300,7 +350,7 @@ function SplitEditor({ splits, onChange, bankAccounts, perCheck }: {
 
       {over && (
         <div style={{ fontSize: 11, color: DANGER, marginBottom: 6 }}>
-          ⚠ Splits exceed the check amount by {(allocated - perCheck).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}.
+          <Icon name="warning" size={14} /> Splits exceed the check amount by {(allocated - perCheck).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}.
         </div>
       )}
 
@@ -482,8 +532,8 @@ type ExpenseSortKey = "date" | "name" | "amount";
 export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, needsTarget }: {
   plan: FinancePlan; save: (p: FinancePlan) => void; accountOptions: string[]; totalIncome: number; needsTarget?: number;
 }) {
-  const [editId, setEditId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [overlayId, setOverlayId] = useState<string | null>(null);
+  const [overlayAdding, setOverlayAdding] = useState(false);
   const [sortKey, setSortKey] = useState<ExpenseSortKey>("date");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
   const defaultAcct = accountOptions[0] ?? "Other";
@@ -511,8 +561,8 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, 
 
   function openAdd(kind?: "subscription") {
     setDraft({ ...blank, id: uid(), account: defaultAcct, kind, bucket: kind === "subscription" ? "wants" : undefined, active: true });
-    setAdding(true);
-    setEditId(null);
+    setOverlayAdding(true);
+    setOverlayId(null);
   }
 
   function buildExpense(): FixedExpense {
@@ -532,17 +582,17 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, 
   function commitAdd() {
     if (!draft.name || !draft.amount) return;
     save({ ...plan, fixedExpenses: [...plan.fixedExpenses, buildExpense()] });
-    setAdding(false);
+    setOverlayAdding(false);
   }
 
   function commitEdit() {
     save({ ...plan, fixedExpenses: plan.fixedExpenses.map(e => e.id === draft.id ? buildExpense() : e) });
-    setEditId(null);
+    setOverlayId(null);
   }
 
   function remove(id: string) {
     save({ ...plan, fixedExpenses: plan.fixedExpenses.filter(e => e.id !== id) });
-    if (editId === id) setEditId(null);
+    setOverlayId(null);
   }
 
   const set = (k: string, v: string | number | boolean | undefined) => setDraft(d => ({ ...d, [k]: v }));
@@ -553,7 +603,7 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, 
       title="Recurring Expenses"
       action={needsTotal > 0 ? <SectionTotal amount={needsTotal} color={PURPLE} pctVal={pct(needsTotal, totalIncome)} target={needsTarget} hasIncome={totalIncome > 0} /> : undefined}
     >
-      {sorted.length === 0 && !adding && (
+      {sorted.length === 0 && !overlayAdding && (
         <div style={{ color: TEXT_MUTED, fontSize: 13, fontStyle: "italic", textAlign: "center", padding: "16px 0" }}>No recurring expenses yet — add bills and subscriptions.</div>
       )}
 
@@ -580,7 +630,7 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, 
                   fontSize: 11, fontWeight: 700, padding: "3px 9px", cursor: "pointer",
                   fontFamily: "'Montserrat',sans-serif", display: "flex", alignItems: "center", gap: 3,
                 }}>
-                {label}{active && <span style={{ fontSize: 9 }}>{sortDir === 1 ? "▲" : "▼"}</span>}
+                {label}{active && <Icon name={sortDir === 1 ? "chevronUp" : "chevronDown"} size={9} />}
               </button>
             );
           })}
@@ -594,66 +644,65 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, 
           const monthly = expenseMonthly(exp);
           return (
             <div key={exp.id}>
-              {editId === exp.id ? (
-                <div style={{ padding: "12px 0", borderBottom: `1px solid ${BORDER}` }}>
-                  <ExpenseForm draft={draft} set={set} accountOptions={accountOptions} onSave={commitEdit} onCancel={() => setEditId(null)} onDelete={() => remove(exp.id)} />
+              <div onClick={() => { setDraft({ ...exp, frequency: freq }); setOverlayId(exp.id); setOverlayAdding(false); }}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 4px", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.1s", opacity: isExpenseActive(exp) ? 1 : 0.5 }}
+                onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HI}
+                onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
+                <div style={{ width: 22, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
+                  {exp.kind === "subscription"
+                    ? <Icon name="card" size={13} color={TEAL} />
+                    : <span style={{ fontSize: 10, fontWeight: 700, color: TEXT_MUTED }}>{exp.dayOfMonth ?? ""}</span>}
                 </div>
-              ) : (
-                <div onClick={() => { setDraft({ ...exp, frequency: freq }); setEditId(exp.id); setAdding(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 4px", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.1s", opacity: isExpenseActive(exp) ? 1 : 0.5 }}
-                  onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HI}
-                  onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
-                  <div style={{ width: 22, flexShrink: 0, display: "flex", justifyContent: "flex-end" }}>
-                    {exp.kind === "subscription"
-                      ? <Icon name="card" size={13} color={TEAL} />
-                      : <span style={{ fontSize: 10, fontWeight: 700, color: TEXT_MUTED }}>{exp.dayOfMonth ?? ""}</span>}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, color: TEXT, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    {exp.name}
+                    {exp.url && (
+                      <a href={exp.url} target="_blank" rel="noopener noreferrer" title={`Open ${exp.name} website`}
+                        onClick={e => e.stopPropagation()}
+                        style={{ color: JADE, fontSize: 11, textDecoration: "none", opacity: 0.7, flexShrink: 0, lineHeight: 1 }}
+                        onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
+                        onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
+                        <Icon name="external" size={11} />
+                      </a>
+                    )}
+                    {expenseBucket(exp) === "wants" && <Pill color={PINK}>Wants</Pill>}
+                    {!isExpenseActive(exp) && <Pill color={AMBER}>Paused</Pill>}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: TEXT, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      {exp.name}
-                      {exp.url && (
-                        <a href={exp.url} target="_blank" rel="noopener noreferrer" title={`Open ${exp.name} website`}
-                          onClick={e => e.stopPropagation()}
-                          style={{ color: JADE, fontSize: 11, textDecoration: "none", opacity: 0.7, flexShrink: 0, lineHeight: 1 }}
-                          onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
-                          onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
-                          ↗
-                        </a>
-                      )}
-                      {expenseBucket(exp) === "wants" && <Pill color={PINK}>Wants</Pill>}
-                      {!isExpenseActive(exp) && <Pill color={AMBER}>Paused</Pill>}
-                    </div>
-                    {(() => {
-                      const bits: string[] = [];
-                      if (!isMonthly) bits.push(`${EXPENSE_FREQ_LABELS[freq]} · ${fmtDec(monthly)}/mo equiv`);
-                      if (exp.kind === "subscription" && exp.renewalDate)
-                        bits.push(`renews ${new Date(exp.renewalDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`);
-                      return bits.length > 0 ? <div style={{ fontSize: 10, color: TEXT_DIM }}>{bits.join(" · ")}</div> : null;
-                    })()}
-                  </div>
-                  {!isMonthly && <Pill color={BLUE}>{EXPENSE_FREQ_LABELS[freq]}</Pill>}
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>{fmtDec(exp.amount)}</div>
-                    <div style={{ fontSize: 10, color: TEXT_DIM }}>{exp.account}</div>
-                  </div>
+                  {(() => {
+                    const bits: string[] = [];
+                    if (!isMonthly) bits.push(`${EXPENSE_FREQ_LABELS[freq]} · ${fmtDec(monthly)}/mo equiv`);
+                    if (exp.kind === "subscription" && exp.renewalDate)
+                      bits.push(`renews ${new Date(exp.renewalDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`);
+                    return bits.length > 0 ? <div style={{ fontSize: 10, color: TEXT_DIM }}>{bits.join(" · ")}</div> : null;
+                  })()}
                 </div>
-              )}
+                {!isMonthly && <Pill color={BLUE}>{EXPENSE_FREQ_LABELS[freq]}</Pill>}
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: TEXT }}>{fmtDec(exp.amount)}</div>
+                  <div style={{ fontSize: 10, color: TEXT_DIM }}>{exp.account}</div>
+                </div>
+              </div>
             </div>
           );
         })}
       </div>
 
-      {adding && (
-        <div style={{ marginTop: 14, padding: 14, background: "rgba(93,184,138,0.05)", border: `1px solid ${JADE}30`, borderRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: JADE, marginBottom: 12 }}>{draft.kind === "subscription" ? "New Subscription" : "New Expense"}</div>
-          <ExpenseForm draft={draft} set={set} accountOptions={accountOptions} onSave={commitAdd} onCancel={() => setAdding(false)} />
-        </div>
-      )}
-      {!adding && (
-        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-          <button onClick={() => openAdd()} style={{ flex: 1, background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Bill</button>
-          <button onClick={() => openAdd("subscription")} style={{ flex: 1, background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: TEAL, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Subscription</button>
-        </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+        <button onClick={() => openAdd()} style={{ flex: 1, background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Bill</button>
+        <button onClick={() => openAdd("subscription")} style={{ flex: 1, background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: TEAL, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Subscription</button>
+      </div>
+      {(overlayId || overlayAdding) && (
+        <FinanceEditOverlay
+          title={overlayAdding ? (draft.kind === "subscription" ? "New Subscription" : "New Bill") : (draft.kind === "subscription" ? "Edit Subscription" : "Edit Bill")}
+          onClose={() => { setOverlayId(null); setOverlayAdding(false); }}
+        >
+          <ExpenseForm
+            draft={draft} set={set} accountOptions={accountOptions}
+            onSave={overlayAdding ? commitAdd : commitEdit}
+            onCancel={() => { setOverlayId(null); setOverlayAdding(false); }}
+            onDelete={overlayId ? () => remove(overlayId) : undefined}
+          />
+        </FinanceEditOverlay>
       )}
     </Card>
   );
@@ -713,7 +762,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
 
   // ── Emergency savings ──
   const transfer = plan.savings.emergencyTransfer;
-  const [editing, setEditing] = useState(false);
+  const [emergencyOverlay, setEmergencyOverlay] = useState(false);
   const [draftAmt, setDraftAmt] = useState(String(transfer?.amount || plan.savings.emergency || ""));
   const [draftFreq, setDraftFreq] = useState<Frequency>(transfer?.frequency ?? "monthly");
 
@@ -732,14 +781,14 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
     };
     if (!next.emergencyTransfer) delete next.emergencyTransfer;
     save({ ...plan, savings: next });
-    setEditing(false);
+    setEmergencyOverlay(false);
   }
 
   function cancelEmergency() {
     const t = plan.savings.emergencyTransfer;
     setDraftAmt(String(t?.amount || plan.savings.emergency || ""));
     setDraftFreq(t?.frequency ?? "monthly");
-    setEditing(false);
+    setEmergencyOverlay(false);
   }
 
   const monthlyAmt = emergencyMonthly(plan.savings);
@@ -750,8 +799,8 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
   // ── Sinking funds ──
   const funds = plan.sinkingFunds ?? [];
   const totalSinkingFunds = funds.reduce((s, f) => s + f.monthlyAmount, 0);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [fundOverlayId, setFundOverlayId] = useState<string | null>(null);
+  const [fundOverlayAdding, setFundOverlayAdding] = useState(false);
   const [draft, setDraft] = useState<SinkingFund>(blankFund);
   const [draftTarget, setDraftTarget] = useState("");
   const [draftDue, setDraftDue] = useState("");
@@ -759,13 +808,13 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
   function openAddFund() {
     setDraft({ ...blankFund, id: uid() });
     setDraftTarget(""); setDraftDue("");
-    setAdding(true); setEditId(null);
+    setFundOverlayAdding(true); setFundOverlayId(null);
   }
   function openEditFund(f: SinkingFund) {
     setDraft(f);
     setDraftTarget(f.targetAmount != null ? String(f.targetAmount) : "");
     setDraftDue(f.dueDate ?? "");
-    setEditId(f.id); setAdding(false);
+    setFundOverlayId(f.id); setFundOverlayAdding(false);
   }
   function buildFund(): SinkingFund {
     const fund: SinkingFund = { ...draft, monthlyAmount: Number(draft.monthlyAmount) || 0 };
@@ -784,15 +833,15 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
   function commitAddFund() {
     if (!draft.name || !draft.monthlyAmount) return;
     save({ ...plan, sinkingFunds: [...funds, buildFund()] });
-    setAdding(false);
+    setFundOverlayAdding(false);
   }
   function commitEditFund() {
     save({ ...plan, sinkingFunds: funds.map(f => f.id === draft.id ? buildFund() : f) });
-    setEditId(null);
+    setFundOverlayId(null);
   }
   function removeFund(id: string) {
     save({ ...plan, sinkingFunds: funds.filter(f => f.id !== id) });
-    if (editId === id) setEditId(null);
+    setFundOverlayId(null);
   }
   const formProps = { draft, setDraft, draftTarget, setDraftTarget, draftDue, setDraftDue, sinkingAccounts };
 
@@ -806,47 +855,26 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
       action={totalSavings > 0 ? <SectionTotal amount={totalSavings} color={JADE} pctVal={pctVal} target={savingsTarget} hasIncome={totalIncome > 0} /> : undefined}
     >
       {/* Emergency savings */}
-      {editing ? (
-        <div style={{ marginBottom: 6 }}>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 8 }}>
-            <InlineInput label="Amount per transfer ($)" value={draftAmt} onChange={setDraftAmt} type="number" placeholder="0" />
-            <SelectInput label="Transfer frequency" value={draftFreq} onChange={v => setDraftFreq(v as Frequency)}>
-              {Object.entries(SAVINGS_FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </SelectInput>
+      <div onClick={() => setEmergencyOverlay(true)}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 4px", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", borderRadius: 6 }}
+        onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HI}
+        onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Emergency savings</div>
+          <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 2 }}>
+            {perTransferAmt > 0 ? `${freqLabel} · ${fmtDec(perTransferAmt)}/transfer` : "—"}
           </div>
-          {Number(draftAmt) > 0 && draftFreq !== "monthly" && (
-            <div style={{ fontSize: 11, color: TEXT_DIM, marginBottom: 8 }}>
-              ≈ <span style={{ color: JADE, fontWeight: 700 }}>{fmtDec(Number(draftAmt) * SAVINGS_FREQ_MONTHLY[draftFreq])}/mo</span> monthly equivalent
-            </div>
+          <div style={{ fontSize: 11, color: TEXT_DIM, display: "flex", alignItems: "center", gap: 4 }}><Icon name="chevronRight" size={11} /> {emergencyAcctName}</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: monthlyAmt > 0 ? JADE : TEXT_MUTED }}>
+            {monthlyAmt > 0 ? `${fmt(monthlyAmt)}/mo` : "—"}
+          </div>
+          {!isMonthly && monthlyAmt > 0 && (
+            <div style={{ fontSize: 10, color: TEXT_DIM, marginTop: 2 }}>monthly equiv</div>
           )}
-          <div style={{ fontSize: 11, color: TEXT_DIM, marginBottom: 10 }}>→ {emergencyAcctName}</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={commitEmergency} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
-            <button onClick={cancelEmergency} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
-          </div>
         </div>
-      ) : (
-        <div onClick={() => setEditing(true)}
-          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 4px", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", borderRadius: 6 }}
-          onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HI}
-          onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = "transparent"}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Emergency savings</div>
-            <div style={{ fontSize: 11, color: TEXT_DIM, marginTop: 2 }}>
-              {perTransferAmt > 0 ? `${freqLabel} · ${fmtDec(perTransferAmt)}/transfer` : "—"}
-            </div>
-            <div style={{ fontSize: 11, color: TEXT_DIM }}>→ {emergencyAcctName}</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: monthlyAmt > 0 ? JADE : TEXT_MUTED }}>
-              {monthlyAmt > 0 ? `${fmt(monthlyAmt)}/mo` : "—"}
-            </div>
-            {!isMonthly && monthlyAmt > 0 && (
-              <div style={{ fontSize: 10, color: TEXT_DIM, marginTop: 2 }}>monthly equiv</div>
-            )}
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Sinking funds */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 16, marginBottom: 4 }}>
@@ -854,12 +882,12 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
         {totalSinkingFunds > 0 && (
           <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
             <span style={{ fontSize: 12, fontWeight: 800, color: TEAL }}>{fmt(totalSinkingFunds)}/mo</span>
-            {sinkingAcctName && <span style={{ fontSize: 10, color: TEXT_MUTED }}>→ {sinkingAcctName}</span>}
+            {sinkingAcctName && <span style={{ fontSize: 10, color: TEXT_MUTED, display: "inline-flex", alignItems: "center", gap: 3 }}><Icon name="chevronRight" size={10} /> {sinkingAcctName}</span>}
           </div>
         )}
       </div>
 
-      {funds.length === 0 && !adding && (
+      {funds.length === 0 && !fundOverlayAdding && (
         <div style={{ color: TEXT_MUTED, fontSize: 13, fontStyle: "italic", padding: "6px 0" }}>No sinking funds yet — add goals like a vacation, car repair, or new appliance.</div>
       )}
 
@@ -870,11 +898,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
           const fillPct = (projected != null && f.targetAmount) ? Math.min(100, (projected / f.targetAmount) * 100) : null;
           const onTrack = fillPct != null && fillPct >= 95;
 
-          return editId === f.id ? (
-            <div key={f.id} style={{ padding: "12px 0", borderBottom: `1px solid ${BORDER}` }}>
-              <FundForm {...formProps} onSave={commitEditFund} onCancel={() => setEditId(null)} onDelete={() => removeFund(f.id)} />
-            </div>
-          ) : (
+          return (
             <div key={f.id} onClick={() => openEditFund(f)}
               style={{ padding: "8px 4px", borderBottom: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.1s" }}
               onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = SURFACE_HI}
@@ -886,7 +910,7 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
                     <div style={{ fontSize: 10, color: TEXT_DIM }}>
                       {multiSinking && (() => {
                         const a = f.accountId ? sinkingAccounts.find(x => x.id === f.accountId) : undefined;
-                        return <span style={{ color: a ? TEXT_DIM : AMBER }}>→ {a ? displayName(a) : "no account"}</span>;
+                        return <span style={{ color: a ? TEXT_DIM : AMBER, display: "inline-flex", alignItems: "center", gap: 3 }}><Icon name="chevronRight" size={10} /> {a ? displayName(a) : "no account"}</span>;
                       })()}
                       {multiSinking && f.targetAmount != null && <span> · </span>}
                       {f.targetAmount != null && <span>target {fmt(f.targetAmount)}</span>}
@@ -920,13 +944,42 @@ export function SavingsSection({ plan, save, totalIncome, emergencyAcctName, sin
         })}
       </div>
 
-      {adding && (
-        <div style={{ marginTop: 14, padding: 14, background: "rgba(93,184,138,0.05)", border: `1px solid ${JADE}30`, borderRadius: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: JADE, marginBottom: 12 }}>New Sinking Fund</div>
-          <FundForm {...formProps} onSave={commitAddFund} onCancel={() => setAdding(false)} />
-        </div>
+      <button onClick={openAddFund} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Sinking Fund</button>
+      {emergencyOverlay && (
+        <FinanceEditOverlay title="Emergency Savings" onClose={cancelEmergency}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 8 }}>
+            <InlineInput label="Amount per transfer ($)" value={draftAmt} onChange={setDraftAmt} type="number" placeholder="0" />
+            <SelectInput label="Transfer frequency" value={draftFreq} onChange={v => setDraftFreq(v as Frequency)}>
+              {Object.entries(SAVINGS_FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </SelectInput>
+          </div>
+          {Number(draftAmt) > 0 && draftFreq !== "monthly" && (
+            <div style={{ fontSize: 11, color: TEXT_DIM, marginBottom: 8 }}>
+              ≈ <span style={{ color: JADE, fontWeight: 700 }}>{fmtDec(Number(draftAmt) * SAVINGS_FREQ_MONTHLY[draftFreq])}/mo</span> monthly equivalent
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: TEXT_DIM, marginBottom: 16, display: "flex", alignItems: "center", gap: 4 }}>
+            <Icon name="chevronRight" size={11} /> {emergencyAcctName}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={commitEmergency} style={{ background: JADE, border: "none", borderRadius: 8, color: "#06091a", fontFamily: "'Montserrat',sans-serif", fontWeight: 800, fontSize: 12, padding: "6px 16px", cursor: "pointer" }}>Save</button>
+            <button onClick={cancelEmergency} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8, color: TEXT_DIM, fontFamily: "'Montserrat',sans-serif", fontWeight: 700, fontSize: 12, padding: "6px 12px", cursor: "pointer" }}>Cancel</button>
+          </div>
+        </FinanceEditOverlay>
       )}
-      {!adding && <button onClick={openAddFund} style={{ marginTop: 14, width: "100%", background: "transparent", border: `1px dashed ${BORDER}`, borderRadius: 8, color: JADE, fontSize: 12, fontWeight: 700, padding: "7px 0", cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>+ Add Sinking Fund</button>}
+      {(fundOverlayId || fundOverlayAdding) && (
+        <FinanceEditOverlay
+          title={fundOverlayAdding ? "New Sinking Fund" : "Edit Sinking Fund"}
+          onClose={() => { setFundOverlayId(null); setFundOverlayAdding(false); }}
+        >
+          <FundForm
+            {...formProps}
+            onSave={fundOverlayAdding ? commitAddFund : commitEditFund}
+            onCancel={() => { setFundOverlayId(null); setFundOverlayAdding(false); }}
+            onDelete={fundOverlayId ? () => removeFund(fundOverlayId) : undefined}
+          />
+        </FinanceEditOverlay>
+      )}
     </Card>
   );
 }
@@ -954,7 +1007,7 @@ function AccountRow({ flow }: { flow: AccountFlow }) {
         <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{displayName(flow.account)}</span>
         {!isSavings && (flow.inflow > 0 || flow.expenseOutflow > 0) && (
           <span style={{ fontSize: 11, fontWeight: 800, color: netColor, flexShrink: 0 }}>
-            {covered ? "✓" : `Short ${fmt(flow.expenseOutflow - flow.inflow)}`}
+            {covered ? <Icon name="checkMark" size={11} /> : `Short ${fmt(flow.expenseOutflow - flow.inflow)}`}
           </span>
         )}
       </div>
@@ -1098,8 +1151,8 @@ export function WantsSection({ totalWants, totalIncome, dailySpendingAcctName, c
     <Card icon={<Icon name="bag" />} title="Safe to Spend">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_DIM, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
-            → {dailySpendingAcctName}
+          <div style={{ fontSize: 11, fontWeight: 700, color: TEXT_DIM, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>
+            <Icon name="chevronRight" size={11} /> {dailySpendingAcctName}
           </div>
           <div style={{ fontSize: 32, fontWeight: 800, color: over ? DANGER : headline > 0 ? PINK : TEXT_MUTED }}>
             {headline !== 0 || totalWants > 0 ? fmt(headline) : "—"}

@@ -6,6 +6,7 @@ import {
   isQuoteInLibrary, AppIcon,
   type TraditionId, type TraditionMeta, type Quote,
 } from "../../components/Wisdom";
+import { Icon as UIIcon } from "../../components/Icon";
 import { usePrefs } from "../../prefs";
 import {
   PageShell, BORDER, BORDER_HI, TEXT, TEXT_DIM, TEXT_MUTED, FONT, JADE, useIsMobile,
@@ -126,13 +127,13 @@ export default function WisdomLibrary() {
             background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8,
             color: TEXT_DIM, fontSize: 14, cursor: "pointer", lineHeight: 1,
             padding: "4px 9px", fontFamily: FONT,
-          }}>✕</button>
+          }}><UIIcon name="x" size={16} /></button>
       </div>
     }>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
           {/* Daily wisdom */}
-          <WisdomCard quote={dailyQuote} compact noLink />
+          <WisdomCard quote={dailyQuote} compact />
 
           {/* Section divider */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "8px 0 4px" }}>
@@ -299,7 +300,7 @@ function AllCard({ selected, libraryCount, totalCount, onSelect }: {
         fontFamily: FONT,
       }}
     >
-      <div style={{ fontSize: 22, lineHeight: 1, color: active ? JADE : TEXT_MUTED, fontWeight: 900, userSelect: "none" }}>✦</div>
+      <UIIcon name="sparkles" size={22} color={active ? JADE : TEXT_MUTED} />
       <div>
         <div style={{ fontSize: 10, fontWeight: 800, color: active ? JADE : TEXT, textAlign: "center", lineHeight: 1.2, marginBottom: 1 }}>All</div>
         <div style={{ fontSize: 8.5, color: TEXT_MUTED, textAlign: "center" }}>{libraryCount}/{totalCount}</div>
@@ -342,7 +343,7 @@ function TraditionSelectorCard({ meta, selected, tradOn, activeCount, totalCount
           background: color,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          <span style={{ color: "#08101f", fontSize: 7, fontWeight: 900, lineHeight: 1 }}>✓</span>
+          <UIIcon name="checkMark" size={7} />
         </div>
       )}
       <Icon size={28} color={active ? color : TEXT_MUTED} />
@@ -403,7 +404,7 @@ function TraditionDetailPanel({ meta, tradId, quoteCount, activeCount, onToggle,
         }}
         onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.opacity = "1"}
         onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = "0.6"}
-      >✕</button>
+      ><UIIcon name="x" size={16} /></button>
 
       <div style={{ position: "relative", display: "flex", gap: 24, alignItems: "flex-start" }}>
         <div style={{ flexShrink: 0, opacity: 0.9 }}>
@@ -439,7 +440,7 @@ function TraditionDetailPanel({ meta, tradId, quoteCount, activeCount, onToggle,
                   }}
                   title={engaged ? "Remove all from library" : "Add all to library"}
                 >
-                  <span style={{ fontSize: 9 }}>{engaged ? "●" : "○"}</span>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: engaged ? "currentColor" : "transparent", border: "1.5px solid currentColor", display: "inline-block", flexShrink: 0 }} />
                   {level}
                 </button>
                 <span style={{ fontSize: 12, color: TEXT_MUTED, fontWeight: 600 }}>
@@ -505,7 +506,7 @@ function QuoteCard({ quote, meta, inLibrary, onToggle, onPonder }: {
               opacity: inLibrary ? 1 : 0.65,
               transition: "all 0.15s",
             }}>
-            {inLibrary ? "★" : "☆"}
+            <UIIcon name="star" size={15} color={inLibrary ? color : TEXT_MUTED} style={{ fill: inLibrary ? color : "none" }} />
           </button>
         </div>
         <p style={{
@@ -588,7 +589,7 @@ function PonderOverlay({ quote, inLibrary, hasPrev, hasNext, onClose, onPrev, on
             borderRadius: narrow ? 20 : 0,
             color: DARK_TEXT, fontSize: 18, cursor: "pointer",
             lineHeight: 1, padding: narrow ? "8px 12px" : "4px 8px",
-          }}>✕</button>
+          }}><UIIcon name="x" size={16} /></button>
 
         <div style={{ position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24 }}>
@@ -625,7 +626,7 @@ function PonderOverlay({ quote, inLibrary, hasPrev, hasNext, onClose, onPrev, on
               color: inLibrary ? color : DARK_DIM,
               transition: "all 0.15s",
             }}>
-            <span style={{ fontSize: 14, lineHeight: 1 }}>{inLibrary ? "★" : "☆"}</span>
+            <UIIcon name="star" size={14} color={inLibrary ? color : DARK_DIM} style={{ fill: inLibrary ? color : "none" }} />
             {inLibrary ? "In library" : "Add to library"}
           </button>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
@@ -639,7 +640,7 @@ function PonderOverlay({ quote, inLibrary, hasPrev, hasNext, onClose, onPrev, on
                 color: hasPrev ? DARK_DIM : "transparent",
                 fontFamily: FONT, fontWeight: 700, fontSize: 12,
                 padding: "7px 14px", cursor: hasPrev ? "pointer" : "default",
-              }}>← Prev</button>
+              }}><UIIcon name="chevronLeft" size={14} /> Prev</button>
             <button
               onClick={onNext}
               disabled={!hasNext}
@@ -650,7 +651,7 @@ function PonderOverlay({ quote, inLibrary, hasPrev, hasNext, onClose, onPrev, on
                 color: hasNext ? DARK_DIM : "transparent",
                 fontFamily: FONT, fontWeight: 700, fontSize: 12,
                 padding: "7px 14px", cursor: hasNext ? "pointer" : "default",
-              }}>Next →</button>
+              }}>Next <UIIcon name="chevronRight" size={14} /></button>
           </div>
         </div>
       </div>
