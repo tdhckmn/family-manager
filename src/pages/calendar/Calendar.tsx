@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   collection, onSnapshot, doc, setDoc, updateDoc, addDoc, query,
 } from "firebase/firestore";
@@ -7,7 +7,6 @@ import { db } from "../../firebase";
 import { useHouseholdUid } from "../../household";
 import { usePeople, personColor } from "../../usePeople";
 import { Icon, type IconName } from "../../components/Icon";
-import { WisdomCard, useDailyQuote, type Quote } from "../../components/Wisdom";
 import { usePrefs } from "../../prefs";
 import {
   PageShell, Pill, useIsMobile,
@@ -15,8 +14,9 @@ import {
   DAY_NAMES, DAY_ABBR, MONTH_NAMES,
   BG, SURFACE, BORDER, TEXT, TEXT_DIM, TEXT_MUTED,
   JADE, BLUE, PINK, AMBER, TEAL, LAV, YELLOW, DANGER, FONT,
+  useCurrentDate,
 } from "../shared/kit";
-import { useWeather, weatherInfo, temp, type Unit, type DayWeather, type WeatherData } from "./weather";
+import { useWeather, weatherInfo, temp, type Unit, type DayWeather } from "./weather";
 import GCalSection from "./GCalSection";
 
 const TODAY_HI_BG = "rgba(232,200,74,0.07)";   // yellow wash for the current day
@@ -75,8 +75,6 @@ export default function Calendar() {
   const { prefs } = usePrefs();
   const people = usePeople();
   const isMobile = useIsMobile();
-  const [searchParams] = useSearchParams();
-  const kiosk = searchParams.get("kiosk") === "true";
   const [view, setView] = useState<"today" | "week">("today");
   const [showAddNote, setShowAddNote] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
@@ -90,13 +88,12 @@ export default function Calendar() {
   const [log, setLog] = useState<Record<string, boolean>>({});
   const [justDoneNoteIds, setJustDoneNoteIds] = useState<Set<string>>(new Set());
   const [justDoneMaintIds, setJustDoneMaintIds] = useState<Set<string>>(new Set());
+  const [prevMaintLastDone, setPrevMaintLastDone] = useState<Map<string, string | null>>(new Map());
 
   const unit = prefs.tempUnit;
   const { data: weather } = useWeather(prefs.weatherZip);
 
-  const today = useMemo(() => new Date(), []);
-  const showWisdom = prefs.wisdomPages.includes("calendar");
-  const quote = useDailyQuote();
+  const today = useCurrentDate();
   const todayIdx = today.getDay();
   const wk = weekKey(today);
 
@@ -161,8 +158,8 @@ export default function Calendar() {
   // and stays while overdue. Plus finances (bills & subscriptions) due within 3 days.
   const maintAlerts = maint
     .map(t => ({ t, due: nextMaintDue(t) }))
-    .filter(x => x.due && daysUntil(x.due) <= (x.t.remindDays ?? 7))
-    .sort((a, b) => daysUntil(a.due!) - daysUntil(b.due!));
+    .filter(x => x.t.lastDone === todayISO() || justDoneMaintIds.has(x.t.id) || (x.due !== null && daysUntil(x.due) <= (x.t.remindDays ?? 7)))
+    .sort((a, b) => (a.due ? daysUntil(a.due) : 9999) - (b.due ? daysUntil(b.due) : 9999));
   const financeAlerts = financeDue
     .filter(s => daysUntil(s.due) >= 0 && daysUntil(s.due) <= 3)
     .sort((a, b) => daysUntil(a.due) - daysUntil(b.due));
@@ -184,9 +181,17 @@ export default function Calendar() {
       return next;
     });
   }
-  function markMaintDone(t: MaintTask) {
-    updateDoc(doc(db, "users", uidAuth, "maintenance", t.id), { lastDone: todayISO() }).catch(console.error);
-    setJustDoneMaintIds(prev => new Set([...prev, t.id]));
+  function toggleMaint(t: MaintTask) {
+    const done = justDoneMaintIds.has(t.id) || t.lastDone === todayISO();
+    if (!done) {
+      setPrevMaintLastDone(prev => new Map(prev).set(t.id, t.lastDone ?? null));
+      updateDoc(doc(db, "users", uidAuth, "maintenance", t.id), { lastDone: todayISO() }).catch(console.error);
+      setJustDoneMaintIds(prev => new Set([...prev, t.id]));
+    } else {
+      const prev = prevMaintLastDone.get(t.id);
+      updateDoc(doc(db, "users", uidAuth, "maintenance", t.id), { lastDone: prev !== undefined ? prev : null }).catch(console.error);
+      setJustDoneMaintIds(s => { const next = new Set(s); next.delete(t.id); return next; });
+    }
   }
   // Add a note straight from the Today page, due today. Stays on the calendar —
   // the live snapshot surfaces it under "Notes due".
@@ -202,23 +207,6 @@ export default function Calendar() {
 
   const dateLine = `${DAY_NAMES[todayIdx]}, ${MONTH_NAMES[today.getMonth()]} ${today.getDate()}`;
   const nothingToday = todayChores.length === 0 && todayMeals.length === 0 && dueNotes.length === 0 && maintAlerts.length === 0 && financeAlerts.length === 0;
-
-  // Kiosk / wall-display mode — full-screen, no chrome
-  if (kiosk) {
-    return (
-      <KioskView
-        dateLine={dateLine}
-        todayChores={todayChores} log={log} todayIdx={todayIdx}
-        dueNotes={dueNotes} todayMeals={todayMeals} mealName={mealName}
-        maintAlerts={maintAlerts} financeAlerts={financeAlerts}
-        onToggleChore={toggleChore}
-        nothingToday={nothingToday}
-        weather={weather} unit={unit}
-        people={people}
-        quote={quote} showWisdom={showWisdom}
-      />
-    );
-  }
 
   const toggle = (
     <div style={{ display: "flex", gap: 4, background: "var(--surface)", borderRadius: 9, padding: 3 }}>
@@ -302,11 +290,16 @@ export default function Calendar() {
                 const done = t.completed || justDoneNoteIds.has(t.id);
                 const overdue = daysUntil(t.dueDate!) < 0;
                 return (
-                  <button key={t.id} onClick={() => toggleNote(t)} style={rowBtn(done)}>
-                    <CheckBox on={done} color={BLUE} />
-                    <span style={{ flex: 1, fontSize: 14, color: done ? TEXT_MUTED : TEXT, textDecoration: done ? "line-through" : "none" }}>{t.title}</span>
-                    {!done && <Pill color={overdue ? DANGER : AMBER}>{overdue ? `${-daysUntil(t.dueDate!)}d overdue` : "today"}</Pill>}
-                  </button>
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", borderRadius: 10, background: done ? "rgba(93,184,138,0.08)" : SURFACE, border: `1px solid ${done ? JADE + "33" : BORDER}`, transition: "all 0.12s", overflow: "hidden" }}>
+                    <button onClick={() => toggleNote(t)} style={{ padding: "10px 0 10px 12px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>
+                      <CheckBox on={done} color={BLUE} />
+                    </button>
+                    <Link to={`/app/notes?id=${t.id}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 12px 10px 10px", textDecoration: "none" }}>
+                      <span style={{ flex: 1, fontSize: 14, fontFamily: FONT, color: done ? TEXT_MUTED : TEXT, textDecoration: done ? "line-through" : "none" }}>{t.title}</span>
+                      {!done && <Pill color={overdue ? DANGER : AMBER}>{overdue ? `${-daysUntil(t.dueDate!)}d overdue` : "today"}</Pill>}
+                      <Icon name="chevronRight" size={12} color={TEXT_MUTED} style={{ opacity: 0.5 }} />
+                    </Link>
+                  </div>
                 );
               })}
             </Section>
@@ -327,11 +320,16 @@ export default function Calendar() {
               {todayChores.map(c => {
                 const checked = !!log[`${c.id}:${todayIdx}`];
                 return (
-                  <button key={c.id} onClick={() => toggleChore(c.id)} style={rowBtn(checked)}>
-                    <CheckBox on={checked} color={JADE} />
-                    <span style={{ flex: 1, fontSize: 14, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>{c.name}</span>
-                    {c.assignedTo && <span style={{ fontSize: 11, fontWeight: 700, color: personColor(people.find(p => p.name === c.assignedTo), c.assignedTo) }}>{c.assignedTo}</span>}
-                  </button>
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", borderRadius: 10, background: checked ? "rgba(93,184,138,0.08)" : SURFACE, border: `1px solid ${checked ? JADE + "33" : BORDER}`, transition: "all 0.12s", overflow: "hidden" }}>
+                    <button onClick={() => toggleChore(c.id)} style={{ padding: "10px 0 10px 12px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>
+                      <CheckBox on={checked} color={JADE} />
+                    </button>
+                    <Link to={`/app/chores?id=${c.id}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 12px 10px 10px", textDecoration: "none" }}>
+                      <span style={{ flex: 1, fontSize: 14, fontFamily: FONT, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>{c.name}</span>
+                      {c.assignedTo && <span style={{ fontSize: 11, fontWeight: 700, color: personColor(people.find(p => p.name === c.assignedTo), c.assignedTo) }}>{c.assignedTo}</span>}
+                      <Icon name="chevronRight" size={12} color={TEXT_MUTED} style={{ opacity: 0.5 }} />
+                    </Link>
+                  </div>
                 );
               })}
             </Section>
@@ -352,28 +350,41 @@ export default function Calendar() {
             </Section>
           )}
 
-          {/* Heads up */}
-          {(maintAlerts.length > 0 || financeAlerts.length > 0) && (
-            <Section icon="clock" accent={AMBER} title="Heads up">
+          {/* Home Maintenance */}
+          {maintAlerts.length > 0 && (
+            <Section icon="wrench" accent={AMBER} title="Home Maintenance" to="/app/maintenance">
               {maintAlerts.map(({ t, due }) => {
-                const n = daysUntil(due!);
-                const done = justDoneMaintIds.has(t.id);
+                const n = due ? daysUntil(due) : 0;
+                const done = justDoneMaintIds.has(t.id) || t.lastDone === todayISO();
                 return (
-                  <button key={t.id} onClick={() => markMaintDone(t)} style={rowBtn(done)}>
-                    <CheckBox on={done} color={AMBER} />
-                    <Icon name="wrench" size={14} color={done ? TEXT_MUTED : AMBER} />
-                    <span style={{ flex: 1, fontSize: 14, color: done ? TEXT_MUTED : TEXT, textDecoration: done ? "line-through" : "none" }}>{t.task}</span>
-                    {!done && <Pill color={n < 0 ? DANGER : AMBER}>{n < 0 ? `${-n}d overdue` : n === 0 ? "today" : `${n}d`}</Pill>}
-                  </button>
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", borderRadius: 10, background: done ? "rgba(93,184,138,0.08)" : SURFACE, border: `1px solid ${done ? JADE + "33" : BORDER}`, transition: "all 0.12s", overflow: "hidden" }}>
+                    <button onClick={() => toggleMaint(t)} style={{ padding: "10px 0 10px 12px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>
+                      <CheckBox on={done} color={AMBER} />
+                    </button>
+                    <Link to={`/app/maintenance?id=${t.id}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 12px 10px 10px", textDecoration: "none" }}>
+                      <span style={{ flex: 1, fontSize: 14, fontFamily: FONT, color: done ? TEXT_MUTED : TEXT, textDecoration: done ? "line-through" : "none" }}>{t.task}</span>
+                      {!done && <Pill color={n < 0 ? DANGER : AMBER}>{n < 0 ? `${-n}d overdue` : n === 0 ? "today" : `${n}d`}</Pill>}
+                      <Icon name="chevronRight" size={12} color={TEXT_MUTED} style={{ opacity: 0.5 }} />
+                    </Link>
+                  </div>
                 );
               })}
+            </Section>
+          )}
+
+          {/* Bills & Subscriptions due */}
+          {financeAlerts.length > 0 && (
+            <Section icon="card" accent={TEAL} title="Bills & Subscriptions" to="/app/finance">
               {financeAlerts.map(s => (
-                <Link key={s.id} to="/app/finance" style={{ textDecoration: "none" }}>
-                  <div style={infoRow}>
+                <Link key={s.id} to={`/app/finance?expense=${s.id}`} style={{ textDecoration: "none" }}>
+                  <div style={{ ...infoRow, transition: "border-color 0.12s" }}
+                    onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.borderColor = TEAL + "55"}
+                    onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.borderColor = BORDER}>
                     <Icon name="card" size={14} color={TEAL} />
                     <span style={{ flex: 1, fontSize: 14, color: TEXT }}>{s.name} {s.isSub ? "renews" : "due"}</span>
                     <span style={{ fontSize: 12, color: TEXT_DIM }}>{fmtMoney(s.cost)}</span>
                     <Pill color={daysUntil(s.due) <= 1 ? DANGER : TEAL}>{daysUntil(s.due) === 0 ? "today" : `${daysUntil(s.due)}d`}</Pill>
+                    <Icon name="chevronRight" size={12} color={TEXT_MUTED} style={{ opacity: 0.5 }} />
                   </div>
                 </Link>
               ))}
@@ -438,157 +449,6 @@ export default function Calendar() {
         </div>
       )}
     </PageShell>
-  );
-}
-
-// ── Kiosk / wall-display view ─────────────────────────────────────────────
-interface KioskProps {
-  dateLine: string;
-  todayChores: Chore[]; log: Record<string, boolean>; todayIdx: number;
-  dueNotes: Note[]; todayMeals: PlanEntry[]; mealName: (id: string) => string;
-  maintAlerts: { t: MaintTask; due: string | null }[]; financeAlerts: FinanceDue[];
-  onToggleChore: (id: string) => void;
-  nothingToday: boolean;
-  weather: WeatherData | null; unit: Unit;
-  people: ReturnType<typeof usePeople>;
-  quote: Quote;
-  showWisdom: boolean;
-}
-
-function KioskView({ dateLine, todayChores, log, todayIdx, dueNotes, todayMeals, mealName, maintAlerts, financeAlerts, onToggleChore, nothingToday, weather, unit, people, quote, showWisdom }: KioskProps) {
-  const [time, setTime] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const hh = String(time.getHours() % 12 || 12).padStart(2, "0");
-  const mm = String(time.getMinutes()).padStart(2, "0");
-  const ss = String(time.getSeconds()).padStart(2, "0");
-  const ampm = time.getHours() >= 12 ? "PM" : "AM";
-  const choresDone = todayChores.filter(c => log[`${c.id}:${todayIdx}`]).length;
-
-  return (
-    <div data-theme="dark" style={{ background: "#06091a", minHeight: "100vh", fontFamily: FONT, color: "var(--text)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* Clock header */}
-      <div style={{ padding: "32px 48px 20px", borderBottom: `1px solid rgba(255,255,255,0.06)`, display: "flex", alignItems: "flex-end", gap: 20, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-            <span style={{ fontSize: "clamp(56px, 8vw, 96px)", fontWeight: 800, lineHeight: 1, letterSpacing: -3, color: TEXT }}>{hh}:{mm}</span>
-            <span style={{ fontSize: "clamp(20px, 3vw, 36px)", fontWeight: 700, color: TEXT_DIM }}>{ss}</span>
-            <span style={{ fontSize: "clamp(16px, 2.5vw, 28px)", fontWeight: 700, color: YELLOW, marginLeft: 4 }}>{ampm}</span>
-          </div>
-          <div style={{ fontSize: "clamp(13px, 1.8vw, 18px)", color: TEXT_DIM, marginTop: 4, fontWeight: 600 }}>{dateLine}</div>
-        </div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 36 }}>
-          {weather?.current && (() => {
-            const wi = weatherInfo(weather.current.code, weather.current.isDay);
-            const day = weather.daily[todayISO()] ?? null;
-            return (
-              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <Icon name={wi.icon} size={46} color={wi.color} />
-                <div style={{ lineHeight: 1.1 }}>
-                  <div style={{ fontSize: 38, fontWeight: 800, color: TEXT }}>{temp(unit, weather.current.tempC, weather.current.tempF)}°{unit}</div>
-                  <div style={{ fontSize: 13, color: TEXT_MUTED, fontWeight: 600 }}>
-                    {wi.label}{day && ` · ${temp(unit, day.maxC, day.maxF)}°/${temp(unit, day.minC, day.minF)}°`}{weather.location && ` · ${weather.location}`}
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-          {todayChores.length > 0 && (
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: choresDone === todayChores.length ? JADE : YELLOW }}>{choresDone}/{todayChores.length}</div>
-              <div style={{ fontSize: 12, color: TEXT_MUTED, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>chores done</div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Content */}
-      <div style={{ flex: 1, overflow: "auto", padding: "24px 48px 40px", display: "flex", flexDirection: "column", gap: 20, maxWidth: 960 }}>
-        {showWisdom && (
-          <WisdomCard quote={quote} compact noLink />
-        )}
-
-        {nothingToday && (
-          <div style={{ fontSize: 20, color: "var(--text-dim)", fontWeight: 600, marginTop: 20 }}>A clear day — nothing scheduled.</div>
-        )}
-
-        {todayChores.length > 0 && (
-          <KioskSection title="Chores" accent={PINK}>
-            {todayChores.map(c => {
-              const checked = !!log[`${c.id}:${todayIdx}`];
-              return (
-                <button key={c.id} onClick={() => onToggleChore(c.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 12, background: checked ? "rgba(93,184,138,0.1)" : "rgba(255,255,255,0.04)", border: `1px solid ${checked ? JADE + "44" : "rgba(255,255,255,0.07)"}`, cursor: "pointer", fontFamily: FONT, textAlign: "left", transition: "all 0.12s" }}>
-                  <span style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${checked ? JADE : "rgba(255,255,255,0.2)"}`, background: checked ? JADE : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {checked && <Icon name="checkMark" size={13} />}
-                  </span>
-                  <span style={{ fontSize: 16, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>{c.name}</span>
-                  {c.assignedTo && <span style={{ fontSize: 13, color: personColor(people.find(p => p.name === c.assignedTo), c.assignedTo), marginLeft: "auto", fontWeight: 700 }}>{c.assignedTo}</span>}
-                </button>
-              );
-            })}
-          </KioskSection>
-        )}
-
-        {dueNotes.length > 0 && (
-          <KioskSection title="Todo" accent={BLUE}>
-            {dueNotes.map(t => (
-              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <Icon name="check" size={18} color={BLUE} />
-                <span style={{ fontSize: 16, color: TEXT }}>{t.title}</span>
-                <span style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: daysUntil(t.dueDate!) < 0 ? DANGER : AMBER }}>{daysUntil(t.dueDate!) < 0 ? `${-daysUntil(t.dueDate!)}d overdue` : "today"}</span>
-              </div>
-            ))}
-          </KioskSection>
-        )}
-
-        {todayMeals.length > 0 && (
-          <KioskSection title="Meals" accent={LAV}>
-            {todayMeals.map(e => (
-              <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <Icon name="utensils" size={18} color={LAV} />
-                {e.label && <span style={{ fontSize: 12, fontWeight: 700, color: LAV }}>{e.label}</span>}
-                <span style={{ fontSize: 16, color: TEXT }}>{mealName(e.mealId)}</span>
-              </div>
-            ))}
-          </KioskSection>
-        )}
-
-        {(maintAlerts.length > 0 || financeAlerts.length > 0) && (
-          <KioskSection title="Heads up" accent={AMBER}>
-            {maintAlerts.map(({ t, due }) => {
-              const n = daysUntil(due!);
-              return (
-                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                  <Icon name="wrench" size={18} color={AMBER} />
-                  <span style={{ fontSize: 16, color: TEXT }}>{t.task}</span>
-                  <span style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: n < 0 ? DANGER : AMBER }}>{n < 0 ? `${-n}d overdue` : n === 0 ? "today" : `${n}d`}</span>
-                </div>
-              );
-            })}
-            {financeAlerts.map(s => (
-              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <Icon name="card" size={18} color={TEAL} />
-                <span style={{ fontSize: 16, color: TEXT }}>{s.name} {s.isSub ? "renews" : "due"}</span>
-                <span style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: TEAL }}>{fmtMoney(s.cost)} · {daysUntil(s.due) === 0 ? "today" : `${daysUntil(s.due)}d`}</span>
-              </div>
-            ))}
-          </KioskSection>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function KioskSection({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: accent, marginBottom: 10 }}>{title}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{children}</div>
-    </div>
   );
 }
 

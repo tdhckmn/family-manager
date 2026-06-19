@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import ToolNav from "../../components/ToolNav";
 import { Icon } from "../../components/Icon";
 import { useHouseholdUid } from "../../household";
@@ -25,6 +25,11 @@ interface Note {
 }
 
 // ── Due-date helpers ────────────────────────────────────────────────────────
+
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 /** Whole calendar days from today → iso date. Negative = overdue, 0 = today. */
 function daysUntilDue(iso: string): number {
@@ -94,17 +99,20 @@ function useIsMobile(breakpoint = 640) {
 
 export default function Notes() {
   const uid = useHouseholdUid();
+  const [searchParams] = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get("id"));
   const [editing, setEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftNotes, setDraftNotes] = useState("");
   const [draftDue, setDraftDue] = useState("");
   const [addingTitle, setAddingTitle] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [showQuickTodo, setShowQuickTodo] = useState(false);
+  const [quickTodoTitle, setQuickTodoTitle] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Mobile: whether we're showing the detail view (true) or the list (false)
-  const [mobileShowDetail, setMobileShowDetail] = useState(false);
+  const [mobileShowDetail, setMobileShowDetail] = useState(() => !!searchParams.get("id"));
 
   const isMobile = useIsMobile();
   const { prefs } = usePrefs();
@@ -112,6 +120,7 @@ export default function Notes() {
   const todayQuote = useDailyQuote();
 
   const addInputRef = useRef<HTMLInputElement>(null);
+  const quickTodoRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const selected = notes.find(t => t.id === selectedId) ?? null;
@@ -135,14 +144,20 @@ export default function Notes() {
   }, [showAdd]);
 
   useEffect(() => {
+    if (showQuickTodo) quickTodoRef.current?.focus();
+  }, [showQuickTodo]);
+
+  useEffect(() => {
     if (editing) titleInputRef.current?.focus();
   }, [editing]);
 
-  // On mobile, switching to a different screen should close the add input
+  // On mobile, switching to detail view should close any open add inputs
   useEffect(() => {
     if (isMobile && mobileShowDetail) {
       setShowAdd(false);
       setAddingTitle("");
+      setShowQuickTodo(false);
+      setQuickTodoTitle("");
     }
   }, [isMobile, mobileShowDetail]);
 
@@ -202,6 +217,16 @@ export default function Notes() {
     if (isMobile) setMobileShowDetail(true);
   }
 
+  async function addQuickTodo() {
+    const title = quickTodoTitle.trim();
+    if (!title) return;
+    await addDoc(collection(db, "users", uid, "notes"), {
+      title, notes: "", completed: false, createdAt: Date.now(), dueDate: todayISO(),
+    });
+    setQuickTodoTitle("");
+    setShowQuickTodo(false);
+  }
+
   async function deleteNote() {
     if (!selected) return;
     await deleteDoc(doc(db, "users", uid, "notes", selected.id));
@@ -214,6 +239,11 @@ export default function Notes() {
   function handleAddKey(e: React.KeyboardEvent) {
     if (e.key === "Enter") addNote();
     if (e.key === "Escape") { setShowAdd(false); setAddingTitle(""); }
+  }
+
+  function handleQuickTodoKey(e: React.KeyboardEvent) {
+    if (e.key === "Enter") addQuickTodo();
+    if (e.key === "Escape") { setShowQuickTodo(false); setQuickTodoTitle(""); }
   }
 
   function handleEditKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -240,7 +270,7 @@ export default function Notes() {
             <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
             <ToolNav current="notes" />
             <div style={{ flex: 1 }} />
-            <button onClick={() => setShowAdd(true)}
+            <button onClick={() => { setShowAdd(true); setShowQuickTodo(false); setQuickTodoTitle(""); }}
               style={{ ...btnStyle(JADE), fontSize: 13, padding: "8px 16px", display: "flex", alignItems: "center", gap: 6 }}>
               + New Note
             </button>
@@ -256,46 +286,73 @@ export default function Notes() {
                 </div>
               )}
 
-              {/* Inline add input */}
-              {showAdd && (
-                <div style={{ background: SURFACE, border: `1px solid ${BORDER_ACCENT}`, borderRadius: 14, padding: "12px 14px", marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
-                  <input
-                    ref={addInputRef}
-                    value={addingTitle}
-                    onChange={e => setAddingTitle(e.target.value)}
-                    onKeyDown={handleAddKey}
-                    placeholder="New note…"
-                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 15, fontFamily: "'Montserrat', sans-serif" }}
-                  />
-                  <button onClick={addNote} style={{ ...btnStyle(JADE), padding: "7px 16px", fontSize: 13 }}>Add</button>
-                  <button onClick={() => { setShowAdd(false); setAddingTitle(""); }}
-                    style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "7px 8px", fontSize: 16, lineHeight: 1, display: "flex", alignItems: "center" }}><Icon name="x" size={14} /></button>
-                </div>
-              )}
-
-              {/* TODO section — dated notes */}
-              {todos.length > 0 && (
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 8 }}>TODO</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {todos.map(note => (
-                      <MobileNoteItem key={note.id} note={note} onSelect={() => selectNote(note.id)} onToggle={() => toggleComplete(note)} />
-                    ))}
+              {/* TODO section */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 8 }}>TODO</div>
+                {showQuickTodo ? (
+                  <div style={{ background: SURFACE, border: `1px solid ${JADE}55`, borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", gap: 8, alignItems: "center" }}>
+                    <Icon name="check" size={16} color={JADE} />
+                    <input
+                      ref={quickTodoRef}
+                      value={quickTodoTitle}
+                      onChange={e => setQuickTodoTitle(e.target.value)}
+                      onKeyDown={handleQuickTodoKey}
+                      placeholder="New todo…"
+                      style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 15, fontFamily: "'Montserrat', sans-serif" }}
+                    />
+                    <button onClick={addQuickTodo} disabled={!quickTodoTitle.trim()}
+                      style={{ ...btnStyle(JADE), padding: "7px 16px", fontSize: 13, opacity: quickTodoTitle.trim() ? 1 : 0.5 }}>Add</button>
+                    <button onClick={() => { setShowQuickTodo(false); setQuickTodoTitle(""); }}
+                      style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "7px 8px", display: "flex", alignItems: "center" }}><Icon name="x" size={14} /></button>
                   </div>
+                ) : (
+                  <button
+                    onClick={() => { setShowQuickTodo(true); setShowAdd(false); setAddingTitle(""); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: 14, fontWeight: 600, color: TEXT_DIM, background: "transparent", border: `1px dashed ${BORDER}`, marginBottom: 8, transition: "all 0.15s" }}
+                    onTouchStart={e => { e.currentTarget.style.borderColor = JADE; e.currentTarget.style.color = JADE; }}
+                    onTouchEnd={e => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TEXT_DIM; }}>
+                    <Icon name="plus" size={15} color="currentColor" /> Add a todo
+                  </button>
+                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {todos.map(note => (
+                    <MobileNoteItem key={note.id} note={note} onSelect={() => selectNote(note.id)} onToggle={() => toggleComplete(note)} />
+                  ))}
                 </div>
-              )}
+              </div>
 
-              {/* Notes section — undated */}
+              {/* Notes section */}
               <div>
-                {(todos.length > 0 || done.length > 0) && (
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 8 }}>Notes</div>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 8 }}>Notes</div>
+                {showAdd ? (
+                  <div style={{ background: SURFACE, border: `1px solid ${BORDER_ACCENT}`, borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      ref={addInputRef}
+                      value={addingTitle}
+                      onChange={e => setAddingTitle(e.target.value)}
+                      onKeyDown={handleAddKey}
+                      placeholder="New note…"
+                      style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 15, fontFamily: "'Montserrat', sans-serif" }}
+                    />
+                    <button onClick={addNote} style={{ ...btnStyle(JADE), padding: "7px 16px", fontSize: 13 }}>Add</button>
+                    <button onClick={() => { setShowAdd(false); setAddingTitle(""); }}
+                      style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "7px 8px", display: "flex", alignItems: "center" }}><Icon name="x" size={14} /></button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setShowAdd(true); setShowQuickTodo(false); setQuickTodoTitle(""); }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", padding: "12px 14px", borderRadius: 14, cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: 14, fontWeight: 600, color: TEXT_DIM, background: "transparent", border: `1px dashed ${BORDER}`, marginBottom: 8, transition: "all 0.15s" }}
+                    onTouchStart={e => { e.currentTarget.style.borderColor = JADE; e.currentTarget.style.color = JADE; }}
+                    onTouchEnd={e => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TEXT_DIM; }}>
+                    <Icon name="plus" size={15} color="currentColor" /> Add a note
+                  </button>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {plainNotes.map(note => (
                     <MobileNoteItem key={note.id} note={note} onSelect={() => selectNote(note.id)} />
                   ))}
-                  {plainNotes.length === 0 && todos.length === 0 && !showAdd && (
-                    <div style={{ color: TEXT_MUTED, fontSize: 13, padding: "12px 4px", fontStyle: "italic" }}>No notes yet.</div>
+                  {plainNotes.length === 0 && !showAdd && (
+                    <div style={{ color: TEXT_MUTED, fontSize: 13, padding: "4px 4px 12px", fontStyle: "italic" }}>No notes yet.</div>
                   )}
                 </div>
               </div>
@@ -410,7 +467,7 @@ export default function Notes() {
           <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
           <ToolNav current="notes" />
           <div style={{ flex: 1 }} />
-          <button onClick={() => setShowAdd(true)}
+          <button onClick={() => { setShowAdd(true); setShowQuickTodo(false); setQuickTodoTitle(""); }}
             style={{ ...btnStyle(JADE), fontSize: 13, padding: "8px 16px", display: "flex", alignItems: "center", gap: 6 }}>
             + New Note
           </button>
@@ -428,44 +485,73 @@ export default function Notes() {
 
           {/* Sidebar */}
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {showAdd && (
-              <div style={{ background: SURFACE, border: `1px solid ${BORDER_ACCENT}`, borderRadius: 12, padding: "10px 14px", marginBottom: 12, display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  ref={addInputRef}
-                  value={addingTitle}
-                  onChange={e => setAddingTitle(e.target.value)}
-                  onKeyDown={handleAddKey}
-                  placeholder="Note title…"
-                  style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 14, fontFamily: "'Montserrat', sans-serif" }}
-                />
-                <button onClick={addNote} style={{ ...btnStyle(JADE), padding: "4px 12px", fontSize: 12 }}>Add</button>
-                <button onClick={() => { setShowAdd(false); setAddingTitle(""); }} style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "4px 8px", fontSize: 12, display: "flex", alignItems: "center" }}><Icon name="x" size={14} /></button>
-              </div>
-            )}
 
-            {/* TODO section — dated notes */}
-            {todos.length > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 6 }}>TODO</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {todos.map(note => (
-                    <NoteItem key={note.id} note={note} selected={selectedId === note.id} onSelect={() => selectNote(note.id)} onToggle={() => toggleComplete(note)} />
-                  ))}
+            {/* TODO section */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 6 }}>TODO</div>
+              {showQuickTodo ? (
+                <div style={{ background: SURFACE, border: `1px solid ${JADE}55`, borderRadius: 12, padding: "10px 14px", marginBottom: 6, display: "flex", gap: 8, alignItems: "center" }}>
+                  <Icon name="check" size={14} color={JADE} />
+                  <input
+                    ref={quickTodoRef}
+                    value={quickTodoTitle}
+                    onChange={e => setQuickTodoTitle(e.target.value)}
+                    onKeyDown={handleQuickTodoKey}
+                    placeholder="New todo…"
+                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 14, fontFamily: "'Montserrat', sans-serif" }}
+                  />
+                  <button onClick={addQuickTodo} disabled={!quickTodoTitle.trim()}
+                    style={{ ...btnStyle(JADE), padding: "4px 12px", fontSize: 12, opacity: quickTodoTitle.trim() ? 1 : 0.5 }}>Add</button>
+                  <button onClick={() => { setShowQuickTodo(false); setQuickTodoTitle(""); }}
+                    style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "4px 8px", fontSize: 12, display: "flex", alignItems: "center" }}><Icon name="x" size={14} /></button>
                 </div>
+              ) : (
+                <button
+                  onClick={() => { setShowQuickTodo(true); setShowAdd(false); setAddingTitle(""); }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: 12, fontWeight: 600, color: TEXT_DIM, background: "transparent", border: `1px dashed ${BORDER}`, marginBottom: 6, transition: "all 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = JADE; e.currentTarget.style.color = JADE; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TEXT_DIM; }}>
+                  <Icon name="plus" size={13} color="currentColor" /> Add a todo
+                </button>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {todos.map(note => (
+                  <NoteItem key={note.id} note={note} selected={selectedId === note.id} onSelect={() => selectNote(note.id)} onToggle={() => toggleComplete(note)} />
+                ))}
               </div>
-            )}
+            </div>
 
-            {/* Notes section — undated */}
+            {/* Notes section */}
             <div>
-              {(todos.length > 0 || done.length > 0) && (
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 6 }}>Notes</div>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 6 }}>Notes</div>
+              {showAdd ? (
+                <div style={{ background: SURFACE, border: `1px solid ${BORDER_ACCENT}`, borderRadius: 12, padding: "10px 14px", marginBottom: 6, display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    ref={addInputRef}
+                    value={addingTitle}
+                    onChange={e => setAddingTitle(e.target.value)}
+                    onKeyDown={handleAddKey}
+                    placeholder="Note title…"
+                    style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: TEXT, fontSize: 14, fontFamily: "'Montserrat', sans-serif" }}
+                  />
+                  <button onClick={addNote} style={{ ...btnStyle(JADE), padding: "4px 12px", fontSize: 12 }}>Add</button>
+                  <button onClick={() => { setShowAdd(false); setAddingTitle(""); }} style={{ ...btnStyle("transparent"), color: TEXT_DIM, padding: "4px 8px", fontSize: 12, display: "flex", alignItems: "center" }}><Icon name="x" size={14} /></button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setShowAdd(true); setShowQuickTodo(false); setQuickTodoTitle(""); }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontSize: 12, fontWeight: 600, color: TEXT_DIM, background: "transparent", border: `1px dashed ${BORDER}`, marginBottom: 6, transition: "all 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = JADE; e.currentTarget.style.color = JADE; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TEXT_DIM; }}>
+                  <Icon name="plus" size={13} color="currentColor" /> Add a note
+                </button>
               )}
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {plainNotes.map(note => (
                   <NoteItem key={note.id} note={note} selected={selectedId === note.id} onSelect={() => selectNote(note.id)} />
                 ))}
-                {plainNotes.length === 0 && todos.length === 0 && !showAdd && (
-                  <div style={{ color: TEXT_MUTED, fontSize: 12, padding: "8px 4px", fontStyle: "italic" }}>No notes yet.</div>
+                {plainNotes.length === 0 && !showAdd && (
+                  <div style={{ color: TEXT_MUTED, fontSize: 12, padding: "4px 4px 8px", fontStyle: "italic" }}>No notes yet.</div>
                 )}
               </div>
             </div>

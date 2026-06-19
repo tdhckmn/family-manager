@@ -19,6 +19,7 @@ import Subscribe from "./pages/Subscribe";
 import Admin from "./pages/admin/Admin";
 import WisdomLibrary from "./pages/wisdom/WisdomLibrary";
 import Focus from "./pages/focus/Focus";
+import Kiosk from "./pages/kiosk/Kiosk";
 import { NoiseProvider } from "./noise";
 
 function ScrollToTop() {
@@ -41,6 +42,19 @@ function PrivateLayout() {
   );
 }
 
+// Kiosk is full-screen with no app chrome.
+function KioskLayout() {
+  return (
+    <AuthGate>
+      <PrefsProvider>
+        <NoiseProvider>
+          <Kiosk />
+        </NoiseProvider>
+      </PrefsProvider>
+    </AuthGate>
+  );
+}
+
 export default function App() {
   return (
     <>
@@ -49,6 +63,9 @@ export default function App() {
       {/* ── Product (public — viewable signed-in or not) ── */}
       <Route path="/" element={<Landing />} />
       <Route path="/join" element={<Join />} />
+
+      {/* ── Kiosk (signed-in, no chrome) ── */}
+      <Route path="/app/kiosk" element={<KioskLayout />} />
 
       {/* ── App (signed-in) ── */}
       <Route path="/app" element={<PrivateLayout />}>
