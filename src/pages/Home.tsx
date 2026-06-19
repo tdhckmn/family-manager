@@ -67,7 +67,7 @@ export default function Home() {
           <NavCard to="/app/finance"    icon={<Icon name="wallet"   size={24} />} label="Finances"     desc="Budget · Account plan · Income"         accent="#5db88a" isMobile={isMobile} />
           <NavCard to="/app/notes"      icon={<Icon name="check"    size={24} />} label="Notes"        desc="Markdown notes · Tasks · Journaling"    accent="#5b8fd4" isMobile={isMobile} />
           <NavCard to="/app/chores"     icon={<Icon name="sparkles" size={24} />} label="Chores"       desc="Weekly board · Assignments · Tracking"  accent="#e070a8" isMobile={isMobile} />
-          <NavCard to="/app/food"       icon={<Icon name="book"     size={24} />} label="Meal Planner" desc="Weekly meals · Recipes · Shopping"       accent="#a78bfa" isMobile={isMobile} />
+          <NavCard to="/app/food"       icon={<Icon name="utensils" size={24} />} label="Meal Planner" desc="Weekly meals · Recipes · Shopping"       accent="#a78bfa" isMobile={isMobile} />
           <NavCard to="/app/maintenance" icon={<Icon name="wrench"  size={24} />} label="Home Care"    desc="Maintenance · Overdue · Reminders"        accent="#e07a3c" isMobile={isMobile} />
           <NavCard to="/app/focus"      icon={<Icon name="moon"    size={24} />} label="Focus"         desc="Breathing exercises · Focus noise"         accent="#46b6ad" isMobile={isMobile} />
           <NavCard to="/app/wisdom"     icon={<Icon name="star"    size={24} />} label="Wisdom"        desc="Quote library · Traditions · Daily wisdom"  accent="#d4a45b" isMobile={isMobile} />

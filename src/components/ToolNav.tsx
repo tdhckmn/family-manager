@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "./Icon";
 
@@ -21,7 +22,7 @@ const TOOLS: { key: ToolKey; to: string; label: string; accent: string; icon: st
   { key: "finance",     to: "/app/finance",     label: "Finances", accent: "#5db88a", icon: "wallet" },
   { key: "notes",       to: "/app/notes",       label: "Notes",    accent: BLUE,     icon: "check"  },
   { key: "chores",      to: "/app/chores",      label: "Chores",   accent: PINK,     icon: "sparkles" },
-  { key: "food",        to: "/app/food",        label: "Meals",    accent: LAV,      icon: "book" },
+  { key: "food",        to: "/app/food",        label: "Meals",    accent: LAV,      icon: "utensils" },
   { key: "maintenance", to: "/app/maintenance", label: "Home",     accent: ORANGE,   icon: "wrench" },
   { key: "focus",       to: "/app/focus",       label: "Focus",    accent: TEAL,     icon: "moon" },
   { key: "wisdom",      to: "/app/wisdom",      label: "Wisdom",   accent: GOLD,     icon: "star" },
@@ -69,7 +70,7 @@ export default function ToolNav({ current }: { current: ToolKey }) {
           <Icon name="chevronDown" size={15} color={cur.accent} />
         </button>
 
-        {sheetOpen && (
+        {sheetOpen && createPortal(
           <div onClick={() => setSheetOpen(false)}
             style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(3,5,15,0.72)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-end" }}>
             <div onClick={e => e.stopPropagation()}
@@ -95,7 +96,8 @@ export default function ToolNav({ current }: { current: ToolKey }) {
                 );
               })}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </>
     );

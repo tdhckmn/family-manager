@@ -112,7 +112,7 @@ function FinanceHeader({ month, year, isCurrentMonth, onPrev, onNext, onPick }: 
   const modeLabel = isCurrentMonth ? "This month" : "Plan";
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, gap: 12, flexWrap: "wrap", rowGap: 10, boxSizing: "border-box" }}>
+    <div style={{ position: "sticky", top: 0, zIndex: 100, background: "var(--panel)", backdropFilter: "blur(14px)", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, gap: 12, flexWrap: "wrap", rowGap: 10, boxSizing: "border-box" }}>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 4 }}

@@ -19,6 +19,7 @@ const DANGER    = "#c0566a";
 const PAGES_WITH_OWN_GEAR = [
   "/app/finance", "/app/settings",
   "/app/chores", "/app/calendar", "/app/focus", "/app/wisdom", "/app/maintenance",
+  "/app/notes", "/app/food",
 ];
 
 /** Avatar + Google name/email block, shared across settings menus. */

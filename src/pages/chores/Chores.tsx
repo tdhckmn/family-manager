@@ -279,7 +279,16 @@ export default function Chores() {
                   style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 13px", borderRadius: 10, background: SURFACE, border: `1px solid ${BORDER}`, cursor: "pointer", transition: "background 0.12s" }}
                   onMouseEnter={e => (e.currentTarget.style.background = SURFACE_HI)}
                   onMouseLeave={e => (e.currentTarget.style.background = SURFACE)}>
-                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: personColor(people.find(p => p.name === c.assignedTo), c.assignedTo), flexShrink: 0 }} />
+                  {(() => {
+                    const doneToday = todayIdx >= 0 && !!log.done[`${c.id}:${todayIdx}`];
+                    return (
+                      <span style={{
+                        width: 9, height: 9, borderRadius: "50%", flexShrink: 0,
+                        background: doneToday ? JADE : personColor(people.find(p => p.name === c.assignedTo), c.assignedTo),
+                        boxShadow: doneToday ? `0 0 6px ${JADE}` : undefined,
+                      }} />
+                    );
+                  })()}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>{c.name}</span>
                     {c.assignedTo && <span style={{ fontSize: 12, color: TEXT_DIM }}> · {c.assignedTo}</span>}
@@ -322,7 +331,7 @@ const navBtn: React.CSSProperties = {
   justifyContent: "center", fontFamily: FONT,
 };
 
-// ── Chore detail overlay (view + inline edit) ────────────────────────────────
+// ── Chore detail overlay ─────────────────────────────────────────────────────
 function ChoreDetail({ chore, log, weekStart, todayIdx, assignees, people, onClose, onSave, onDelete, onToggle }: {
   chore: Chore;
   log: Record<string, boolean>;
@@ -339,13 +348,17 @@ function ChoreDetail({ chore, log, weekStart, todayIdx, assignees, people, onClo
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [draft, setDraft] = useState<Omit<Chore, "id">>(() => choreToDraft(chore));
+
   const sortedDays = [...chore.daysOfWeek].sort((a, b) => a - b);
   const doneCount = sortedDays.filter(d => log[`${chore.id}:${d}`]).length;
   const color = personColor(people.find(p => p.name === chore.assignedTo), chore.assignedTo);
+  const isDoneToday = todayIdx >= 0 && !!log[`${chore.id}:${todayIdx}`];
+  const canSave = draft.name.trim().length > 0 && draft.daysOfWeek.length > 0;
 
   function startEdit() { setDraft(choreToDraft(chore)); setEditing(true); }
+  function cancelEdit() { setEditing(false); setConfirmDelete(false); }
   async function save() {
-    if (!draft.name.trim() || draft.daysOfWeek.length === 0) return;
+    if (!canSave) return;
     await onSave(draft);
     setEditing(false);
   }
@@ -363,12 +376,15 @@ function ChoreDetail({ chore, log, weekStart, todayIdx, assignees, people, onClo
     <div style={{ position: "fixed", inset: 0, background: BG, zIndex: 1100, overflowY: "auto", fontFamily: FONT, color: TEXT }}>
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 1110, background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 20px", minHeight: 60, gap: 12, boxSizing: "border-box" }}>
-        {iconBtn(editing ? () => { setEditing(false); setConfirmDelete(false); } : onClose, "x", TEXT)}
+        {iconBtn(editing ? cancelEdit : onClose, "x", TEXT)}
         <div style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: 16, color: confirmDelete ? DANGER : TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {editing ? "Edit chore" : confirmDelete ? "Delete chore?" : "Chore"}
+          {confirmDelete ? "Delete chore?" : "Chore"}
         </div>
         {editing ? (
-          <button onClick={save} disabled={!draft.name.trim() || draft.daysOfWeek.length === 0} style={{ ...btn(PINK), opacity: (!draft.name.trim() || draft.daysOfWeek.length === 0) ? 0.5 : 1 }}>Save</button>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={cancelEdit} style={{ ...btn("transparent", TEXT_DIM, BORDER), fontSize: 12, padding: "6px 14px" }}>Cancel</button>
+            <button onClick={save} disabled={!canSave} style={{ ...btn(PINK), opacity: canSave ? 1 : 0.5 }}>Save</button>
+          </div>
         ) : confirmDelete ? (
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={onDelete} style={{ ...btn(DANGER), fontSize: 12, padding: "6px 14px" }}>Delete</button>
@@ -382,13 +398,20 @@ function ChoreDetail({ chore, log, weekStart, todayIdx, assignees, people, onClo
         )}
       </div>
 
-      {editing ? (
-        /* ── Inline editor ── */
-        <div style={{ padding: "28px 24px 80px", maxWidth: 600, margin: "0 auto" }}>
-          <Field label="Chore">
-            <input autoFocus value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} placeholder="Take out trash" style={inputStyle} />
-          </Field>
-          <div style={{ marginTop: 12 }}>
+      {/* Content — same structure in both view and edit modes */}
+      <div style={{ padding: "32px 24px 80px", maxWidth: 600, margin: "0 auto" }}>
+
+        {/* Name */}
+        {editing ? (
+          <input autoFocus value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}
+            placeholder="Take out trash" style={{ ...inputStyle, fontSize: 22, fontWeight: 800, marginBottom: 20 }} />
+        ) : (
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: TEXT, margin: "0 0 20px", lineHeight: 1.2 }}>{chore.name}</h1>
+        )}
+
+        {/* Assigned to */}
+        {editing ? (
+          <div style={{ marginBottom: 16 }}>
             <Field label="Assigned to (optional)">
               <select value={draft.assignedTo} onChange={e => setDraft({ ...draft, assignedTo: e.target.value })} style={inputStyle}>
                 <option value="">Anyone</option>
@@ -399,89 +422,91 @@ function ChoreDetail({ chore, log, weekStart, todayIdx, assignees, people, onClo
               </select>
             </Field>
           </div>
-          <div style={{ marginTop: 12 }}>
-            <Field label="Repeats on">
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {DAY_ABBR.map((d, i) => {
-                  const on = draft.daysOfWeek.includes(i);
-                  return (
-                    <button key={i} onClick={() => setDraft(dr => ({ ...dr, daysOfWeek: on ? dr.daysOfWeek.filter(x => x !== i) : [...dr.daysOfWeek, i] }))}
-                      style={{ width: 44, padding: "8px 0", borderRadius: 8, cursor: "pointer", fontFamily: FONT, fontSize: 12, fontWeight: 700,
-                        background: on ? PINK : "transparent", color: on ? BG : TEXT_DIM, border: `1px solid ${on ? PINK : BORDER}`, transition: "all 0.12s" }}>
-                      {d}
-                    </button>
-                  );
-                })}
-              </div>
-            </Field>
+        ) : chore.assignedTo ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+            <span style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0 }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color }}>{chore.assignedTo}</span>
           </div>
-          <div style={{ marginTop: 12 }}>
-            <Field label="Notes (optional)">
-              <textarea value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} placeholder="Any details…" rows={3} style={{ ...inputStyle, resize: "vertical" }} />
-            </Field>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 20, flexWrap: "wrap" }}>
-            <button onClick={save} style={btn(PINK)}>Save</button>
-            <button onClick={() => setEditing(false)} style={btn("transparent", TEXT_DIM, BORDER)}>Cancel</button>
-            <button onClick={onDelete} style={{ ...btn("transparent", DANGER, "transparent"), marginLeft: "auto" }}>
-              <Icon name="trash" size={14} color={DANGER} /> Delete
-            </button>
-          </div>
-        </div>
-      ) : (
-      /* ── View ── */
-      <div style={{ padding: "32px 24px 80px", maxWidth: 600, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: TEXT, margin: "0 0 12px", lineHeight: 1.2 }}>{chore.name}</h1>
+        ) : null}
 
-        {/* Meta */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 20 }}>
-          {chore.assignedTo && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color }}>
-              <span style={{ width: 9, height: 9, borderRadius: "50%", background: color, flexShrink: 0 }} />
-              {chore.assignedTo}
-            </span>
-          )}
-          <span style={{ fontSize: 13, color: TEXT_DIM, fontWeight: 600 }}>{formatDays(chore.daysOfWeek)}</span>
-          <span style={{ fontSize: 12, color: TEXT_MUTED }}>{sortedDays.length} day{sortedDays.length !== 1 ? "s" : ""}/week</span>
-        </div>
-
-        {chore.notes && (
-          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "12px 14px", fontSize: 13, color: TEXT_DIM, marginBottom: 20, fontStyle: "italic" }}>
-            {chore.notes}
-          </div>
-        )}
-
-        {/* This week's progress */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-            This week
-            <span style={{ fontSize: 12, fontWeight: 800, color: doneCount === sortedDays.length && sortedDays.length > 0 ? JADE : TEXT_DIM }}>
-              {doneCount}/{sortedDays.length}
-            </span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {sortedDays.map(dayIdx => {
-              const date = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + dayIdx);
-              const checked = !!log[`${chore.id}:${dayIdx}`];
-              const isToday = dayIdx === todayIdx;
+        {/* Days of week — pills (toggleable when editing) */}
+        <div style={{ marginBottom: 20 }}>
+          {editing && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 8 }}>Repeats on</div>}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {DAY_ABBR.map((d, i) => {
+              const active = editing ? draft.daysOfWeek.includes(i) : chore.daysOfWeek.includes(i);
+              if (!editing && !active) return null;
               return (
-                <button key={dayIdx} onClick={() => onToggle(dayIdx)}
-                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 10, cursor: "pointer", fontFamily: FONT, background: checked ? "rgba(93,184,138,0.08)" : SURFACE, border: `1px solid ${checked ? JADE + "40" : isToday ? JADE + "44" : BORDER}`, transition: "all 0.12s", textAlign: "left" }}>
-                  <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 6, border: `2px solid ${checked ? JADE : "var(--border-hi)"}`, background: checked ? JADE : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {checked && <Icon name="checkMark" size={12} />}
-                  </span>
-                  <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>
-                    {DAY_NAMES[dayIdx]}
-                  </span>
-                  <span style={{ fontSize: 12, color: TEXT_MUTED }}>{date.getDate()}</span>
-                  {isToday && <span style={{ fontSize: 11, fontWeight: 700, color: JADE, background: JADE + "22", borderRadius: 6, padding: "2px 8px" }}>Today</span>}
+                <button key={i}
+                  onClick={editing ? () => setDraft(dr => ({ ...dr, daysOfWeek: active ? dr.daysOfWeek.filter(x => x !== i) : [...dr.daysOfWeek, i] })) : undefined}
+                  style={{ width: 44, padding: "8px 0", borderRadius: 8, fontFamily: FONT, fontSize: 12, fontWeight: 700,
+                    background: active ? (editing ? PINK : PINK + "22") : "transparent",
+                    color: active ? (editing ? BG : PINK) : TEXT_DIM,
+                    border: `1px solid ${active ? (editing ? PINK : PINK + "55") : BORDER}`,
+                    cursor: editing ? "pointer" : "default",
+                    transition: "all 0.12s",
+                  }}>
+                  {d}
                 </button>
               );
             })}
           </div>
         </div>
+
+        {/* Notes */}
+        {editing ? (
+          <div style={{ marginBottom: 24 }}>
+            <Field label="Notes (optional)">
+              <textarea value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })}
+                placeholder="Any details…" rows={3} style={{ ...inputStyle, resize: "vertical" }} />
+            </Field>
+          </div>
+        ) : chore.notes ? (
+          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "12px 14px", fontSize: 13, color: TEXT_DIM, marginBottom: 24, fontStyle: "italic" }}>
+            {chore.notes}
+          </div>
+        ) : null}
+
+        {/* Mark done today */}
+        {todayIdx >= 0 && (
+          <button onClick={() => onToggle(todayIdx)} style={{
+            ...btn(isDoneToday ? "transparent" : JADE, isDoneToday ? JADE : BG, isDoneToday ? JADE + "55" : JADE),
+            padding: "11px 20px", marginBottom: 28,
+          }}>
+            <Icon name={isDoneToday ? "checkMark" : "check"} size={15} color={isDoneToday ? JADE : BG} />
+            {isDoneToday ? "Done today" : "Mark done today"}
+          </button>
+        )}
+
+        {/* This week — compact chips */}
+        {sortedDays.length > 0 && (
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+              This week
+              <span style={{ fontSize: 12, fontWeight: 800, color: doneCount === sortedDays.length ? JADE : TEXT_DIM }}>{doneCount}/{sortedDays.length}</span>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {sortedDays.map(dayIdx => {
+                const date = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + dayIdx);
+                const checked = !!log[`${chore.id}:${dayIdx}`];
+                const isToday = dayIdx === todayIdx;
+                return (
+                  <button key={dayIdx} onClick={() => onToggle(dayIdx)}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontFamily: FONT, transition: "all 0.12s",
+                      background: checked ? JADE + "18" : SURFACE,
+                      border: `1px solid ${checked ? JADE + "55" : isToday ? JADE + "33" : BORDER}`,
+                    }}>
+                    {checked && <Icon name="checkMark" size={11} color={JADE} />}
+                    <span style={{ fontSize: 12, fontWeight: 700, color: checked ? JADE : isToday ? TEXT : TEXT_DIM }}>{DAY_ABBR[dayIdx]}</span>
+                    <span style={{ fontSize: 11, color: TEXT_MUTED }}>{date.getDate()}</span>
+                    {isToday && <span style={{ fontSize: 10, fontWeight: 700, color: JADE }}>·</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
-      )}
     </div>
   );
 }

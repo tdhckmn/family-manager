@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import ToolNav from "../../components/ToolNav";
 import { Icon } from "../../components/Icon";
@@ -6,12 +6,13 @@ import { useHouseholdUid } from "../../household";
 import ReactMarkdown from "react-markdown";
 import {
   collection, onSnapshot, addDoc, updateDoc, deleteDoc,
-  doc, query, orderBy,
+  doc, query, orderBy, setDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import StarField from "../../components/StarField";
 import { WisdomCard, useDailyQuote } from "../../components/Wisdom";
 import { usePrefs } from "../../prefs";
+import GlobalHeader from "../../components/GlobalHeader";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -21,8 +22,42 @@ interface Note {
   notes: string;
   completed: boolean;
   createdAt: number;
+  completedAt?: number | null;
   dueDate?: string | null;   // YYYY-MM-DD — optional; surfaces on the calendar
 }
+
+interface JournalEntry {
+  date: string;
+  morning: string;
+  evening: string;
+  updatedAt: number;
+}
+
+// ── Date helpers ─────────────────────────────────────────────────────────────
+
+function dateToISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function isoToDate(iso: string): Date { return new Date(iso + "T12:00:00"); }
+function addDays(iso: string, n: number): string {
+  const d = isoToDate(iso); d.setDate(d.getDate() + n); return dateToISO(d);
+}
+function weekDaysFor(iso: string): string[] {
+  const d = isoToDate(iso);
+  const sun = new Date(d); sun.setDate(d.getDate() - d.getDay());
+  return Array.from({length: 7}, (_, i) => { const nd = new Date(sun); nd.setDate(sun.getDate() + i); return dateToISO(nd); });
+}
+function navMonthISO(iso: string, n: number): string {
+  const d = isoToDate(iso);
+  const target = new Date(d.getFullYear(), d.getMonth() + n, 1);
+  const maxDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  return dateToISO(new Date(target.getFullYear(), target.getMonth(), Math.min(d.getDate(), maxDay)));
+}
+
+const J_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const J_DAYS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+const J_DAY_FULL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const J_MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 // ── Due-date helpers ────────────────────────────────────────────────────────
 
@@ -64,6 +99,17 @@ function DueBadge({ iso }: { iso: string }) {
   return (
     <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, color, background: `${color}1a`, border: `1px solid ${color}33`, borderRadius: 12, padding: "1px 7px", whiteSpace: "nowrap" }}>
       {dueLabel(iso)}
+    </span>
+  );
+}
+
+function CompletedBadge({ completedAt }: { completedAt?: number | null }) {
+  const label = completedAt
+    ? (() => { const d = new Date(completedAt); return `completed ${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}-${String(d.getFullYear()).slice(2)}`; })()
+    : "completed";
+  return (
+    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.4, color: "#5a8a6a", background: "#5a8a6a1a", border: "1px solid #5a8a6a33", borderRadius: 12, padding: "1px 7px", whiteSpace: "nowrap" }}>
+      {label}
     </span>
   );
 }
@@ -111,8 +157,18 @@ export default function Notes() {
   const [showQuickTodo, setShowQuickTodo] = useState(false);
   const [quickTodoTitle, setQuickTodoTitle] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showAllDone, setShowAllDone] = useState(false);
   // Mobile: whether we're showing the detail view (true) or the list (false)
   const [mobileShowDetail, setMobileShowDetail] = useState(() => !!searchParams.get("id"));
+
+  // ── Journal ──────────────────────────────────────────────────────────────
+  const [mode, setMode] = useState<"notes" | "journal">("notes");
+  const [journalDate, setJournalDate] = useState(() => todayISO());
+  const [journalEntries, setJournalEntries] = useState<Map<string, JournalEntry>>(new Map());
+  const [morningDraft, setMorningDraft] = useState("");
+  const [eveningDraft, setEveningDraft] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const journalDateRef = useRef(journalDate);
 
   const isMobile = useIsMobile();
   const { prefs } = usePrefs();
@@ -161,8 +217,64 @@ export default function Notes() {
     }
   }, [isMobile, mobileShowDetail]);
 
+  // Keep ref in sync so auto-save closure always uses current date
+  useEffect(() => { journalDateRef.current = journalDate; }, [journalDate]);
+
+  // Subscribe to all journal docs while in journal mode
+  useEffect(() => {
+    if (mode !== "journal") return;
+    return onSnapshot(collection(db, "users", uid, "journal"), snap => {
+      const map = new Map<string, JournalEntry>();
+      snap.docs.forEach(d => map.set(d.id, d.data() as JournalEntry));
+      setJournalEntries(map);
+    }, err => console.error("journal", err));
+  }, [uid, mode]);
+
+  // Load drafts when navigating to a new date
+  useEffect(() => {
+    if (mode !== "journal") return;
+    setSaveStatus("idle");
+    const entry = journalEntries.get(journalDate);
+    setMorningDraft(entry?.morning ?? "");
+    setEveningDraft(entry?.evening ?? "");
+  }, [journalDate, mode]); // eslint-disable-line
+
+  // Once entries arrive from Firestore for the currently-viewed date, populate if drafts are still empty
+  useEffect(() => {
+    if (mode !== "journal") return;
+    const entry = journalEntries.get(journalDate);
+    if (!entry) return;
+    setMorningDraft(prev => prev || entry.morning || "");
+    setEveningDraft(prev => prev || entry.evening || "");
+  }, [journalEntries]); // eslint-disable-line
+
+  // Auto-save 1.5 s after the last keystroke
+  useEffect(() => {
+    if (mode !== "journal") return;
+    if (!morningDraft.trim() && !eveningDraft.trim()) return;
+    setSaveStatus("saving");
+    const timer = setTimeout(() => {
+      const date = journalDateRef.current;
+      setDoc(doc(db, "users", uid, "journal", date), {
+        date, morning: morningDraft, evening: eveningDraft, updatedAt: Date.now(),
+      }).then(() => setSaveStatus("saved")).catch(console.error);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [morningDraft, eveningDraft, uid, mode]); // eslint-disable-line
+
+  function openJournal() {
+    setMode("journal");
+    setSelectedId(null);
+    setEditing(false);
+    if (isMobile) setMobileShowDetail(false);
+  }
+  function navJournalDay(n: number) { setJournalDate(d => addDays(d, n)); }
+  function navJournalWeek(n: number) { setJournalDate(d => addDays(d, n * 7)); }
+  function navJournalMonth(n: number) { setJournalDate(d => navMonthISO(d, n)); }
+
   function selectNote(id: string) {
     if (editing) return;
+    setMode("notes");
     setSelectedId(id);
     setConfirmDelete(false);
     if (isMobile) setMobileShowDetail(true);
@@ -198,7 +310,11 @@ export default function Notes() {
   }
 
   async function toggleComplete(note: Note) {
-    await updateDoc(doc(db, "users", uid, "notes", note.id), { completed: !note.completed });
+    const completing = !note.completed;
+    await updateDoc(doc(db, "users", uid, "notes", note.id), {
+      completed: completing,
+      completedAt: completing ? Date.now() : null,
+    });
   }
 
   async function addNote() {
@@ -260,24 +376,24 @@ export default function Notes() {
 
         <div style={{ position: "relative", zIndex: 1 }}>
 
-          {/* Header bar — right padding reserves room for the fixed global gear (top-right) */}
-          <div style={{ padding: "14px 62px 14px 16px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
+          {/* Header bar */}
+          <div style={{ position: "sticky", top: 0, zIndex: 100, background: "var(--panel)", backdropFilter: "blur(14px)", padding: "14px 20px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
             <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 4 }}
               onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
               onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
               <Icon name="chevronLeft" size={13} /> Home
             </Link>
             <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
-            <ToolNav current="notes" />
-            <div style={{ flex: 1 }} />
+            <div style={{ minWidth: 0, flex: "1 1 auto" }}><ToolNav current="notes" /></div>
             <button onClick={() => { setShowAdd(true); setShowQuickTodo(false); setQuickTodoTitle(""); }}
-              style={{ ...btnStyle(JADE), fontSize: 13, padding: "8px 16px", display: "flex", alignItems: "center", gap: 6 }}>
+              style={{ ...btnStyle(JADE), fontSize: 13, padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
               + New Note
             </button>
+            <GlobalHeader inline />
           </div>
 
           {/* ── LIST VIEW ── */}
-          {!mobileShowDetail && (
+          {!mobileShowDetail && mode === "notes" && (
             <div style={{ padding: "16px 16px 32px" }}>
 
               {showWisdom && (
@@ -285,6 +401,17 @@ export default function Notes() {
                   <WisdomCard quote={todayQuote} compact />
                 </div>
               )}
+
+              {/* Journal entry */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 8 }}>Journal</div>
+                <div onClick={openJournal}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", borderRadius: 14, background: SURFACE, border: `1px solid ${BORDER}`, cursor: "pointer" }}>
+                  <Icon name="book" size={16} color={JADE} />
+                  <span style={{ fontSize: 15, fontWeight: 600, color: TEXT }}>Daily Journal</span>
+                  <span style={{ marginLeft: "auto", fontSize: 16, color: TEXT_MUTED }}>›</span>
+                </div>
+              </div>
 
               {/* TODO section */}
               <div style={{ marginBottom: 20 }}>
@@ -361,17 +488,43 @@ export default function Notes() {
                 <div style={{ marginTop: 24 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 8 }}>Done</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {done.map(note => (
+                    {(showAllDone ? done : done.slice(0, 10)).map(note => (
                       <MobileNoteItem key={note.id} note={note} onSelect={() => selectNote(note.id)} />
                     ))}
                   </div>
+                  {done.length > 10 && (
+                    <button onClick={() => setShowAllDone(v => !v)}
+                      style={{ marginTop: 8, fontSize: 12, color: TEXT_DIM, background: "transparent", border: "none", cursor: "pointer", padding: "4px 4px", fontFamily: "'Montserrat', sans-serif" }}>
+                      {showAllDone ? "Show less" : `Show ${done.length - 10} more…`}
+                    </button>
+                  )}
                 </div>
               )}
+
+            </div>
+          )}
+
+          {/* ── JOURNAL VIEW (mobile) ── */}
+          {mode === "journal" && !mobileShowDetail && (
+            <div style={{ padding: "16px 16px 40px" }}>
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 20 }}>
+                <button onClick={() => setMode("notes")}
+                  style={{ ...btnStyle("transparent"), color: TEXT_DIM, fontSize: 13, fontWeight: 600, padding: "8px 0", display: "flex", alignItems: "center", gap: 6 }}>
+                  <Icon name="chevronLeft" size={13} /> Back
+                </button>
+              </div>
+              <JournalPanel
+                date={journalDate} entries={journalEntries}
+                morningDraft={morningDraft} eveningDraft={eveningDraft} saveStatus={saveStatus}
+                onMorning={v => setMorningDraft(v)} onEvening={v => setEveningDraft(v)}
+                onNavDay={navJournalDay} onNavWeek={navJournalWeek} onNavMonth={navJournalMonth}
+                onToday={() => setJournalDate(todayISO())} onSelectDate={setJournalDate}
+              />
             </div>
           )}
 
           {/* ── DETAIL VIEW ── */}
-          {mobileShowDetail && selected && (
+          {mode === "notes" && mobileShowDetail && selected && (
             <div style={{ padding: "16px 16px 32px", minHeight: "100vh" }}>
               {/* Back bar */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
@@ -418,7 +571,11 @@ export default function Notes() {
                   <h2 style={{ fontSize: 22, fontWeight: 700, color: selected.completed ? TEXT_MUTED : TEXT, textDecoration: selected.completed ? "line-through" : "none", margin: 0, lineHeight: 1.3 }}>
                     {selected.title}
                   </h2>
-                  {selected.dueDate && <div style={{ marginTop: 8 }}><DueBadge iso={selected.dueDate} /></div>}
+                  <div style={{ marginTop: 8 }}>
+                    {selected.completed
+                      ? <CompletedBadge completedAt={selected.completedAt} />
+                      : selected.dueDate && <DueBadge iso={selected.dueDate} />}
+                  </div>
                 </div>
               )}
 
@@ -457,20 +614,20 @@ export default function Notes() {
 
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
-        {/* Header bar — right padding reserves room for the fixed global gear (top-right) */}
-        <div style={{ padding: "14px 62px 14px 24px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
+        {/* Header bar */}
+        <div style={{ position: "sticky", top: 0, zIndex: 100, background: "var(--panel)", backdropFilter: "blur(14px)", padding: "14px 20px", minHeight: 60, borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 12, boxSizing: "border-box" }}>
           <Link to="/app" style={{ textDecoration: "none", color: TEXT_DIM, fontSize: 13, fontWeight: 600, opacity: 0.7, flexShrink: 0, transition: "opacity 0.15s", display: "flex", alignItems: "center", gap: 4 }}
             onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "1"}
             onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.opacity = "0.7"}>
             <Icon name="chevronLeft" size={13} /> Home
           </Link>
           <div style={{ width: 1, height: 14, background: "var(--border)", flexShrink: 0 }} />
-          <ToolNav current="notes" />
-          <div style={{ flex: 1 }} />
+          <div style={{ minWidth: 0, flex: "1 1 auto" }}><ToolNav current="notes" /></div>
           <button onClick={() => { setShowAdd(true); setShowQuickTodo(false); setQuickTodoTitle(""); }}
-            style={{ ...btnStyle(JADE), fontSize: 13, padding: "8px 16px", display: "flex", alignItems: "center", gap: 6 }}>
+            style={{ ...btnStyle(JADE), fontSize: 13, padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
             + New Note
           </button>
+          <GlobalHeader inline />
         </div>
 
         <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%", padding: "24px 20px", display: "flex", flexDirection: "column", flex: 1 }}>
@@ -485,6 +642,18 @@ export default function Notes() {
 
           {/* Sidebar */}
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+
+            {/* Journal nav */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 6 }}>Journal</div>
+              <div onClick={openJournal}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: mode === "journal" ? SURFACE_SELECTED : SURFACE, border: `1px solid ${mode === "journal" ? BORDER_ACCENT : "transparent"}`, cursor: "pointer", transition: "all 0.15s" }}
+                onMouseEnter={e => { if (mode !== "journal") (e.currentTarget as HTMLDivElement).style.background = SURFACE_HOVER; }}
+                onMouseLeave={e => { if (mode !== "journal") (e.currentTarget as HTMLDivElement).style.background = SURFACE; }}>
+                <Icon name="book" size={16} color={mode === "journal" ? JADE : TEXT_DIM} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: mode === "journal" ? JADE : TEXT }}>Daily Journal</span>
+              </div>
+            </div>
 
             {/* TODO section */}
             <div style={{ marginBottom: 16 }}>
@@ -560,17 +729,32 @@ export default function Notes() {
               <div style={{ marginTop: 20 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TEXT_MUTED, paddingLeft: 4, marginBottom: 6 }}>Done</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {done.map(note => (
+                  {(showAllDone ? done : done.slice(0, 10)).map(note => (
                     <NoteItem key={note.id} note={note} selected={selectedId === note.id} onSelect={() => selectNote(note.id)} />
                   ))}
                 </div>
+                {done.length > 10 && (
+                  <button onClick={() => setShowAllDone(v => !v)}
+                    style={{ marginTop: 6, fontSize: 11, color: TEXT_DIM, background: "transparent", border: "none", cursor: "pointer", padding: "4px 4px", fontFamily: "'Montserrat', sans-serif" }}>
+                    {showAllDone ? "Show less" : `Show ${done.length - 10} more…`}
+                  </button>
+                )}
               </div>
             )}
+
           </div>
 
-          {/* Detail panel */}
-          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "28px 32px", minHeight: 400, display: "flex", flexDirection: "column" }}>
-            {selected ? (
+          {/* Detail / Journal panel */}
+          <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: mode === "journal" ? "24px 28px" : "28px 32px", minHeight: 400, display: "flex", flexDirection: "column" }}>
+            {mode === "journal" ? (
+              <JournalPanel
+                date={journalDate} entries={journalEntries}
+                morningDraft={morningDraft} eveningDraft={eveningDraft} saveStatus={saveStatus}
+                onMorning={v => setMorningDraft(v)} onEvening={v => setEveningDraft(v)}
+                onNavDay={navJournalDay} onNavWeek={navJournalWeek} onNavMonth={navJournalMonth}
+                onToday={() => setJournalDate(todayISO())} onSelectDate={setJournalDate}
+              />
+            ) : selected ? (
               <DetailPanel
                 note={selected}
                 editing={editing}
@@ -716,7 +900,11 @@ function DetailPanel({
             <h2 style={{ fontSize: 20, fontWeight: 700, color: note.completed ? TEXT_MUTED : TEXT, textDecoration: note.completed ? "line-through" : "none", margin: 0, lineHeight: 1.3 }}>
               {note.title}
             </h2>
-            {note.dueDate && <div style={{ marginTop: 8 }}><DueBadge iso={note.dueDate} /></div>}
+            <div style={{ marginTop: 8 }}>
+              {note.completed
+                ? <CompletedBadge completedAt={note.completedAt} />
+                : note.dueDate && <DueBadge iso={note.dueDate} />}
+            </div>
           </div>
         )}
 
@@ -914,6 +1102,168 @@ function MarkdownToolbar({ textareaRef, onValue }: { textareaRef: React.RefObjec
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}
         onClick={insertLink}>Link</button>
+    </div>
+  );
+}
+
+// ── JournalMonthPicker ────────────────────────────────────────────────────────
+
+function JournalMonthPicker({ year, month, onPick }: { year: number; month: number; onPick: (y: number, m: number) => void }) {
+  const [navYear, setNavYear] = useState(year);
+  const today = useMemo(() => new Date(), []);
+  return (
+    <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 300, width: 224, background: "var(--panel)", border: `1px solid ${BORDER}`, borderRadius: 14, padding: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.55)", backdropFilter: "blur(16px)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <button onClick={() => setNavYear(y => y - 1)} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 7, color: TEXT_DIM, fontSize: 13, width: 26, height: 26, cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>‹</button>
+        <span style={{ fontSize: 14, fontWeight: 800, color: TEXT }}>{navYear}</span>
+        <button onClick={() => setNavYear(y => y + 1)} style={{ background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 7, color: TEXT_DIM, fontSize: 13, width: 26, height: 26, cursor: "pointer", fontFamily: "'Montserrat',sans-serif" }}>›</button>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+        {J_MONTH_SHORT.map((m, i) => {
+          const selected = navYear === year && i === month;
+          const isNow = navYear === today.getFullYear() && i === today.getMonth();
+          return (
+            <button key={m} onClick={() => onPick(navYear, i)}
+              style={{ padding: "8px 0", borderRadius: 8, cursor: "pointer", fontFamily: "'Montserrat',sans-serif", fontSize: 12, fontWeight: 700, background: selected ? JADE : "transparent", color: selected ? "#06091a" : isNow ? JADE : TEXT_DIM, border: `1px solid ${selected ? JADE : isNow ? JADE + "55" : BORDER}`, transition: "all 0.12s" }}
+              onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.background = "var(--surface-hi)"; }}
+              onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}>
+              {m}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── JournalPanel ──────────────────────────────────────────────────────────────
+
+function JournalPanel({ date, entries, morningDraft, eveningDraft, saveStatus, onMorning, onEvening, onNavDay, onNavWeek, onNavMonth, onToday, onSelectDate }: {
+  date: string;
+  entries: Map<string, JournalEntry>;
+  morningDraft: string;
+  eveningDraft: string;
+  saveStatus: "idle" | "saving" | "saved";
+  onMorning: (v: string) => void;
+  onEvening: (v: string) => void;
+  onNavDay: (n: number) => void;
+  onNavWeek: (n: number) => void;
+  onNavMonth: (n: number) => void;
+  onToday: () => void;
+  onSelectDate: (iso: string) => void;
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const today = todayISO();
+  const week = weekDaysFor(date);
+  const d = isoToDate(date);
+  const dayLabel = `${J_DAY_FULL[d.getDay()]}, ${J_MONTH_SHORT[d.getMonth()]} ${d.getDate()}`;
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setPickerOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [pickerOpen]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 0 }}>
+
+      {/* Month picker row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <div ref={pickerRef} style={{ position: "relative" }}>
+          <button onClick={() => setPickerOpen(o => !o)}
+            style={{ display: "flex", alignItems: "center", gap: 4, background: pickerOpen ? "var(--surface-hi)" : "transparent", border: `1px solid ${pickerOpen ? "var(--border-hi)" : "transparent"}`, borderRadius: 8, padding: "3px 7px", cursor: "pointer", fontFamily: "'Montserrat',sans-serif", transition: "all 0.15s" }}
+            onMouseEnter={e => { if (!pickerOpen) (e.currentTarget as HTMLButtonElement).style.background = "var(--surface)"; }}
+            onMouseLeave={e => { if (!pickerOpen) (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: TEXT }}>{J_MONTH_SHORT[d.getMonth()]} {d.getFullYear()}</span>
+            <span style={{ fontSize: 9, color: TEXT_DIM, lineHeight: 1 }}>▾</span>
+          </button>
+          {pickerOpen && (
+            <JournalMonthPicker year={d.getFullYear()} month={d.getMonth()} onPick={(y, m) => { onNavMonth(0); onSelectDate(`${y}-${String(m + 1).padStart(2, "0")}-${String(Math.min(d.getDate(), new Date(y, m + 1, 0).getDate())).padStart(2, "0")}`); setPickerOpen(false); }} />
+          )}
+        </div>
+        <div style={{ flex: 1 }} />
+        {date !== today && (
+          <button onClick={onToday} style={{ ...btnStyle("transparent"), fontSize: 11, padding: "4px 10px", border: `1px solid ${BORDER}`, color: TEXT_DIM, transition: "all 0.15s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = JADE; (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
+            Today
+          </button>
+        )}
+      </div>
+
+      {/* Week strip */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 18 }}>
+        <button onClick={() => onNavWeek(-1)} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 7, cursor: "pointer", color: TEXT_DIM, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "border-color 0.15s, color 0.15s" }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
+          <Icon name="chevronLeft" size={12} color="currentColor" />
+        </button>
+        <div style={{ flex: 1, display: "flex", justifyContent: "space-between" }}>
+          {week.map((wd, i) => {
+            const isSelected = wd === date;
+            const isToday = wd === today;
+            const hasEntry = entries.has(wd);
+            const dayNum = isoToDate(wd).getDate();
+            return (
+              <div key={wd} onClick={() => onSelectDate(wd)}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "6px 0", minWidth: 32, cursor: "pointer", borderRadius: 8, background: isSelected ? JADE : "transparent", transition: "background 0.12s" }}>
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: isSelected ? "#fff" : isToday ? JADE : TEXT_MUTED }}>{J_DAYS[i]}</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: isSelected ? "#fff" : isToday ? JADE : TEXT }}>{dayNum}</span>
+                <span style={{ width: 4, height: 4, borderRadius: "50%", background: hasEntry ? (isSelected ? "rgba(255,255,255,0.7)" : JADE) : "transparent" }} />
+              </div>
+            );
+          })}
+        </div>
+        <button onClick={() => onNavWeek(1)} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 7, cursor: "pointer", color: TEXT_DIM, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "border-color 0.15s, color 0.15s" }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT; (e.currentTarget as HTMLButtonElement).style.borderColor = JADE_DIM; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = TEXT_DIM; (e.currentTarget as HTMLButtonElement).style.borderColor = BORDER; }}>
+          <Icon name="chevronRight" size={12} color="currentColor" />
+        </button>
+      </div>
+
+      {/* Day label */}
+      <div style={{ fontSize: 12, fontWeight: 700, color: TEXT_DIM, marginBottom: 16, paddingBottom: 14, borderBottom: `1px solid ${BORDER}` }}>
+        {dayLabel}
+      </div>
+
+      {/* Morning */}
+      <div style={{ marginBottom: 20, flex: 1, display: "flex", flexDirection: "column" }}>
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon name="sun" size={13} color={TEXT_MUTED} /> Morning
+        </div>
+        <textarea
+          value={morningDraft}
+          onChange={e => onMorning(e.target.value)}
+          placeholder={"What are you grateful for?\nWhat's your intention for today?\nWhat would make today great?"}
+          style={{ flex: 1, background: "var(--input-bg)", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "12px 14px", color: TEXT, fontSize: 13, fontFamily: "ui-monospace, 'SF Mono', 'Fira Mono', monospace", lineHeight: 1.7, resize: "none", outline: "none", minHeight: 120, transition: "border-color 0.15s", width: "100%", boxSizing: "border-box" }}
+          onFocus={e => (e.target.style.borderColor = JADE_DIM)}
+          onBlur={e => (e.target.style.borderColor = BORDER)}
+        />
+      </div>
+
+      {/* Evening */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon name="moon" size={13} color={TEXT_MUTED} /> Evening
+        </div>
+        <textarea
+          value={eveningDraft}
+          onChange={e => onEvening(e.target.value)}
+          placeholder={"What went well today?\nWhat did you learn?\nWhat would you do differently?"}
+          style={{ flex: 1, background: "var(--input-bg)", border: `1px solid ${BORDER}`, borderRadius: 10, padding: "12px 14px", color: TEXT, fontSize: 13, fontFamily: "ui-monospace, 'SF Mono', 'Fira Mono', monospace", lineHeight: 1.7, resize: "none", outline: "none", minHeight: 120, transition: "border-color 0.15s", width: "100%", boxSizing: "border-box" }}
+          onFocus={e => (e.target.style.borderColor = JADE_DIM)}
+          onBlur={e => (e.target.style.borderColor = BORDER)}
+        />
+      </div>
+
+      {/* Save status */}
+      <div style={{ marginTop: 10, fontSize: 11, color: TEXT_MUTED, textAlign: "right", minHeight: 16, transition: "opacity 0.3s", opacity: saveStatus === "idle" ? 0 : 1 }}>
+        {saveStatus === "saving" ? "Saving…" : "Saved"}
+      </div>
     </div>
   );
 }

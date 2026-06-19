@@ -15,6 +15,12 @@ export interface AppPrefs {
   appIcon: string; // "" = auto (tradition-based)
   theme: Theme;
   gcalEnabledCalendars: string[]; // Google Calendar IDs to show on Today view
+  // Focus page preferences
+  focusBreathingId: string;          // selected breathing technique
+  focusVoiceGuide: boolean;          // voice guide on/off
+  focusNoiseType: string;            // brown | pink | white
+  focusNoiseVolume: number;          // 0–1
+  focusAffirmationCategoryId: string; // selected affirmation category
 }
 
 export const DEFAULT_PREFS: AppPrefs = {
@@ -28,6 +34,11 @@ export const DEFAULT_PREFS: AppPrefs = {
   appIcon: "mountain",
   theme: "dark",
   gcalEnabledCalendars: [],
+  focusBreathingId: "relax",
+  focusVoiceGuide: false,
+  focusNoiseType: "brown",
+  focusNoiseVolume: 0.55,
+  focusAffirmationCategoryId: "",
 };
 
 const PrefsContext = createContext<{
