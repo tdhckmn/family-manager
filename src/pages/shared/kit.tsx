@@ -2,7 +2,7 @@
 // Mirrors the palette and conventions used across Finance / Notes / Food so the new
 // pages feel native. Existing pages keep their own local constants — this is additive.
 
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import StarField from "../../components/StarField";
 import ToolNav, { type ToolKey } from "../../components/ToolNav";
@@ -103,6 +103,24 @@ export function weekKey(d: Date): string {
 }
 
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+/** Returns a Date that triggers a re-render each midnight, keeping day-sensitive components fresh. */
+export function useCurrentDate(): Date {
+  const [date, setDate] = useState(() => new Date());
+  const idRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    function schedule() {
+      const now = new Date();
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      idRef.current = setTimeout(() => {
+        setDate(new Date());
+      }, tomorrow.getTime() - now.getTime() + 100);
+    }
+    schedule();
+    return () => { if (idRef.current !== null) clearTimeout(idRef.current); };
+  }, [date]);
+  return date;
+}
 
 // ── Buttons / inputs ────────────────────────────────────────────────────────
 export function btn(bg: string, color?: string, border?: string): React.CSSProperties {

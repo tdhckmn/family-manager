@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   FinancePlan, IncomeSource, FixedExpense, SinkingFund, BankAccount, PaycheckSplit, SplitType,
@@ -32,11 +32,11 @@ function FinanceEditOverlay({ title, onClose, children }: {
 
   return createPortal(
     <div style={{
-      position: "fixed", inset: 0, background: "var(--bg, #06091a)", zIndex: 50, overflowY: "auto",
+      position: "fixed", inset: 0, background: "var(--bg, #06091a)", zIndex: 1100, overflowY: "auto",
       fontFamily: "'Montserrat',sans-serif", color: TEXT,
     }}>
       <div style={{
-        position: "sticky", top: 0, zIndex: 10,
+        position: "sticky", top: 0, zIndex: 1110,
         background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)",
         borderBottom: `1px solid ${BORDER}`,
         display: "flex", alignItems: "center", padding: "0 16px",
@@ -529,8 +529,8 @@ function ExpenseForm({ draft, set, accountOptions, onSave, onCancel, onDelete }:
 
 type ExpenseSortKey = "date" | "name" | "amount";
 
-export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, needsTarget }: {
-  plan: FinancePlan; save: (p: FinancePlan) => void; accountOptions: string[]; totalIncome: number; needsTarget?: number;
+export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, needsTarget, initialExpenseId }: {
+  plan: FinancePlan; save: (p: FinancePlan) => void; accountOptions: string[]; totalIncome: number; needsTarget?: number; initialExpenseId?: string | null;
 }) {
   const [overlayId, setOverlayId] = useState<string | null>(null);
   const [overlayAdding, setOverlayAdding] = useState(false);
@@ -539,6 +539,17 @@ export function FixedExpensesSection({ plan, save, accountOptions, totalIncome, 
   const defaultAcct = accountOptions[0] ?? "Other";
   const blank: ExpenseDraft = { id: "", name: "", amount: 0, dayOfMonth: undefined, account: defaultAcct, frequency: "monthly" };
   const [draft, setDraft] = useState<ExpenseDraft>(blank);
+  const didOpenInitial = useRef(false);
+
+  useEffect(() => {
+    if (!initialExpenseId || didOpenInitial.current) return;
+    const match = plan.fixedExpenses.find(e => e.id === initialExpenseId);
+    if (!match) return;
+    didOpenInitial.current = true;
+    setDraft({ ...match, amount: match.amount, dayOfMonth: match.dayOfMonth, frequency: match.frequency ?? "monthly" });
+    setOverlayId(match.id);
+    setOverlayAdding(false);
+  }, [initialExpenseId, plan.fixedExpenses]);
 
   function toggleSort(key: ExpenseSortKey) {
     if (key === sortKey) setSortDir(d => (d === 1 ? -1 : 1));

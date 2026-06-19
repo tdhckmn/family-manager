@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   collection, onSnapshot, doc, setDoc, deleteDoc, query, orderBy,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useHouseholdUid } from "../../household";
 import { useOverlay } from "../../overlay";
-import { Icon } from "../../components/Icon";
+import { Icon, type IconName } from "../../components/Icon";
 import { usePeople, personColor } from "../../usePeople";
 import {
   PageShell, Panel, Field, Pill, EmptyHint, useIsMobile,
@@ -47,11 +48,12 @@ export default function Chores() {
   const uidAuth = useHouseholdUid();
   const isMobile = useIsMobile();
   const people = usePeople();
+  const [searchParams] = useSearchParams();
   const [chores, setChores] = useState<Chore[]>([]);
   const [log, setLog] = useState<WeekLog>({ done: {} });
   const [editorId, setEditorId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Omit<Chore, "id">>(EMPTY);
-  const [choreDetailId, setChoreDetailId] = useState<string | null>(null);
+  const [choreDetailId, setChoreDetailId] = useState<string | null>(() => searchParams.get("id"));
 
   // Sunday of the currently-viewed week.
   const [weekStart, setWeekStart] = useState(() => {
@@ -335,6 +337,7 @@ function ChoreDetail({ chore, log, weekStart, todayIdx, assignees, people, onClo
 }) {
   useOverlay();
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [draft, setDraft] = useState<Omit<Chore, "id">>(() => choreToDraft(chore));
   const sortedDays = [...chore.daysOfWeek].sort((a, b) => a - b);
   const doneCount = sortedDays.filter(d => log[`${chore.id}:${d}`]).length;
@@ -347,7 +350,7 @@ function ChoreDetail({ chore, log, weekStart, todayIdx, assignees, people, onClo
     setEditing(false);
   }
 
-  const iconBtn = (onClick: () => void, icon: "x" | "pencil", hover: string) => (
+  const iconBtn = (onClick: () => void, icon: IconName, hover: string) => (
     <button onClick={onClick}
       style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, cursor: "pointer", color: TEXT_DIM, padding: "6px 10px", display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0 }}
       onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = hover; (e.currentTarget as HTMLButtonElement).style.borderColor = hover + "60"; }}
@@ -357,16 +360,26 @@ function ChoreDetail({ chore, log, weekStart, todayIdx, assignees, people, onClo
   );
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: BG, zIndex: 50, overflowY: "auto", fontFamily: FONT, color: TEXT }}>
+    <div style={{ position: "fixed", inset: 0, background: BG, zIndex: 1100, overflowY: "auto", fontFamily: FONT, color: TEXT }}>
       {/* Header */}
-      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 20px", minHeight: 60, gap: 12, boxSizing: "border-box" }}>
-        {iconBtn(editing ? () => setEditing(false) : onClose, "x", TEXT)}
-        <div style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: 16, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {editing ? "Edit chore" : "Chore"}
+      <div style={{ position: "sticky", top: 0, zIndex: 1110, background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 20px", minHeight: 60, gap: 12, boxSizing: "border-box" }}>
+        {iconBtn(editing ? () => { setEditing(false); setConfirmDelete(false); } : onClose, "x", TEXT)}
+        <div style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: 16, color: confirmDelete ? DANGER : TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {editing ? "Edit chore" : confirmDelete ? "Delete chore?" : "Chore"}
         </div>
-        {editing
-          ? <button onClick={save} disabled={!draft.name.trim() || draft.daysOfWeek.length === 0} style={{ ...btn(PINK), opacity: (!draft.name.trim() || draft.daysOfWeek.length === 0) ? 0.5 : 1 }}>Save</button>
-          : iconBtn(startEdit, "pencil", PINK)}
+        {editing ? (
+          <button onClick={save} disabled={!draft.name.trim() || draft.daysOfWeek.length === 0} style={{ ...btn(PINK), opacity: (!draft.name.trim() || draft.daysOfWeek.length === 0) ? 0.5 : 1 }}>Save</button>
+        ) : confirmDelete ? (
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={onDelete} style={{ ...btn(DANGER), fontSize: 12, padding: "6px 14px" }}>Delete</button>
+            <button onClick={() => setConfirmDelete(false)} style={{ ...btn("transparent", TEXT_DIM, BORDER), fontSize: 12, padding: "6px 14px" }}>Cancel</button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            {iconBtn(() => setConfirmDelete(true), "trash", DANGER)}
+            {iconBtn(startEdit, "pencil", PINK)}
+          </div>
+        )}
       </div>
 
       {editing ? (

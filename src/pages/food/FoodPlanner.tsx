@@ -218,6 +218,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
   const [addEntryLabel, setAddEntryLabel] = useState("");
   const [addEntryMealId, setAddEntryMealId] = useState("");
   const [addEntrySearch, setAddEntrySearch] = useState("");
+  const [addQuickName, setAddQuickName] = useState("");
   const [editEntry, setEditEntry] = useState<PlanEntry | null>(null);
   const [editEntryDay, setEditEntryDay] = useState("");
   const [editEntryLabel, setEditEntryLabel] = useState("");
@@ -288,19 +289,27 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
       planEntries: data.planEntries.filter(e => e.mealId !== id),
     });
   }
-  function openAddEntry() {
-    setAddEntryMealId(""); setAddEntryDay(""); setAddEntryLabel(""); setAddEntrySearch(""); setShowAddEntry(true);
+  function openAddEntry(day = "") {
+    setAddEntryMealId(""); setAddEntryDay(day); setAddEntryLabel(""); setAddEntrySearch(""); setAddQuickName(""); setShowAddEntry(true);
   }
-  function addPlanEntry() {
-    if (!addEntryMealId) return;
+  function commitAddEntry(mealId: string, meals?: Meal[]) {
     const entry: PlanEntry = {
       id: Date.now().toString(),
-      mealId: addEntryMealId,
+      mealId,
       day: addEntryDay || undefined,
       label: addEntryLabel.trim() || undefined,
     };
-    save({ ...data, planEntries: [...data.planEntries, entry] });
+    save({ ...data, meals: meals ?? data.meals, planEntries: [...data.planEntries, entry] });
     setShowAddEntry(false);
+  }
+  function addQuickMealEntry() {
+    const name = addQuickName.trim();
+    if (!name) return;
+    const newMeal: Meal = {
+      id: Date.now().toString(), name, type: "Other", protein: "None/Vegetarian",
+      ingredients: "", servings: 4, prepTime: "", notes: "", rating: 0, ratingNote: "", mealService: false,
+    };
+    commitAddEntry(newMeal.id, [...data.meals, newMeal]);
   }
   function removePlanEntry(id: string) {
     save({ ...data, planEntries: data.planEntries.filter(e => e.id !== id) });
@@ -480,7 +489,7 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                       </button>
                     ))}
                   </div>
-                  <button style={btn(LAV)} onClick={openAddEntry}>+ Add meal</button>
+                  <button style={btn(LAV)} onClick={() => openAddEntry()}>+ Add meal</button>
                   {plannedCount > 0 && (
                     <button style={btn("transparent", DANGER, BORDER)} onClick={() => save({ ...data, planEntries: [] })}>Clear</button>
                   )}
@@ -506,8 +515,13 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
                           onDragLeave={() => setDragOverDay(d => (d === day ? null : d))}
                           onDrop={e => { e.preventDefault(); if (dragId) { updatePlanEntryDay(dragId, day); setDragId(null); setDragOverDay(null); } }}
                           style={{ background: over ? SURFACE_ACCENT : SURFACE, border: `1px solid ${over ? BORDER_ACCENT : BORDER}`, borderRadius: 12, minHeight: isMobile ? "auto" : 160, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                          <div style={{ padding: "8px 10px", borderBottom: `1px solid ${BORDER}`, fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: LAV }}>
-                            {isMobile ? day : day.slice(0, 3)}
+                          <div style={{ padding: "8px 10px", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: LAV }}>{isMobile ? day : day.slice(0, 3)}</span>
+                            <button onClick={() => openAddEntry(day)} style={{ background: "none", border: "none", cursor: "pointer", color: TEXT_MUTED, padding: 2, display: "flex", lineHeight: 1 }}
+                              onMouseEnter={e => (e.currentTarget.style.color = LAV)}
+                              onMouseLeave={e => (e.currentTarget.style.color = TEXT_MUTED)}>
+                              <Icon name="plus" size={13} color="currentColor" />
+                            </button>
                           </div>
                           <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
                             {dayEntries.map(e => planCard(e))}
@@ -793,64 +807,108 @@ const [groceryChecked, setGroceryChecked] = useState<Record<string,boolean>>({})
         </Modal>
       )}
 
-      {/* ── ADD ENTRY MODAL ── */}
+      {/* ── ADD TO WEEK OVERLAY (fullscreen) ── */}
       {showAddEntry && (
-        <Modal onClose={() => setShowAddEntry(false)} title="Add to this week" accentColor={LAV} maxWidth={480}>
-          {/* Day */}
-          <div style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>Day (optional)</label>
-            <select style={selectStyle} value={addEntryDay} onChange={e => setAddEntryDay(e.target.value)}>
-              <option value="">No specific day</option>
-              {DAYS.map(d => <option key={d}>{d}</option>)}
-            </select>
+        <div style={{ position: "fixed", inset: 0, background: BG, zIndex: 1100, overflowY: "auto", fontFamily: "'Montserrat', sans-serif", color: TEXT }}>
+          {/* Sticky header */}
+          <div style={{ position: "sticky", top: 0, zIndex: 1110, background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 20px", minHeight: 60, gap: 12, boxSizing: "border-box" }}>
+            <button onClick={() => setShowAddEntry(false)} style={{ background: "none", border: `1px solid ${BORDER}`, borderRadius: 8, cursor: "pointer", color: TEXT_DIM, padding: "6px 10px", display: "flex", alignItems: "center", lineHeight: 1, flexShrink: 0 }}
+              onMouseEnter={e => (e.currentTarget.style.color = TEXT)}
+              onMouseLeave={e => (e.currentTarget.style.color = TEXT_DIM)}>
+              <Icon name="x" size={16} color="currentColor" />
+            </button>
+            <span style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: 16, color: TEXT }}>Add to Week</span>
+            <div style={{ width: 38, flexShrink: 0 }} />
           </div>
 
-          {/* Label */}
-          <div style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>Label (optional)</label>
-            <input style={inputStyle} placeholder="e.g. Breakfast, Snack, Dessert…" value={addEntryLabel} onChange={e => setAddEntryLabel(e.target.value)}
-              onFocus={e => (e.target.style.borderColor = LAV_DIM)} onBlur={e => (e.target.style.borderColor = BORDER)} />
-            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 7 }}>
-              {LABEL_SUGGESTIONS.map(s => (
-                <button key={s} onClick={() => setAddEntryLabel(s)}
-                  style={{ ...btn(addEntryLabel === s ? SURFACE_ACCENT : "transparent", addEntryLabel === s ? LAV : TEXT_MUTED, addEntryLabel === s ? BORDER_ACCENT : BORDER), fontSize: 11, padding: "4px 10px" }}>
-                  {s}
+          <div style={{ padding: "28px 24px 80px", maxWidth: 600, margin: "0 auto" }}>
+            {/* Day picker */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 10 }}>Day</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <button onClick={() => setAddEntryDay("")}
+                  style={{ ...btn(addEntryDay === "" ? SURFACE_ACCENT : "transparent", addEntryDay === "" ? LAV : TEXT_DIM, addEntryDay === "" ? BORDER_ACCENT : BORDER), fontSize: 12, padding: "6px 14px" }}>
+                  Any day
                 </button>
-              ))}
+                {DAYS.map(d => (
+                  <button key={d} onClick={() => setAddEntryDay(d === addEntryDay ? "" : d)}
+                    style={{ ...btn(addEntryDay === d ? SURFACE_ACCENT : "transparent", addEntryDay === d ? LAV : TEXT_DIM, addEntryDay === d ? BORDER_ACCENT : BORDER), fontSize: 12, padding: "6px 14px" }}>
+                    {d.slice(0, 3)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Label picker */}
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 10 }}>Meal</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {LABEL_SUGGESTIONS.map(s => (
+                  <button key={s} onClick={() => setAddEntryLabel(addEntryLabel === s ? "" : s)}
+                    style={{ ...btn(addEntryLabel === s ? SURFACE_ACCENT : "transparent", addEntryLabel === s ? LAV : TEXT_DIM, addEntryLabel === s ? BORDER_ACCENT : BORDER), fontSize: 12, padding: "6px 14px" }}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick add */}
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 10 }}>Quick add</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  autoFocus
+                  placeholder="Type a meal name…"
+                  value={addQuickName}
+                  onChange={e => setAddQuickName(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") addQuickMealEntry(); if (e.key === "Escape") setShowAddEntry(false); }}
+                  style={{ ...inputStyle, flex: 1 }}
+                  onFocus={e => (e.target.style.borderColor = LAV_DIM)}
+                  onBlur={e => (e.target.style.borderColor = BORDER)}
+                />
+                <button onClick={addQuickMealEntry} disabled={!addQuickName.trim()}
+                  style={{ ...btn(LAV), opacity: addQuickName.trim() ? 1 : 0.4, flexShrink: 0 }}>
+                  Add
+                </button>
+              </div>
+            </div>
+
+            {/* Recipe library */}
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase", color: TEXT_MUTED, marginBottom: 10 }}>From recipes</div>
+              <input
+                placeholder="Search recipes…"
+                value={addEntrySearch}
+                onChange={e => setAddEntrySearch(e.target.value)}
+                style={{ ...inputStyle, marginBottom: 10 }}
+                onFocus={e => (e.target.style.borderColor = LAV_DIM)}
+                onBlur={e => (e.target.style.borderColor = BORDER)}
+              />
+              {data.meals.length === 0 && (
+                <div style={{ fontSize: 13, color: TEXT_MUTED, fontStyle: "italic", textAlign: "center", padding: "24px 0" }}>No recipes yet — use quick add above or create a recipe in the library.</div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {data.meals
+                  .filter(m => !addEntrySearch || m.name.toLowerCase().includes(addEntrySearch.toLowerCase()))
+                  .map(m => (
+                    <div key={m.id} onClick={() => commitAddEntry(m.id)}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, cursor: "pointer", background: SURFACE, border: `1px solid ${BORDER}`, transition: "all 0.12s", borderLeft: `3px solid ${TYPE_COLOR[m.type] || LAV}` }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = SURFACE_HOVER; (e.currentTarget as HTMLDivElement).style.borderColor = BORDER_ACCENT; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = SURFACE; (e.currentTarget as HTMLDivElement).style.borderColor = BORDER; }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+                          <span style={pill(TYPE_COLOR[m.type] || "#9ca3af")}>{m.type}</span>
+                          <span style={pill(PROTEIN_COLOR[m.protein] || "#9ca3af")}>{m.protein}</span>
+                        </div>
+                      </div>
+                      <Icon name="plus" size={14} color={TEXT_MUTED} />
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
-
-          {/* Recipe picker */}
-          <div style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>Choose a recipe</label>
-            <input style={inputStyle} placeholder="Search recipes…" value={addEntrySearch} onChange={e => setAddEntrySearch(e.target.value)}
-              onFocus={e => (e.target.style.borderColor = LAV_DIM)} onBlur={e => (e.target.style.borderColor = BORDER)} />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 260, overflowY: "auto", marginBottom: 14 }}>
-            {data.meals
-              .filter(m => !addEntrySearch || m.name.toLowerCase().includes(addEntrySearch.toLowerCase()))
-              .map(m => {
-                const sel = addEntryMealId === m.id;
-                return (
-                  <div key={m.id} onClick={() => setAddEntryMealId(m.id)}
-                    style={{ padding: "10px 14px", borderRadius: 10, cursor: "pointer", background: sel ? SURFACE_ACCENT : SURFACE, border: `1px solid ${sel ? BORDER_ACCENT : BORDER}`, transition: "all 0.12s" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <Icon name="utensils" size={15} color={TYPE_COLOR[m.type] || TEXT_DIM} />
-                      <span style={{ fontWeight: 700, fontSize: 14, color: sel ? LAV : TEXT }}>{m.name}</span>
-                    </div>
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      <span style={pill(TYPE_COLOR[m.type] || "#9ca3af")}>{m.type}</span>
-                      <span style={pill(PROTEIN_COLOR[m.protein] || "#9ca3af")}>{m.protein}</span>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-          <button style={{ ...btn(LAV), width: "100%", justifyContent: "center", opacity: addEntryMealId ? 1 : 0.5 }}
-            onClick={addPlanEntry} disabled={!addEntryMealId}>
-            Add to plan
-          </button>
-        </Modal>
+        </div>
       )}
 
       {/* ── EDIT ENTRY MODAL ── */}

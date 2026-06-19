@@ -769,43 +769,17 @@ export function quoteOfDay(enabledTraditions?: string[], disabledQuotes?: string
   return src[getDayOfYear() % src.length];
 }
 
-const DAILY_CACHE_KEY = "eq_daily_quote";
-
 /**
- * Returns today's quote, stable throughout the day.
- * Replaces the cached quote only if it's been removed from the library.
+ * Returns today's quote. Fully deterministic from date + prefs, so the same
+ * quote appears on every device for a given user on a given day.
+ * Prefs sync from Firestore, so desktop and mobile resolve identically.
  */
 export function useDailyQuote(): Quote {
   const { prefs } = usePrefs();
-  const d = new Date();
-  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-  const quote = useMemo((): Quote => {
-    try {
-      const raw = localStorage.getItem(DAILY_CACHE_KEY);
-      if (raw) {
-        const cached = JSON.parse(raw) as { date: string; key: string };
-        if (cached.date === today) {
-          const q = WISDOM.find(w => quoteKey(w) === cached.key);
-          if (q && isQuoteInLibrary(q, prefs)) return q;
-        }
-      }
-    } catch {}
-    return quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes, prefs.enabledQuotes);
-  }, [prefs, today]);
-
-  useEffect(() => {
-    const key = quoteKey(quote);
-    try {
-      const raw = localStorage.getItem(DAILY_CACHE_KEY);
-      const cached = raw ? JSON.parse(raw) as { date: string; key: string } : null;
-      if (cached?.date !== today || cached?.key !== key) {
-        localStorage.setItem(DAILY_CACHE_KEY, JSON.stringify({ date: today, key }));
-      }
-    } catch {}
-  }, [quote, today]);
-
-  return quote;
+  return useMemo(
+    () => quoteOfDay(prefs.wisdomTraditions, prefs.disabledQuotes, prefs.enabledQuotes),
+    [prefs],
+  );
 }
 
 // ── AppIcon — dynamic home-page symbol ────────────────────────────────────────

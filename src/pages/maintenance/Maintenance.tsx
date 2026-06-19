@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   collection, onSnapshot, doc, setDoc, deleteDoc, query, orderBy,
 } from "firebase/firestore";
@@ -102,9 +103,10 @@ const taskToDraft = (t: MaintTask): Omit<MaintTask, "id"> => ({
 // ── Page ─────────────────────────────────────────────────────────────────
 export default function Maintenance() {
   const uidAuth = useHouseholdUid();
+  const [searchParams] = useSearchParams();
   const [tasks, setTasks] = useState<MaintTask[]>([]);
   // null = list; "new" = create overlay; otherwise the id of the task being viewed.
-  const [detailId, setDetailId] = useState<string | "new" | null>(null);
+  const [detailId, setDetailId] = useState<string | "new" | null>(() => searchParams.get("id"));
   const [showSug, setShowSug] = useState(() => localStorage.getItem("maint-show-sug") !== "0");
 
   useEffect(() => {
@@ -293,11 +295,11 @@ function MaintDetail({ task, isNew, onClose, onSave, onDelete, onMarkDone }: {
   const meta = STATUS_META[status];
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: BG, zIndex: 50, overflowY: "auto", fontFamily: FONT, color: TEXT }}>
+    <div style={{ position: "fixed", inset: 0, background: BG, zIndex: 1100, overflowY: "auto", fontFamily: FONT, color: TEXT }}>
       <StarField />
       <div style={{ position: "relative", zIndex: 1 }}>
         {/* Header */}
-        <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 20px", minHeight: 60, gap: 12, boxSizing: "border-box" }}>
+        <div style={{ position: "sticky", top: 0, zIndex: 1110, background: "rgba(6,9,26,0.92)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", padding: "0 20px", minHeight: 60, gap: 12, boxSizing: "border-box" }}>
           {iconBtn(editing && !isNew ? () => setEditing(false) : onClose, "x", TEXT)}
           <div style={{ flex: 1, textAlign: "center", fontWeight: 800, fontSize: 16, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {isNew ? "New task" : editing ? "Edit task" : (task?.task ?? "Task")}

@@ -61,7 +61,7 @@ export default function Settings() {
   const household = useHousehold();
   const isOwner = household.role === "owner";
   const active = subIsActive(household.subStatus);
-  const kioskUrl = `${window.location.origin}/app/calendar?kiosk=true`;
+  const kioskUrl = `${window.location.origin}/app/kiosk`;
 
   // ── Household members + invite ────────────────────────────────────────────
   const [hhDoc, setHhDoc] = useState<HouseholdDoc | null>(null);

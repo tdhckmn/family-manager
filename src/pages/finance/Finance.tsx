@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { signOut, onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../firebase";
 import { doc, onSnapshot, setDoc, getDoc, getDocs, deleteDoc, collection } from "firebase/firestore";
@@ -447,6 +447,8 @@ function MonthlyGoalsCard({ plan, save, monthKey, monthLabel }: {
 
 export default function Finance() {
   const uid = useHouseholdUid();
+  const [searchParams] = useSearchParams();
+  const initialExpenseId = searchParams.get("expense");
   const people = usePeople();
   const { prefs } = usePrefs();
   const dailyQuote = useDailyQuote();
@@ -668,7 +670,8 @@ export default function Finance() {
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginTop: 16 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <FixedExpensesSection plan={plan} save={save} accountOptions={accountOptions} totalIncome={totalIncome}
-              needsTarget={activeTargets ? Math.round(activeTargets.needs * 100) : undefined} />
+              needsTarget={activeTargets ? Math.round(activeTargets.needs * 100) : undefined}
+              initialExpenseId={initialExpenseId} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <SavingsSection
