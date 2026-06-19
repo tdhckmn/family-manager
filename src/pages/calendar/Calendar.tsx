@@ -143,7 +143,12 @@ export default function Calendar() {
   }
 
   // ── Today aggregations ──
-  const todayChores = choresForDay(todayIdx);
+  const todayChores = useMemo(() => {
+    const scheduled = chores.filter(c => c.daysOfWeek?.includes(todayIdx));
+    const scheduledIds = new Set(scheduled.map(c => c.id));
+    const extraDone = chores.filter(c => !scheduledIds.has(c.id) && !!log[`${c.id}:${todayIdx}`]);
+    return [...scheduled, ...extraDone];
+  }, [chores, log, todayIdx]);
   const todayMeals = mealsForDay(todayIdx);
   // Notes due: anything due today (checked or unchecked) always shows; overdue
   // shows while still open (or just-checked this session, so it lingers briefly).
@@ -290,7 +295,7 @@ export default function Calendar() {
                 const done = t.completed || justDoneNoteIds.has(t.id);
                 const overdue = daysUntil(t.dueDate!) < 0;
                 return (
-                  <div key={t.id} style={{ display: "flex", alignItems: "center", borderRadius: 10, background: done ? "rgba(93,184,138,0.08)" : SURFACE, border: `1px solid ${done ? JADE + "33" : BORDER}`, transition: "all 0.12s", overflow: "hidden" }}>
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", borderRadius: 10, background: done ? "rgba(var(--accent-rgb),0.08)" : SURFACE, border: `1px solid ${done ? "rgba(var(--accent-rgb),0.22)" : BORDER}`, transition: "all 0.12s", overflow: "hidden" }}>
                     <button onClick={() => toggleNote(t)} style={{ padding: "10px 0 10px 12px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>
                       <CheckBox on={done} color={BLUE} />
                     </button>
@@ -315,14 +320,14 @@ export default function Calendar() {
           {/* Chores */}
           {todayChores.length > 0 && (
             <Section icon="sparkles" accent={PINK} title="Chores"
-              right={<span style={{ fontSize: 12, fontWeight: 700, color: choresDone === todayChores.length ? JADE : TEXT_DIM }}>{choresDone}/{todayChores.length}</span>}
+              right={<span style={{ fontSize: 12, fontWeight: 700, color: choresDone === todayChores.length ? "var(--accent)" : TEXT_DIM }}>{choresDone}/{todayChores.length}</span>}
               to="/app/chores">
               {todayChores.map(c => {
                 const checked = !!log[`${c.id}:${todayIdx}`];
                 return (
-                  <div key={c.id} style={{ display: "flex", alignItems: "center", borderRadius: 10, background: checked ? "rgba(93,184,138,0.08)" : SURFACE, border: `1px solid ${checked ? JADE + "33" : BORDER}`, transition: "all 0.12s", overflow: "hidden" }}>
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", borderRadius: 10, background: checked ? "rgba(var(--accent-rgb),0.08)" : SURFACE, border: `1px solid ${checked ? "rgba(var(--accent-rgb),0.22)" : BORDER}`, transition: "all 0.12s", overflow: "hidden" }}>
                     <button onClick={() => toggleChore(c.id)} style={{ padding: "10px 0 10px 12px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>
-                      <CheckBox on={checked} color={JADE} />
+                      <CheckBox on={checked} color="var(--accent)" />
                     </button>
                     <Link to={`/app/chores?id=${c.id}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 12px 10px 10px", textDecoration: "none" }}>
                       <span style={{ flex: 1, fontSize: 14, fontFamily: FONT, color: checked ? TEXT_MUTED : TEXT, textDecoration: checked ? "line-through" : "none" }}>{c.name}</span>
@@ -357,7 +362,7 @@ export default function Calendar() {
                 const n = due ? daysUntil(due) : 0;
                 const done = justDoneMaintIds.has(t.id) || t.lastDone === todayISO();
                 return (
-                  <div key={t.id} style={{ display: "flex", alignItems: "center", borderRadius: 10, background: done ? "rgba(93,184,138,0.08)" : SURFACE, border: `1px solid ${done ? JADE + "33" : BORDER}`, transition: "all 0.12s", overflow: "hidden" }}>
+                  <div key={t.id} style={{ display: "flex", alignItems: "center", borderRadius: 10, background: done ? "rgba(var(--accent-rgb),0.08)" : SURFACE, border: `1px solid ${done ? "rgba(var(--accent-rgb),0.22)" : BORDER}`, transition: "all 0.12s", overflow: "hidden" }}>
                     <button onClick={() => toggleMaint(t)} style={{ padding: "10px 0 10px 12px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>
                       <CheckBox on={done} color={AMBER} />
                     </button>
@@ -510,8 +515,8 @@ function CheckBox({ on, color }: { on: boolean; color: string }) {
 const rowBtn = (checked: boolean): React.CSSProperties => ({
   display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
   padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: FONT,
-  background: checked ? "rgba(93,184,138,0.08)" : "var(--surface)",
-  border: `1px solid ${checked ? JADE + "33" : BORDER}`, transition: "all 0.12s",
+  background: checked ? "rgba(var(--accent-rgb),0.08)" : "var(--surface)",
+  border: `1px solid ${checked ? "rgba(var(--accent-rgb),0.22)" : BORDER}`, transition: "all 0.12s",
 });
 
 const infoRow: React.CSSProperties = {

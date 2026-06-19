@@ -117,18 +117,9 @@ export default function WisdomLibrary() {
 
   return (
     <PageShell tool="wisdom" maxWidth={800} headerExtra={
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 12, color: TEXT_DIM, fontWeight: 600 }}>
-          {libraryCount} / {WISDOM.length} in library
-        </span>
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 8,
-            color: TEXT_DIM, fontSize: 14, cursor: "pointer", lineHeight: 1,
-            padding: "4px 9px", fontFamily: FONT,
-          }}><UIIcon name="x" size={16} /></button>
-      </div>
+      <span style={{ fontSize: 12, color: TEXT_DIM, fontWeight: 600 }}>
+        {libraryCount} / {WISDOM.length} in library
+      </span>
     }>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 

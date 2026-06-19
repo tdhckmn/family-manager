@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { AFFIRMATION_CATEGORIES, type AffirmationCategory } from "../../affirmations";
 import { BORDER, TEXT, TEXT_DIM, TEXT_MUTED, FONT, useIsMobile } from "../shared/kit";
 import { Icon } from "../../components/Icon";
+import { usePrefs } from "../../prefs";
 
 // ── Category selector card ─────────────────────────────────────────────────────
 
@@ -146,8 +147,17 @@ function PonderOverlay({ text, category, hasPrev, hasNext, accent, onClose, onPr
 // ── Section ────────────────────────────────────────────────────────────────────
 
 export default function AffirmationsSection({ accent }: { accent: string }) {
-  const [categoryId, setCategoryId] = useState(AFFIRMATION_CATEGORIES[0].id);
+  const { prefs, updatePrefs } = usePrefs();
+  const [categoryId, setCategoryId] = useState(
+    prefs.focusAffirmationCategoryId || AFFIRMATION_CATEGORIES[0].id
+  );
   const [ponderIdx, setPonderIdx] = useState<number | null>(null);
+
+  function handleCategorySelect(id: string) {
+    setCategoryId(id);
+    setPonderIdx(null);
+    updatePrefs({ focusAffirmationCategoryId: id });
+  }
 
   const category = AFFIRMATION_CATEGORIES.find(c => c.id === categoryId)!;
   const affirmations = category.affirmations;
@@ -171,7 +181,7 @@ export default function AffirmationsSection({ accent }: { accent: string }) {
               cat={cat}
               selected={cat.id === categoryId}
               accent={accent}
-              onSelect={() => { setCategoryId(cat.id); setPonderIdx(null); }}
+              onSelect={() => handleCategorySelect(cat.id)}
             />
           ))}
         </div>

@@ -8,7 +8,8 @@ export type IconName =
   | "external" | "plus" | "signout" | "book"
   | "utensils" | "star" | "clock" | "pencil" | "x"
   | "wrench" | "sparkles" | "repeat" | "trash" | "target"
-  | "play" | "stop" | "warning" | "checkMark" | "tv"
+  | "play" | "stop" | "warning" | "checkMark" | "tv" | "mic"
+  | "volume" | "volumeX"
   | "sun" | "moon" | "cloud" | "cloudSun" | "cloudRain" | "cloudSnow" | "cloudLightning" | "cloudFog";
 
 export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.8, style }: {
@@ -112,5 +113,11 @@ export function Icon({ name, size = 16, color = "currentColor", strokeWidth = 1.
       return <svg {...p}><polyline points="20 6 9 17 4 12" /></svg>;
     case "tv":
       return <svg {...p}><rect x="2" y="7" width="20" height="15" rx="2" /><polyline points="17 2 12 7 7 2" /></svg>;
+    case "mic":
+      return <svg {...p}><path d="M12 2a4 4 0 0 1 4 4v5a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" /><path d="M19 11a7 7 0 0 1-14 0" /><line x1="12" y1="19" x2="12" y2="22" /><line x1="9" y1="22" x2="15" y2="22" /></svg>;
+    case "volume":
+      return <svg {...p}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></svg>;
+    case "volumeX":
+      return <svg {...p}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></svg>;
   }
 }
