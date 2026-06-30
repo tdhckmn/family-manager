@@ -1,7 +1,12 @@
-node_modules/
-dist/
+**/node_modules/
+apps/web/dist/
 .env
 .env.local
 .env.*.local
 *.log
 .DS_Store
+
+# Android Firebase config — download from Firebase Console, never commit
+apps/mobile/android/app/google-services.json
+# iOS Firebase config
+apps/mobile/ios/GoogleService-Info.plist

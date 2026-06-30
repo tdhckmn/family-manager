@@ -1,0 +1,10 @@
+export const userPath = (uid: string) => `users/${uid}`;
+export const metaPath = (uid: string) => `users/${uid}/meta`;
+export const prefsPath = (uid: string) => `users/${uid}/meta/prefs`;
+export const householdPath = (uid: string) => `users/${uid}/meta/household`;
+export const notesPath = (uid: string) => `users/${uid}/notes`;
+export const choresPath = (uid: string) => `users/${uid}/chores`;
+export const financePath = (uid: string) => `users/${uid}/finance`;
+export const foodPath = (uid: string) => `users/${uid}/food`;
+export const maintenancePath = (uid: string) => `users/${uid}/maintenance`;
+export const weekLogsPath = (uid: string) => `users/${uid}/weekLogs`;

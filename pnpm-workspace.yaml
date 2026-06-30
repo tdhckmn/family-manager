@@ -1,0 +1,11 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+overrides:
+  '@types/react': '18.3.31'
+
+allowBuilds:
+  '@firebase/util': true
+  esbuild: true
+  protobufjs: true
