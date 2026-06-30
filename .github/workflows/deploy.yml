@@ -1,0 +1,192 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ─── Web ────────────────────────────────────────────────────────────────────
+  deploy-web:
+    name: Web → Firebase Hosting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter web build
+
+      - run: npx firebase-tools deploy --only hosting --token "$FIREBASE_TOKEN" --non-interactive
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+  # ─── Android ────────────────────────────────────────────────────────────────
+  build-android:
+    name: Android → Firebase App Distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('apps/mobile/android/**/*.gradle*', 'apps/mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Write google-services.json
+        run: echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > apps/mobile/android/app/google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+
+      - name: Write release keystore
+        run: |
+          echo "$RELEASE_KEYSTORE_B64" | base64 -d > /tmp/release.keystore
+        env:
+          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+
+      - name: Build release APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          KEYSTORE_PATH: /tmp/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Distribute to Firebase App Distribution
+        run: |
+          npx firebase-tools appdistribution:distribute \
+            apps/mobile/android/app/build/outputs/apk/release/app-release.apk \
+            --app "$FIREBASE_ANDROID_APP_ID" \
+            --groups "internal" \
+            --token "$FIREBASE_TOKEN" \
+            --non-interactive
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+
+  # ─── iOS ────────────────────────────────────────────────────────────────────
+  # Requires: Apple Developer Program enrollment + secrets listed below.
+  # Enable by setting the Actions variable IOS_SIGNING_ENABLED = true in
+  # GitHub → Settings → Actions → Variables.
+  build-ios:
+    name: iOS → Firebase App Distribution
+    runs-on: macos-latest
+    if: vars.IOS_SIGNING_ENABLED == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: apps/mobile/ios/Pods
+          key: pods-${{ hashFiles('apps/mobile/ios/Podfile.lock') }}
+          restore-keys: pods-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install CocoaPods
+        working-directory: apps/mobile/ios
+        run: pod install --repo-update
+
+      - name: Write GoogleService-Info.plist
+        run: echo "$GOOGLE_SERVICE_INFO_PLIST_B64" | base64 -d > apps/mobile/ios/Equanimity/GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_B64 }}
+
+      - name: Import signing certificate
+        run: |
+          echo "$APPLE_CERTIFICATE_B64" | base64 -d > /tmp/cert.p12
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+        env:
+          APPLE_CERTIFICATE_B64: ${{ secrets.APPLE_CERTIFICATE_B64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Install provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$APPLE_PROVISIONING_PROFILE_B64" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/equanimity-adhoc.mobileprovision
+        env:
+          APPLE_PROVISIONING_PROFILE_B64: ${{ secrets.APPLE_PROVISIONING_PROFILE_B64 }}
+
+      - name: Archive
+        working-directory: apps/mobile/ios
+        run: |
+          xcodebuild archive \
+            -workspace Equanimity.xcworkspace \
+            -scheme Equanimity \
+            -configuration Release \
+            -archivePath /tmp/Equanimity.xcarchive \
+            -allowProvisioningUpdates \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
+            -quiet
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Export IPA
+        run: |
+          # Substitute team ID into ExportOptions.plist
+          sed "s/\$(APPLE_TEAM_ID)/$APPLE_TEAM_ID/" \
+            apps/mobile/ios/ExportOptions.plist > /tmp/ExportOptions.plist
+          xcodebuild -exportArchive \
+            -archivePath /tmp/Equanimity.xcarchive \
+            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -exportPath /tmp/ipa \
+            -allowProvisioningUpdates \
+            -quiet
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Distribute to Firebase App Distribution
+        run: |
+          npx firebase-tools appdistribution:distribute \
+            /tmp/ipa/Equanimity.ipa \
+            --app "$FIREBASE_IOS_APP_ID" \
+            --groups "internal" \
+            --token "$FIREBASE_TOKEN" \
+            --non-interactive
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_IOS_APP_ID: ${{ secrets.FIREBASE_IOS_APP_ID }}
